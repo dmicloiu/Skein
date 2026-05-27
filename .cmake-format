@@ -1,0 +1,6 @@
+# Example .cmake-format file
+line_width: 80
+indent_width: 4
+tab_size: 2
+enable_sort: True
+always_left_align: True
