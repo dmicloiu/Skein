@@ -1,214 +1,93 @@
-<a id="readme-top"></a>
+# flock
 
-<br />
 
-<div align="center">
-  <a href="https://dais-polymtl.github.io/flock/">
-    <img src="docs/static/flock-square-readme.png" alt="Logo" height="300">
-  </a>
-  <br /><br />
-  <p align="center">
-    DBMS extension for multimodal query processing and optimization.
-    <br />
-    <a href="https://dais-polymtl.github.io/flock/docs/what-is-flock"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://dais-polymtl.github.io/flock/">Landing Page</a>
-    |
-    <a href="https://github.com/dais-polymtl/flock/issues/new?labels=bug&template=bug-report.md">Report Bug</a>
-    |
-    <a href="https://github.com/dais-polymtl/flock/issues/new?labels=enhancement&template=feature-request.md">Request Feature</a>
-  </p>
-</div>
 
-<details>
-  <summary>
-    <h2>Table of Contents</h2>
-  </summary>
-  <ol>
-    <li><a href="#-about-the-project">About The Project</a></li>
-    <li><a href="#-features">Features</a></li>
-    <li>
-      <a href="#-getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#-prerequisites">Prerequisites</a></li>
-        <li><a href="#⚙-installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#-usage">Usage</a></li>
-    <li><a href="#-roadmap">Roadmap</a></li>
-    <li><a href="#-feedback-and-issues">Feedback and Issues</a></li>
-    <li><a href="#-license">License</a></li>
-    <li><a href="#-acknowledgments">Acknowledgments</a></li>
-  </ol>
-</details>
+## Getting started
 
-## 📜 About The Project
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-Flock is an advanced **DuckDB** extension that seamlessly integrates analytics with semantic analysis through declarative SQL queries. Designed for modern data analysis needs, Flock empowers users to work with structured and unstructured data, combining OLAP workflows with the capabilities of **LLMs** (Large Language Models) and **RAG** (Retrieval-Augmented Generation) pipelines.
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-To cite the project:
+## Add your files
+
+- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
+- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
 ```
-@article{10.14778/3750601.3750685,
-  author  = {Dorbani, Anas and Yasser, Sunny and Lin, Jimmy and Mhedhbi, Amine},
-  title   = {Beyond Quacking: Deep Integration of Language Models and RAG into DuckDB},
-  journal = {Proc. VLDB Endow.},
-  year    = {2025},
-  volume  = {18},
-  number  = {12},
-  doi     = {10.14778/3750601.3750685},
-  url     = {https://doi.org/10.14778/3750601.3750685}
-}
+cd existing_repo
+git remote add origin https://gitlab.ethz.ch/dmicloiu/master_thesis.git
+git branch -M main
+git push -uf origin main
 ```
 
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
+## Integrate with your tools
 
-## 🔥 Features
+- [ ] [Set up project integrations](https://gitlab.ethz.ch/dmicloiu/master_thesis/-/settings/integrations)
 
-- **Declarative SQL Interface**: Perform text generation, classification, summarization, filtering, and embedding generation using SQL queries.
-- **Multi-Provider Support**: Easily integrate with **OpenAI**, **Azure**, **Ollama**, and **Anthropic/Claude** for your AI needs.
-- **End-to-End RAG Pipelines**: Enable retrieval and augmentation workflows for enhanced analytics.
-- **Map and Reduce Functions**: Intuitive APIs for combining semantic tasks and data analytics directly in DuckDB.
-- **Multimodal Analytics**: First-class support for text, images, and audio (via transcription) directly in SQL.
-- **LLM Observability**: Built-in metrics tracking for tokens, latency, and call counts across Flock LLM functions.
-- **Browser & WASM Support**: Run Flock-powered DuckDB workloads in the browser via DuckDB-WASM.
+## Collaborate with your team
 
-## ✨ Key Highlights (v0.4.0 and later)
+- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
+- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
+- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
+- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
+- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
 
-- **Anthropic/Claude Provider**: Use Claude models as a **fourth provider**, alongside OpenAI, Azure, and Ollama, with full support for structured output and image analysis.
-- **WASM Support**: Compile Flock as a DuckDB-WASM loadable extension to run in the browser, enabling client-side analytics and demos without server infrastructure.
-- **LLM Metrics Tracking**: Track token usage, API latency, and execution time through dedicated functions like `flock_get_metrics()` for better cost and performance monitoring.
-- **Audio Transcription**: Send audio inputs to OpenAI or Azure and obtain text transcripts using the same `context_columns` abstraction (with `type: 'audio'`).
-- **DuckDB v1.5.0**: Upgraded to DuckDB **1.5.0**, inheriting the latest performance and stability improvements.
-- **Architecture Improvements**: Centralized bind data and RAII-based storage guards reduce duplication and improve robustness across scalar and aggregate functions.
-- **Developer Experience**: Interactive build scripts, improved extension CI tooling, and GitHub Copilot agent instructions streamline local development and contributions.
+## Test and Deploy
 
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
+Use the built-in continuous integration in GitLab.
 
-## 🚀 Getting Started
+- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
+- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
+- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
+- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
+- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
 
-### 📝 Prerequisites
+***
 
-1. **DuckDB**: Version **1.5.0 or later**. Install it from the official [DuckDB installation guide](https://duckdb.org/docs/installation/).
-2. **Supported Providers**: Ensure you have credentials or API keys for at least one of the supported providers:
-   - OpenAI
-   - Azure
-   - Ollama
-   - Anthropic/Claude
-3. **Supported OS**:
-   - Linux
-   - macOS
-   - Windows
+# Editing this README
 
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
 
-### ⚙️ Installation
+## Suggestions for a good README
 
-Flock can be installed in two ways:
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
 
-#### Option 1: Install from Community Extension (Recommended)
+## Name
+Choose a self-explaining name for your project.
 
-Flock is a **Community Extension** available directly from DuckDB's community catalog.
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-1. Install the extension:
-   ```sql
-   INSTALL flock FROM community;
-   ```
-2. Load the extension:
-   ```sql
-   LOAD flock;
-   ```
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
 
-#### Option 2: Build from Source
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
 
-If you want to build Flock from source or contribute to the project, you can use our automated build script:
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-1. Clone the repository with submodules:
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-   ```bash
-   git clone --recursive https://github.com/dais-polymtl/flock.git
-   cd flock
-   ```
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-   Or if you've already cloned without submodules:
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-   ```bash
-   git submodule update --init --recursive
-   ```
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
 
-2. Run the build and run script:
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-   ```bash
-   ./scripts/build_and_run.sh
-   ```
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
 
-   This interactive script will guide you through:
-   - Checking prerequisites (CMake, build tools, compilers)
-   - Setting up vcpkg (dependency manager)
-   - Building the project (Debug or Release mode)
-   - Running DuckDB with the Flock extension
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
 
-   The script will automatically detect your system configuration and use the appropriate build tools (Ninja or Make).
+## License
+For open source projects, say how it is licensed.
 
-3. The script will launch DuckDB with Flock extension ready to use. Make sure to check the [documentation](https://dais-polymtl.github.io/flock/docs/what-is-flock) for usage examples.
-
-**Requirements for building from source:**
-
-- CMake (3.5 or later)
-- C++ compiler (GCC, Clang, or MSVC)
-- Build system (Ninja or Make)
-- Git
-- Python 3 (optional, for integration tests)
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
-
-## 💻 Usage
-
-### 🔧 Example Query
-
-Using Flock, you can run semantic analysis tasks directly in DuckDB. For example:
-
-```sql
-SELECT llm_complete(
-            { 'model_name': 'summarizer'},
-            { 'prompt_name': 'description-generation', 'context_columns': [{ 'data': product_name }]}
-       ) AS product_description
-  FROM UNNEST(['Wireless Headphones', 'Gaming Laptop', 'Smart Watch']) AS t(product_name);
-```
-
-Explore more usage examples in the [documentation](https://dais-polymtl.github.io/flock/docs/what-is-flock).
-
-If you are a contributor or want to work on Flock itself, see the dedicated
-[Developer Guide](https://dais-polymtl.github.io/flock/docs/developer-guide) for build, testing, and contribution details.
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
-
-## 🛣️ Roadmap
-
-Our roadmap outlines upcoming features and improvements. Stay updated by checking out our [detailed plan](https://github.com/dais-polymtl/flock/issues/39).
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
-
-## 🛠️ Feedback and Issues
-
-We value your feedback! If you’d like to report an issue or suggest a new feature, please use the links below:
-
-- <a href="https://github.com/dais-polymtl/flock/issues/new?labels=bug&template=bug-report.md">Report a Bug</a>
-- <a href="https://github.com/dais-polymtl/flock/issues/new?labels=enhancement&template=feature-request.md">Request a Feature</a>
-
-For contributing code or other contributions, please refer to our dedicated [Contribution Guidelines](#).
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
-
-## 📝 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
-
-## ✨ Team
-
-This project is under active development by the [**Data & AI Systems Laboratory (DAIS Lab)**](https://github.com/dais-polymtl) at **Polytechnique Montréal**.
-
-<p align="right"><a href="#readme-top">🔝 back to top</a></p>
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
