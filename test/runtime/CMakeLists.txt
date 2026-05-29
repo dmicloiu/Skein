@@ -34,19 +34,19 @@ endif()
 
 add_test(NAME flock_runtime_tests COMMAND flock_runtime_tests)
 
-# -- Standalone benchmark binary ---------------------------------------------
+# -- vLLM integration test binary --------------------------------------------
 #
-# Drives AsyncLLMClient against a real vLLM endpoint (no DuckDB, no mock). Used
-# to validate that the network layer can reach the throughput ceiling observed
-# in the E1/E5 study (~800 rows/s on GH200, ~100 rows/s on RTX 3090) before the
-# operator stack is built on top.
-add_executable(flock_async_bench
+# Drives AsyncLLMClient against a real vLLM endpoint (no DuckDB, no mock).
+# Validates the network layer's behaviour on the same workload that sembench's
+# vLLM performance analysis uses, so we can compare throughput head-to-head
+# before the operator stack is built on top.
+add_executable(flock_async_vllm_integration
     ${PROJECT_SOURCE_DIR}/src/runtime/async_llm_client.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/async_llm_client_bench.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/async_llm_client_vllm_integration.cpp)
 
-target_include_directories(flock_async_bench PRIVATE
+target_include_directories(flock_async_vllm_integration PRIVATE
     ${PROJECT_SOURCE_DIR}/src/include)
 
-target_link_libraries(flock_async_bench PRIVATE
+target_link_libraries(flock_async_vllm_integration PRIVATE
     CURL::libcurl
     Threads::Threads)

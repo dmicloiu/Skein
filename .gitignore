@@ -18,3 +18,7 @@ notebooks/data
 notebooks/*.ipynb
 /research_papers/
 .cache/
+
+# Generated artefacts from analysis/ tooling (figures, run logs, summaries).
+analysis/figures/
+analysis/runs/

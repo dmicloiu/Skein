@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Dump N E1-shape vLLM completions payloads to a JSONL file.
+"""Dump N vLLM completions payloads to a JSONL file, matching the workload
+shape sembench's vLLM performance analysis (E1 cell) sends.
 
 Reuses sembench's own builders (build_prompt + make_body) so the wire-level
 bytes are bit-identical to what scripts/vllm_perf_driver.py would send for
 the N=128, R=32 cell. Each payload gets a different `unique_prefix_words`
 prefix, so vLLM's prefix cache stays cold (prefix_cache_hit_rate ~ 0).
 
-The output JSONL is consumed by flock_async_bench --payload-file. The bench
-round-robins through the payloads.
+The output JSONL is consumed by flock_async_vllm_integration --payload-file,
+which round-robins through the payloads.
 
 Usage:
-  python generate_e1_payloads.py --count 1000 --rows-per-request 32 \\
-      --output-tokens 64 --out /tmp/e1_payloads.jsonl
+  python generate_vllm_payloads.py --count 1000 --rows-per-request 32 \\
+      --output-tokens 64 --out /tmp/vllm_payloads.jsonl
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 # Import the driver as a module so we use its exact builders.
+# [POTENTIAL TODO] Do not rely on sys.path hack.
 SEMBENCH_ROOT = Path("/local/home/dmicloiu/sembench")
 sys.path.insert(0, str(SEMBENCH_ROOT / "scripts"))
 import vllm_perf_driver as driver  # noqa: E402

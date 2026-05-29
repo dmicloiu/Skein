@@ -35,8 +35,8 @@ public:
     struct Options {
         // CURLOPT_TIMEOUT_MS per request. Default 60s, intended to catch a
         // stuck vLLM. Workloads with long prompts + long outputs (e.g. the
-        // E1 standalone study at 1357-prompt-token / 64-output-token) can
-        // exceed this and need to bump it.
+        // sembench vLLM performance analysis cell at ~1357-prompt-token /
+        // 64-output-token) can exceed this and need to bump it.
         int request_timeout_ms = 60000;
     };
 
