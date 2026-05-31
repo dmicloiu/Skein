@@ -28,16 +28,12 @@ import sys
 from pathlib import Path
 
 
-# Okabe-Ito palette — colorblind-friendly with strong saturation and contrast.
-# Standard choice for two-series comparison figures.
 COLOR_REFERENCE = "blue"   # red — vLLM performance reference
 COLOR_CLIENT    = "green"  # green — AsyncLLMClient results
 
 
 def _setup_style():
-    """Apply the sembench/vllm_perf_plot rcParam style: bold left-aligned
-    titles, frameless legend, top/right spines off, subtle grid.
-    """
+    """Apply consistent styling to all plots."""
     import matplotlib.pyplot as plt
     plt.rcParams.update({
         "figure.dpi": 110,
