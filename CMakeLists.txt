@@ -61,4 +61,5 @@ if(NOT EMSCRIPTEN)
     # Add the test directory if not on WASM
     enable_testing()
     add_subdirectory(test/unit)
+    add_subdirectory(test/runtime)
 endif()
