@@ -19,6 +19,10 @@ notebooks/*.ipynb
 /research_papers/
 .cache/
 
-# Generated artefacts from analysis/ tooling (figures, run logs, summaries).
-analysis/figures/
-analysis/runs/
+# Bulky per-run experiment artefacts (payloads, requests.jsonl, server logs).
+# The latest figure + the small data needed to redraw it are committed under
+# analysis/figures/ instead.
+analysis/results/
+
+# SLURM job stdout/stderr.
+logs/
