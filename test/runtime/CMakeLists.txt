@@ -88,3 +88,16 @@ target_include_directories(flock_async_vllm_integration PRIVATE
 target_link_libraries(flock_async_vllm_integration PRIVATE
     CURL::libcurl
     Threads::Threads)
+
+# -- EndpointRouter vLLM integration binary ----------------------------------
+add_executable(flock_endpoint_router_vllm_integration
+    ${PROJECT_SOURCE_DIR}/src/runtime/async_llm_client.cpp
+    ${PROJECT_SOURCE_DIR}/src/runtime/endpoint_router.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/endpoint_router_vllm_integration.cpp)
+
+target_include_directories(flock_endpoint_router_vllm_integration PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include)
+
+target_link_libraries(flock_endpoint_router_vllm_integration PRIVATE
+    CURL::libcurl
+    Threads::Threads)
