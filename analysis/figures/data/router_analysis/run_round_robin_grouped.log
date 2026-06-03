@@ -1,0 +1,15 @@
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2464681/payloads_grouped.jsonl
+loaded 2048 prefix keys from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2464681/keys_grouped.txt
+strategy=round_robin endpoints=4 inflight=256 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=2048
+  [warmup] done: 256 req in 2.86s = 89.43 req/s
+  [main] submitted=476 completed=220 inflight=256 rate=109.8 req/s
+  [main] submitted=689 completed=433 inflight=256 rate=106.0 req/s
+  [main] submitted=819 completed=566 inflight=253 rate=65.9 req/s
+  [main] submitted=1071 completed=815 inflight=256 rate=124.5 req/s
+  [main] submitted=1232 completed=976 inflight=256 rate=78.8 req/s
+  [main] submitted=1455 completed=1200 inflight=255 rate=111.2 req/s
+  [main] submitted=1659 completed=1404 inflight=255 rate=101.2 req/s
+  [main] submitted=1842 completed=1586 inflight=256 rate=90.1 req/s
+  [main] done: 2048 req in 18.90s = 108.39 req/s
+MAIN strategy=round_robin total=2048 ok=2048 err=0 elapsed_s=18.895 throughput_rows_per_s=3468.3982
+per_endpoint_count: ep0=512 ep1=512 ep2=512 ep3=512
