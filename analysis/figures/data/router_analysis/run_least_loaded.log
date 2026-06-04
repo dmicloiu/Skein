@@ -1,15 +1,16 @@
-loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2464681/payloads_skewed.jsonl
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2466451/payloads_uniform.jsonl
 strategy=least_loaded endpoints=4 inflight=256 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=0
-  [warmup] done: 256 req in 3.62s = 70.77 req/s
-  [main] submitted=420 completed=165 inflight=255 rate=80.9 req/s
-  [main] submitted=607 completed=351 inflight=256 rate=92.4 req/s
-  [main] submitted=770 completed=514 inflight=256 rate=79.6 req/s
-  [main] submitted=982 completed=726 inflight=256 rate=105.7 req/s
-  [main] submitted=1179 completed=923 inflight=256 rate=96.6 req/s
-  [main] submitted=1335 completed=1079 inflight=256 rate=77.7 req/s
-  [main] submitted=1533 completed=1277 inflight=256 rate=97.7 req/s
-  [main] submitted=1733 completed=1477 inflight=256 rate=98.1 req/s
-  [main] submitted=1915 completed=1660 inflight=255 rate=90.6 req/s
-  [main] done: 2048 req in 20.54s = 99.71 req/s
-MAIN strategy=least_loaded total=2048 ok=2048 err=0 elapsed_s=20.539 throughput_rows_per_s=3190.7573
-per_endpoint_count: ep0=510 ep1=512 ep2=515 ep3=511
+  [warmup] done: 256 req in 6.32s = 40.52 req/s
+  [main] submitted=422 completed=168 inflight=254 rate=83.9 req/s
+  [main] submitted=584 completed=330 inflight=254 rate=78.9 req/s
+  [main] submitted=724 completed=470 inflight=254 rate=68.6 req/s
+  [main] submitted=931 completed=676 inflight=255 rate=98.6 req/s
+  [main] submitted=1110 completed=855 inflight=255 rate=89.4 req/s
+  [main] submitted=1258 completed=1002 inflight=256 rate=70.9 req/s
+  [main] submitted=1394 completed=1138 inflight=256 rate=66.1 req/s
+  [main] submitted=1609 completed=1353 inflight=256 rate=98.1 req/s
+  [main] submitted=1783 completed=1530 inflight=253 rate=88.4 req/s
+  [main] submitted=1938 completed=1682 inflight=256 rate=74.0 req/s
+  [main] done: 2048 req in 26.98s = 75.91 req/s
+MAIN strategy=least_loaded total=2048 ok=2048 err=0 elapsed_s=26.980 throughput_rows_per_s=2429.0374
+per_endpoint_count: ep0=323 ep1=573 ep2=576 ep3=576
