@@ -79,12 +79,17 @@ srun -ul --environment="$EDF" bash -c '
                                 # prefixes rather than active-request KV
 
     # sticky pressure knobs: round_robin must keep ALL prefixes resident per
-    # endpoint while sticky keeps only ~1/NGPU of them. Make prefixes many+long
-    # and the cache small so the full set does not fit. TUNE if #3/#4 come out tied.
+    # endpoint while sticky keeps only ~1/NGPU of them, so the KV cache has to be
+    # too small for the full set but big enough for sticky'\''s slice.
+    #   - at gpu-mem-util 0.40 the 97 GB GH200 still cached all 128 prefixes and
+    #     sticky/round_robin TIED at 43%; the cache must be forced small directly.
+    #   - num-gpu-blocks-override sets the KV block count deterministically.
+    #     ~700 tok/prefix -> ~44 blocks/prefix; with inflight 64 (~960 active
+    #     blocks) 3000 blocks fits sticky (~2400) but not round_robin (~6600).
     PREFIX_GROUPS=128
     SHARED_PREFIX_WORDS=512
-    CACHE_UTIL=0.40             # constrained gpu-memory-utilization
-    FULL_UTIL=0.90              # normal gpu-memory-utilization
+    KV_BLOCKS_OVERRIDE=3000     # tiny KV cache -> round_robin thrashes
+    FULL_UTIL=0.90             # normal gpu-memory-utilization
 
     SLOW_MAX_SEQS=8             # ep0 throttle for the heterogeneous fleet
 
@@ -174,13 +179,14 @@ srun -ul --environment="$EDF" bash -c '
     run round_robin "$UNIFORM" "" "$INFLIGHT_FULL" round_robin
     stop_fleet
 
-    # ---- 3. sticky: prefixes pinned, cache warm (constrained cache) --------
-    start_fleet "$CACHE_UTIL" "" ""
+    # ---- 3. sticky: prefixes pinned, cache warm (tiny KV cache) ------------
+    KV_OVERRIDE="--num-gpu-blocks-override $KV_BLOCKS_OVERRIDE"
+    start_fleet "$FULL_UTIL" "$KV_OVERRIDE" "$KV_OVERRIDE"
     run sticky_by_prefix "$GROUPED" "$GKEYS" "$INFLIGHT_CACHE" sticky
     stop_fleet
 
-    # ---- 4. round_robin baseline for sticky (same constrained config) ------
-    start_fleet "$CACHE_UTIL" "" ""
+    # ---- 4. round_robin baseline for sticky (same tiny-cache config) -------
+    start_fleet "$FULL_UTIL" "$KV_OVERRIDE" "$KV_OVERRIDE"
     run round_robin "$GROUPED" "$GKEYS" "$INFLIGHT_CACHE" round_robin_grouped
     stop_fleet
 
