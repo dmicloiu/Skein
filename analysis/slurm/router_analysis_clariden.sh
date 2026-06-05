@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=infra02
 #SBATCH --job-name=flock-endpoint-router
-#SBATCH --time=02:00:00
+#SBATCH --time=00:30:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
@@ -94,7 +94,7 @@ srun -ul --environment="$EDF" bash -c '
     #     2500 if both reach 43% (tie = full set still fits).
     PREFIX_GROUPS=128
     SHARED_PREFIX_WORDS=512
-    KV_BLOCKS_OVERRIDE=4000     # holds sticky's slice, thrashes round_robin's
+    KV_BLOCKS_OVERRIDE=4000     # holds the sticky slice, thrashes the round_robin set
     FULL_UTIL=0.90             # normal gpu-memory-utilization
 
     SLOW_MAX_SEQS=8             # ep0 throttle for the heterogeneous fleet

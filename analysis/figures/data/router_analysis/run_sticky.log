@@ -1,29 +1,71 @@
-loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2468321/payloads_grouped.jsonl
-loaded 2048 prefix keys from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2468321/keys_grouped.txt
-strategy=sticky_by_prefix endpoints=4 inflight=64 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=2048
-  [warmup] submitted=92 completed=31 inflight=61 rate=15.5 req/s
-  [warmup] submitted=193 completed=129 inflight=64 rate=42.1 req/s
-  [warmup] done: 256 req in 5.96s = 42.96 req/s
-  [main] submitted=124 completed=61 inflight=63 rate=29.4 req/s
-  [main] submitted=204 completed=141 inflight=63 rate=40.0 req/s
-  [main] submitted=316 completed=252 inflight=64 rate=54.0 req/s
-  [main] submitted=402 completed=338 inflight=64 rate=42.3 req/s
-  [main] submitted=508 completed=444 inflight=64 rate=52.9 req/s
-  [main] submitted=596 completed=533 inflight=63 rate=43.8 req/s
-  [main] submitted=701 completed=637 inflight=64 rate=51.5 req/s
-  [main] submitted=793 completed=730 inflight=63 rate=45.5 req/s
-  [main] submitted=895 completed=831 inflight=64 rate=49.6 req/s
-  [main] submitted=991 completed=927 inflight=64 rate=47.8 req/s
-  [main] submitted=1087 completed=1023 inflight=64 rate=48.0 req/s
-  [main] submitted=1184 completed=1120 inflight=64 rate=47.2 req/s
-  [main] submitted=1280 completed=1216 inflight=64 rate=45.2 req/s
-  [main] submitted=1386 completed=1322 inflight=64 rate=51.4 req/s
-  [main] submitted=1478 completed=1414 inflight=64 rate=45.9 req/s
-  [main] submitted=1583 completed=1519 inflight=64 rate=51.5 req/s
-  [main] submitted=1673 completed=1609 inflight=64 rate=44.8 req/s
-  [main] submitted=1777 completed=1713 inflight=64 rate=51.5 req/s
-  [main] submitted=1869 completed=1805 inflight=64 rate=45.8 req/s
-  [main] submitted=1972 completed=1908 inflight=64 rate=50.4 req/s
-  [main] done: 2048 req in 43.01s = 47.62 req/s
-MAIN strategy=sticky_by_prefix total=2048 ok=2048 err=0 elapsed_s=43.010 throughput_rows_per_s=1523.7493
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2474618/payloads_grouped.jsonl
+loaded 2048 prefix keys from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2474618/keys_grouped.txt
+strategy=sticky_by_prefix endpoints=4 inflight=8 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=2048
+  [warmup] submitted=33 completed=25 inflight=8 rate=11.7 req/s
+  [warmup] submitted=71 completed=63 inflight=8 rate=17.8 req/s
+  [warmup] submitted=107 completed=99 inflight=8 rate=17.8 req/s
+  [warmup] submitted=142 completed=134 inflight=8 rate=17.3 req/s
+  [warmup] submitted=175 completed=167 inflight=8 rate=16.4 req/s
+  [warmup] submitted=212 completed=204 inflight=8 rate=18.5 req/s
+  [warmup] submitted=247 completed=239 inflight=8 rate=16.9 req/s
+  [warmup] done: 256 req in 15.48s = 16.54 req/s
+  [main] submitted=41 completed=33 inflight=8 rate=14.8 req/s
+  [main] submitted=81 completed=73 inflight=8 rate=17.9 req/s
+  [main] submitted=121 completed=113 inflight=8 rate=17.9 req/s
+  [main] submitted=159 completed=151 inflight=8 rate=18.6 req/s
+  [main] submitted=194 completed=186 inflight=8 rate=17.0 req/s
+  [main] submitted=231 completed=223 inflight=8 rate=17.3 req/s
+  [main] submitted=267 completed=259 inflight=8 rate=17.8 req/s
+  [main] submitted=303 completed=295 inflight=8 rate=16.6 req/s
+  [main] submitted=339 completed=331 inflight=8 rate=17.8 req/s
+  [main] submitted=374 completed=366 inflight=8 rate=17.2 req/s
+  [main] submitted=410 completed=402 inflight=8 rate=17.6 req/s
+  [main] submitted=444 completed=436 inflight=8 rate=16.8 req/s
+  [main] submitted=480 completed=472 inflight=8 rate=17.5 req/s
+  [main] submitted=515 completed=507 inflight=8 rate=16.7 req/s
+  [main] submitted=551 completed=543 inflight=8 rate=17.6 req/s
+  [main] submitted=586 completed=578 inflight=8 rate=17.4 req/s
+  [main] submitted=620 completed=612 inflight=8 rate=16.8 req/s
+  [main] submitted=655 completed=647 inflight=8 rate=16.7 req/s
+  [main] submitted=693 completed=685 inflight=8 rate=18.5 req/s
+  [main] submitted=727 completed=719 inflight=8 rate=16.5 req/s
+  [main] submitted=763 completed=755 inflight=8 rate=18.0 req/s
+  [main] submitted=798 completed=790 inflight=8 rate=17.2 req/s
+  [main] submitted=832 completed=824 inflight=8 rate=16.5 req/s
+  [main] submitted=869 completed=861 inflight=8 rate=18.1 req/s
+  [main] submitted=903 completed=895 inflight=8 rate=16.8 req/s
+  [main] submitted=938 completed=930 inflight=8 rate=17.4 req/s
+  [main] submitted=972 completed=964 inflight=8 rate=17.0 req/s
+  [main] submitted=1007 completed=999 inflight=8 rate=17.2 req/s
+  [main] submitted=1042 completed=1034 inflight=8 rate=17.5 req/s
+  [main] submitted=1076 completed=1068 inflight=8 rate=16.6 req/s
+  [main] submitted=1111 completed=1103 inflight=8 rate=17.4 req/s
+  [main] submitted=1147 completed=1139 inflight=8 rate=17.2 req/s
+  [main] submitted=1182 completed=1174 inflight=8 rate=17.1 req/s
+  [main] submitted=1217 completed=1209 inflight=8 rate=17.5 req/s
+  [main] submitted=1251 completed=1243 inflight=8 rate=16.6 req/s
+  [main] submitted=1286 completed=1278 inflight=8 rate=17.5 req/s
+  [main] submitted=1321 completed=1313 inflight=8 rate=17.5 req/s
+  [main] submitted=1355 completed=1347 inflight=8 rate=16.9 req/s
+  [main] submitted=1390 completed=1382 inflight=8 rate=17.1 req/s
+  [main] submitted=1424 completed=1416 inflight=8 rate=16.8 req/s
+  [main] submitted=1462 completed=1454 inflight=8 rate=17.3 req/s
+  [main] submitted=1500 completed=1492 inflight=8 rate=18.1 req/s
+  [main] submitted=1534 completed=1526 inflight=8 rate=16.4 req/s
+  [main] submitted=1570 completed=1562 inflight=8 rate=17.9 req/s
+  [main] submitted=1606 completed=1598 inflight=8 rate=16.7 req/s
+  [main] submitted=1641 completed=1633 inflight=8 rate=17.5 req/s
+  [main] submitted=1678 completed=1670 inflight=8 rate=16.9 req/s
+  [main] submitted=1713 completed=1705 inflight=8 rate=17.5 req/s
+  [main] submitted=1748 completed=1740 inflight=8 rate=17.4 req/s
+  [main] submitted=1782 completed=1774 inflight=8 rate=16.9 req/s
+  [main] submitted=1818 completed=1810 inflight=8 rate=17.4 req/s
+  [main] submitted=1854 completed=1846 inflight=8 rate=17.0 req/s
+  [main] submitted=1890 completed=1882 inflight=8 rate=17.3 req/s
+  [main] submitted=1926 completed=1918 inflight=8 rate=17.2 req/s
+  [main] submitted=1961 completed=1953 inflight=8 rate=17.0 req/s
+  [main] submitted=1996 completed=1988 inflight=8 rate=17.2 req/s
+  [main] submitted=2031 completed=2023 inflight=8 rate=17.3 req/s
+  [main] done: 2048 req in 119.01s = 17.21 req/s
+MAIN strategy=sticky_by_prefix total=2048 ok=2048 err=0 elapsed_s=119.012 throughput_rows_per_s=550.6677
 per_endpoint_count: ep0=512 ep1=512 ep2=512 ep3=512
