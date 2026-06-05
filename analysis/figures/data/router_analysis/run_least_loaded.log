@@ -1,16 +1,16 @@
-loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2466451/payloads_uniform.jsonl
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2468321/payloads_uniform.jsonl
 strategy=least_loaded endpoints=4 inflight=256 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=0
-  [warmup] done: 256 req in 6.32s = 40.52 req/s
-  [main] submitted=422 completed=168 inflight=254 rate=83.9 req/s
-  [main] submitted=584 completed=330 inflight=254 rate=78.9 req/s
-  [main] submitted=724 completed=470 inflight=254 rate=68.6 req/s
-  [main] submitted=931 completed=676 inflight=255 rate=98.6 req/s
-  [main] submitted=1110 completed=855 inflight=255 rate=89.4 req/s
-  [main] submitted=1258 completed=1002 inflight=256 rate=70.9 req/s
-  [main] submitted=1394 completed=1138 inflight=256 rate=66.1 req/s
-  [main] submitted=1609 completed=1353 inflight=256 rate=98.1 req/s
-  [main] submitted=1783 completed=1530 inflight=253 rate=88.4 req/s
-  [main] submitted=1938 completed=1682 inflight=256 rate=74.0 req/s
-  [main] done: 2048 req in 26.98s = 75.91 req/s
-MAIN strategy=least_loaded total=2048 ok=2048 err=0 elapsed_s=26.980 throughput_rows_per_s=2429.0374
-per_endpoint_count: ep0=323 ep1=573 ep2=576 ep3=576
+  [warmup] done: 256 req in 6.46s = 39.65 req/s
+  [main] submitted=455 completed=200 inflight=255 rate=99.6 req/s
+  [main] submitted=621 completed=368 inflight=253 rate=82.0 req/s
+  [main] submitted=722 completed=467 inflight=255 rate=48.5 req/s
+  [main] submitted=928 completed=672 inflight=256 rate=99.1 req/s
+  [main] submitted=1091 completed=835 inflight=256 rate=80.0 req/s
+  [main] submitted=1248 completed=992 inflight=256 rate=78.3 req/s
+  [main] submitted=1392 completed=1137 inflight=255 rate=71.9 req/s
+  [main] submitted=1584 completed=1331 inflight=253 rate=96.5 req/s
+  [main] submitted=1739 completed=1483 inflight=256 rate=74.7 req/s
+  [main] submitted=1861 completed=1607 inflight=254 rate=61.7 req/s
+  [main] done: 2048 req in 27.61s = 74.17 req/s
+MAIN strategy=least_loaded total=2048 ok=2048 err=0 elapsed_s=27.614 throughput_rows_per_s=2373.2933
+per_endpoint_count: ep0=324 ep1=575 ep2=573 ep3=576

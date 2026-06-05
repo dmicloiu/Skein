@@ -1,15 +1,15 @@
-loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2466451/payloads_uniform.jsonl
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2468321/payloads_uniform.jsonl
 strategy=round_robin endpoints=4 inflight=256 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=0
-  [warmup] done: 256 req in 3.39s = 75.59 req/s
-  [main] submitted=441 completed=187 inflight=254 rate=91.2 req/s
-  [main] submitted=597 completed=343 inflight=254 rate=77.2 req/s
-  [main] submitted=785 completed=531 inflight=254 rate=93.9 req/s
-  [main] submitted=982 completed=727 inflight=255 rate=96.6 req/s
-  [main] submitted=1168 completed=912 inflight=256 rate=92.1 req/s
-  [main] submitted=1353 completed=1097 inflight=256 rate=92.3 req/s
-  [main] submitted=1545 completed=1289 inflight=256 rate=95.4 req/s
-  [main] submitted=1735 completed=1479 inflight=256 rate=94.0 req/s
-  [main] submitted=1921 completed=1665 inflight=256 rate=92.9 req/s
-  [main] done: 2048 req in 20.24s = 101.17 req/s
-MAIN strategy=round_robin total=2048 ok=2048 err=0 elapsed_s=20.243 throughput_rows_per_s=3237.4703
+  [warmup] done: 256 req in 3.46s = 74.07 req/s
+  [main] submitted=475 completed=226 inflight=249 rate=82.2 req/s
+  [main] submitted=674 completed=418 inflight=256 rate=92.2 req/s
+  [main] submitted=854 completed=600 inflight=254 rate=90.3 req/s
+  [main] submitted=1030 completed=774 inflight=256 rate=86.8 req/s
+  [main] submitted=1234 completed=978 inflight=256 rate=101.6 req/s
+  [main] submitted=1414 completed=1159 inflight=255 rate=90.4 req/s
+  [main] submitted=1591 completed=1335 inflight=256 rate=88.0 req/s
+  [main] submitted=1785 completed=1529 inflight=256 rate=96.7 req/s
+  [main] submitted=1980 completed=1724 inflight=256 rate=97.1 req/s
+  [main] done: 2048 req in 20.51s = 99.84 req/s
+MAIN strategy=round_robin total=2048 ok=2048 err=0 elapsed_s=20.512 throughput_rows_per_s=3194.9527
 per_endpoint_count: ep0=512 ep1=512 ep2=512 ep3=512
