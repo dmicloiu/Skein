@@ -75,20 +75,26 @@ srun -ul --environment="$EDF" bash -c '
     WARMUP=256
 
     INFLIGHT_FULL=256           # saturate the pool (scaling, tail latency)
-    INFLIGHT_CACHE=64           # low, so the cache constraint bites on resident
-                                # prefixes rather than active-request KV
+    INFLIGHT_CACHE=8            # tiny active footprint, so the constrained cache
+                                # is spent on RESIDENT prefixes, not active KV
 
     # sticky pressure knobs: round_robin must keep ALL prefixes resident per
     # endpoint while sticky keeps only ~1/NGPU of them, so the KV cache has to be
-    # too small for the full set but big enough for sticky'\''s slice.
-    #   - at gpu-mem-util 0.40 the 97 GB GH200 still cached all 128 prefixes and
-    #     sticky/round_robin TIED at 43%; the cache must be forced small directly.
-    #   - num-gpu-blocks-override sets the KV block count deterministically.
-    #     ~700 tok/prefix -> ~44 blocks/prefix; with inflight 64 (~960 active
-    #     blocks) 3000 blocks fits sticky (~2400) but not round_robin (~6600).
+    # too small for the full set but big enough for sticky'\''s slice. Calibrated
+    # from the vLLM engine logs (~131 KV blocks per ~2000-token request; one
+    # 512-word prefix ~= 43 blocks; sticky slice = 128/4 = 32 prefixes ~= 1376
+    # blocks; round_robin = 128 prefixes ~= 5500 blocks):
+    #   - gpu-mem-util 0.40 cached all 128 prefixes -> sticky/rr TIED at 43%.
+    #   - 3000 blocks WITH inflight 64 -> active KV alone = 16 reqs x 131 ~= 70%
+    #     of the cache (measured), leaving ~900 blocks -> nothing retained,
+    #     sticky/rr TIED at 0%.
+    #   - fix: inflight 8 (~2 reqs/endpoint ~= 260 active blocks) + 4000 blocks
+    #     leaves ~3700 for prefixes -> holds sticky'\''s 1376 with margin but not
+    #     round_robin'\''s 5500. TUNE: raise blocks if both stay ~0%, lower toward
+    #     2500 if both reach 43% (tie = full set still fits).
     PREFIX_GROUPS=128
     SHARED_PREFIX_WORDS=512
-    KV_BLOCKS_OVERRIDE=3000     # tiny KV cache -> round_robin thrashes
+    KV_BLOCKS_OVERRIDE=4000     # holds sticky's slice, thrashes round_robin's
     FULL_UTIL=0.90             # normal gpu-memory-utilization
 
     SLOW_MAX_SEQS=8             # ep0 throttle for the heterogeneous fleet
