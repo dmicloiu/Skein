@@ -48,8 +48,6 @@ COLOR_LL     = "#ff7f0e"   # orange — least_loaded
 
 TAG_SINGLE = "single"
 TAG_RR = "round_robin"
-TAG_STICKY = "sticky"
-TAG_RR_GROUPED = "round_robin_grouped"
 TAG_LL = "least_loaded"
 TAG_RR_HETERO = "round_robin_hetero"
 
