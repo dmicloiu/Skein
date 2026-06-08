@@ -77,6 +77,14 @@ def main() -> int:
     p.add_argument("--keys-out", default=None,
                    help="where to write the parallel 'g<n>' key per payload "
                         "(required when --prefix-groups > 0)")
+    p.add_argument("--no-shuffle-groups", action="store_true",
+                   help="emit groups in fixed g=i%%K order instead of a shuffled "
+                        "order. Default is shuffled: a fixed i%%K order with K "
+                        "divisible by the endpoint count makes round_robin's "
+                        "positional counter concentrate each group on one "
+                        "endpoint (i%%N == (i+mK)%%N), accidentally mimicking "
+                        "sticky. Shuffling decouples submission position from "
+                        "group so round_robin genuinely scatters each prefix.")
     p.add_argument("--skew-frac", type=float, default=0.0,
                    help="fraction of payloads that use --skew-output-tokens")
     p.add_argument("--skew-output-tokens", type=int, default=512,
@@ -103,11 +111,19 @@ def main() -> int:
     # payloads in the group so the leading tokens are identical -> vLLM prefix
     # cache can hit when those requests land on the same endpoint.
     group_prefixes = []
+    group_seq = None
     if args.prefix_groups > 0:
         for _ in range(args.prefix_groups):
             group_prefixes.append(
                 " ".join(rng.choice(driver.WORDLIST)
                          for _ in range(args.shared_prefix_words)))
+        # Balanced round-robin assignment (g = i % K), optionally shuffled so
+        # submission position is decoupled from group. Seeded -> reproducible.
+        # The unshuffled i%K order is exactly what lets round_robin's positional
+        # counter concentrate each group (see --no-shuffle-groups help).
+        group_seq = [i % args.prefix_groups for i in range(args.count)]
+        if not args.no_shuffle_groups:
+            rng.shuffle(group_seq)
 
     out_path = Path(args.out)
     keys_f = open(args.keys_out, "w") if args.keys_out else None
@@ -121,7 +137,7 @@ def main() -> int:
                         else args.output_tokens)
 
                 if args.prefix_groups > 0:
-                    g = i % args.prefix_groups
+                    g = group_seq[i]
                     # No per-payload random head prefix; prepend the shared one.
                     core = driver.build_prompt(
                         rows=args.rows_per_request,
