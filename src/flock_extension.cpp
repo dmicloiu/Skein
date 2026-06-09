@@ -7,6 +7,7 @@
 #include "flock/core/common.hpp"
 #include "flock/core/config.hpp"
 #include "flock/custom_parser/query_parser.hpp"
+#include "flock/runtime/semantic_settings.h"
 
 #include <flock/model_manager/model.hpp>
 
@@ -17,6 +18,7 @@ static void LoadInternal(ExtensionLoader& loader) {
 
     // Register parser and binder hooks using extension registration APIs.
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+    flock::RegisterSemanticSettings(config);
     DuckParserExtension duck_parser;
     ParserExtension::Register(config, duck_parser);
     OperatorExtension::Register(config, make_shared_ptr<DuckOperatorExtension>());

@@ -101,3 +101,41 @@ target_include_directories(flock_endpoint_router_vllm_integration PRIVATE
 target_link_libraries(flock_endpoint_router_vllm_integration PRIVATE
     CURL::libcurl
     Threads::Threads)
+
+# -- Semantic config tests (ExtensionState, SET surface, CREATE MODEL) --------
+#
+# Unlike the standalone targets above, ExtensionState
+# (DatabaseInstance::GetObjectCache), the semantic_* SET surface and
+# ResolveSemanticParams all REQUIRE a loaded DuckDB. So this target links the
+# full flock extension + duckdb_static, mirroring test/unit's link block, and is
+# NOT eligible for the FLOCK_RUNTIME_TSAN target above: linking the
+# duckdb_static archive under a sanitizer hits the R_AARCH64_CALL26 overflow on
+# ARM64. The concurrency primitives these tests lean on (ObjectCache's internal
+# lock, EndpointRouter's internal lock) are already TSan-covered by
+# flock_endpoint_router_tests and DuckDB's own suite.
+add_executable(flock_semantic_config_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_test_main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extension_state_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_config_test.cpp)
+
+target_include_directories(flock_semantic_config_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include)
+
+# GNU ld needs --start-group/--end-group for the circular deps; jemalloc is
+# only built on Linux. Same recipe as test/unit/CMakeLists.txt.
+target_link_libraries(flock_semantic_config_tests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
+add_test(NAME flock_semantic_config_tests COMMAND flock_semantic_config_tests)

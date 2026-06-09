@@ -87,21 +87,33 @@ void ModelParser::ParseCreateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
         token = tokenizer.NextToken();
         try {
             nlohmann::json input_args = nlohmann::json::parse(token.value);
-            // Only allow tuple_format, batch_size, model_parameters
+            // Allow tuple_format, batch_size, model_parameters, plus the
+            // semantic calibration knobs (in_flight_cap, coalesce_size,
+            // coalesce_max_age_ms, max_output_tokens, response_format).
             for (auto it = input_args.begin(); it != input_args.end(); ++it) {
                 const std::string& key = it.key();
-                if (key == "tuple_format" || key == "batch_size" || key == "model_parameters") {
-                    const auto& param_val = it.value();
-                    if (key == "batch_size") {
-                        if (!param_val.is_number_integer()) {
-                            throw std::runtime_error("Expected 'batch_size' to be an integer.");
-                        }
-                        model_args[key] = param_val.get<int>();
-                    } else {
-                        model_args[key] = it.value();
+                const auto& param_val = it.value();
+                if (key == "tuple_format" || key == "model_parameters") {
+                    model_args[key] = param_val;
+                } else if (key == "batch_size") {
+                    if (!param_val.is_number_integer()) {
+                        throw std::runtime_error("Expected 'batch_size' to be an integer.");
                     }
+                    model_args[key] = param_val.get<int>();
+                } else if (key == "in_flight_cap" || key == "coalesce_size" || key == "coalesce_max_age_ms" ||
+                           key == "max_output_tokens") {
+                    if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
+                        throw std::runtime_error("Expected '" + key + "' to be a positive integer.");
+                    }
+                    model_args[key] = param_val.get<int64_t>();
+                } else if (key == "response_format") {
+                    if (!param_val.is_string() || (param_val.get<std::string>() != "json_schema" &&
+                                                   param_val.get<std::string>() != "free_form")) {
+                        throw std::runtime_error("Expected 'response_format' to be 'json_schema' or 'free_form'.");
+                    }
+                    model_args[key] = param_val.get<std::string>();
                 } else {
-                    throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, and model_parameters are allowed.");
+                    throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_size, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
                 }
             }
         } catch (const std::exception& e) {
@@ -225,21 +237,33 @@ void ModelParser::ParseUpdateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
             token = tokenizer.NextToken();
             try {
                 nlohmann::json input_args = nlohmann::json::parse(token.value);
-                // Only allow tuple_format, batch_size, model_parameters
+                // Allow tuple_format, batch_size, model_parameters, plus the
+                // semantic calibration knobs (in_flight_cap, coalesce_size,
+                // coalesce_max_age_ms, max_output_tokens, response_format).
                 for (auto it = input_args.begin(); it != input_args.end(); ++it) {
                     const std::string& key = it.key();
-                    if (key == "tuple_format" || key == "batch_size" || key == "model_parameters") {
-                        const auto& param_val = it.value();
-                        if (key == "batch_size") {
-                            if (!param_val.is_number_integer()) {
-                                throw std::runtime_error("Expected 'batch_size' to be an integer.");
-                            }
-                            new_model_args[key] = param_val.get<int>();
-                        } else {
-                            new_model_args[key] = it.value();
+                    const auto& param_val = it.value();
+                    if (key == "tuple_format" || key == "model_parameters") {
+                        new_model_args[key] = param_val;
+                    } else if (key == "batch_size") {
+                        if (!param_val.is_number_integer()) {
+                            throw std::runtime_error("Expected 'batch_size' to be an integer.");
                         }
+                        new_model_args[key] = param_val.get<int>();
+                    } else if (key == "in_flight_cap" || key == "coalesce_size" || key == "coalesce_max_age_ms" ||
+                               key == "max_output_tokens") {
+                        if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
+                            throw std::runtime_error("Expected '" + key + "' to be a positive integer.");
+                        }
+                        new_model_args[key] = param_val.get<int64_t>();
+                    } else if (key == "response_format") {
+                        if (!param_val.is_string() || (param_val.get<std::string>() != "json_schema" &&
+                                                       param_val.get<std::string>() != "free_form")) {
+                            throw std::runtime_error("Expected 'response_format' to be 'json_schema' or 'free_form'.");
+                        }
+                        new_model_args[key] = param_val.get<std::string>();
                     } else {
-                        throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, and model_parameters are allowed.");
+                        throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_size, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
                     }
                 }
             } catch (const std::exception& e) {
