@@ -1,0 +1,38 @@
+loaded 2048 payloads from /users/dmicloiu/projects/flock/analysis/results/router_analysis/2474618/payloads_uniform.jsonl
+strategy=single endpoints=4 inflight=256 warmup=256 total=2048 timeout_ms=120000 rows_per_request=32 payloads=2048 keys=0
+  [warmup] done: 256 req in 10.73s = 23.86 req/s
+  [main] submitted=313 completed=57 inflight=256 rate=26.8 req/s
+  [main] submitted=383 completed=131 inflight=252 rate=21.1 req/s
+  [main] submitted=456 completed=202 inflight=254 rate=30.1 req/s
+  [main] submitted=513 completed=257 inflight=256 rate=21.3 req/s
+  [main] submitted=567 completed=311 inflight=256 rate=26.9 req/s
+  [main] submitted=613 completed=357 inflight=256 rate=22.7 req/s
+  [main] submitted=672 completed=416 inflight=256 rate=27.3 req/s
+  [main] submitted=728 completed=472 inflight=256 rate=27.5 req/s
+  [main] submitted=774 completed=519 inflight=255 rate=23.3 req/s
+  [main] submitted=833 completed=578 inflight=255 rate=27.8 req/s
+  [main] submitted=885 completed=630 inflight=255 rate=23.6 req/s
+  [main] submitted=933 completed=678 inflight=255 rate=23.2 req/s
+  [main] submitted=1002 completed=748 inflight=254 rate=32.1 req/s
+  [main] submitted=1048 completed=792 inflight=256 rate=22.0 req/s
+  [main] submitted=1094 completed=839 inflight=255 rate=22.1 req/s
+  [main] submitted=1165 completed=910 inflight=255 rate=34.2 req/s
+  [main] submitted=1212 completed=956 inflight=256 rate=22.5 req/s
+  [main] submitted=1269 completed=1014 inflight=255 rate=26.7 req/s
+  [main] submitted=1323 completed=1068 inflight=255 rate=24.9 req/s
+  [main] submitted=1371 completed=1116 inflight=255 rate=23.5 req/s
+  [main] submitted=1428 completed=1175 inflight=253 rate=27.2 req/s
+  [main] submitted=1486 completed=1230 inflight=256 rate=26.1 req/s
+  [main] submitted=1544 completed=1288 inflight=256 rate=27.0 req/s
+  [main] submitted=1595 completed=1339 inflight=256 rate=23.9 req/s
+  [main] submitted=1650 completed=1395 inflight=255 rate=26.9 req/s
+  [main] submitted=1705 completed=1450 inflight=255 rate=21.6 req/s
+  [main] submitted=1772 completed=1518 inflight=254 rate=31.2 req/s
+  [main] submitted=1822 completed=1568 inflight=254 rate=24.2 req/s
+  [main] submitted=1866 completed=1610 inflight=256 rate=20.9 req/s
+  [main] submitted=1930 completed=1675 inflight=255 rate=31.5 req/s
+  [main] submitted=1983 completed=1727 inflight=256 rate=24.7 req/s
+  [main] submitted=2041 completed=1785 inflight=256 rate=26.7 req/s
+  [main] done: 2048 req in 71.49s = 28.65 req/s
+MAIN strategy=single total=2048 ok=2048 err=0 elapsed_s=71.493 throughput_rows_per_s=916.6831
+per_endpoint_count: ep0=2048 ep1=0 ep2=0 ep3=0

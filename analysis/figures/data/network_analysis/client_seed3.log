@@ -1,0 +1,21 @@
+loaded 1000 payloads from /users/dmicloiu/projects/flock/analysis/results/network_analysis/2449275/payloads_3.jsonl
+endpoint=http://127.0.0.1:8000/v1/completions inflight=128 warmup=128 total=1000 timeout_ms=120000 rows_per_request=32 payloads=1000
+  [warmup] done: 128 req in 5.23s = 24.47 req/s
+  [main] submitted=170 completed=42 inflight=128 rate=19.7 req/s
+  [main] submitted=226 completed=98 inflight=128 rate=28.0 req/s
+  [main] submitted=277 completed=149 inflight=128 rate=25.3 req/s
+  [main] submitted=340 completed=212 inflight=128 rate=28.7 req/s
+  [main] submitted=385 completed=257 inflight=128 rate=18.1 req/s
+  [main] submitted=442 completed=314 inflight=128 rate=27.2 req/s
+  [main] submitted=502 completed=376 inflight=126 rate=30.5 req/s
+  [main] submitted=558 completed=431 inflight=127 rate=25.0 req/s
+  [main] submitted=612 completed=485 inflight=127 rate=24.9 req/s
+  [main] submitted=662 completed=535 inflight=127 rate=23.8 req/s
+  [main] submitted=715 completed=589 inflight=126 rate=26.7 req/s
+  [main] submitted=766 completed=638 inflight=128 rate=24.3 req/s
+  [main] submitted=816 completed=688 inflight=128 rate=24.8 req/s
+  [main] submitted=869 completed=741 inflight=128 rate=26.3 req/s
+  [main] submitted=915 completed=788 inflight=127 rate=22.6 req/s
+  [main] submitted=970 completed=843 inflight=127 rate=27.2 req/s
+  [main] done: 1000 req in 35.89s = 27.86 req/s
+MAIN total=1000 ok=1000 err=0 elapsed_s=35.894 throughput_requests_per_s=27.8601 throughput_rows_per_s=891.5222 mean_latency_ms=4553.85 max_latency_ms=5493.99 p50_latency_ms=5045.72 p95_latency_ms=5202.11 p99_latency_ms=5282.52

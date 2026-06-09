@@ -1,0 +1,39 @@
+loaded 4096 payloads from /users/dmicloiu/projects/flock/analysis/results/router_sticky_sweep/2492926/payloads_k512.jsonl
+loaded 4096 prefix keys from /users/dmicloiu/projects/flock/analysis/results/router_sticky_sweep/2492926/keys_k512.txt
+strategy=sticky_by_prefix endpoints=4 inflight=128 warmup=0 total=4096 timeout_ms=120000 rows_per_request=32 payloads=4096 keys=4096
+  [main] submitted=129 completed=2 inflight=127 rate=0.8 req/s
+  [main] submitted=245 completed=120 inflight=125 rate=59.0 req/s
+  [main] submitted=378 completed=250 inflight=128 rate=64.7 req/s
+  [main] submitted=509 completed=381 inflight=128 rate=63.9 req/s
+  [main] submitted=636 completed=510 inflight=126 rate=64.5 req/s
+  [main] submitted=761 completed=633 inflight=128 rate=60.4 req/s
+  [main] submitted=892 completed=765 inflight=127 rate=65.5 req/s
+  [main] submitted=1009 completed=883 inflight=126 rate=58.4 req/s
+  [main] submitted=1138 completed=1010 inflight=128 rate=62.1 req/s
+  [main] submitted=1261 completed=1134 inflight=127 rate=62.0 req/s
+  [main] submitted=1374 completed=1246 inflight=128 rate=55.9 req/s
+  [main] submitted=1489 completed=1361 inflight=128 rate=56.7 req/s
+  [main] submitted=1606 completed=1478 inflight=128 rate=58.1 req/s
+  [main] submitted=1724 completed=1596 inflight=128 rate=58.8 req/s
+  [main] submitted=1853 completed=1725 inflight=128 rate=63.2 req/s
+  [main] submitted=1984 completed=1858 inflight=126 rate=65.5 req/s
+  [main] submitted=2134 completed=2008 inflight=126 rate=70.3 req/s
+  [main] submitted=2243 completed=2116 inflight=127 rate=54.0 req/s
+  [main] submitted=2367 completed=2239 inflight=128 rate=61.2 req/s
+  [main] submitted=2469 completed=2342 inflight=127 rate=50.2 req/s
+  [main] submitted=2594 completed=2467 inflight=127 rate=61.6 req/s
+  [main] submitted=2710 completed=2582 inflight=128 rate=57.2 req/s
+  [main] submitted=2836 completed=2708 inflight=128 rate=62.7 req/s
+  [main] submitted=2967 completed=2839 inflight=128 rate=63.8 req/s
+  [main] submitted=3091 completed=2963 inflight=128 rate=61.0 req/s
+  [main] submitted=3216 completed=3088 inflight=128 rate=60.6 req/s
+  [main] submitted=3352 completed=3225 inflight=127 rate=67.6 req/s
+  [main] submitted=3469 completed=3341 inflight=128 rate=57.3 req/s
+  [main] submitted=3608 completed=3480 inflight=128 rate=68.9 req/s
+  [main] submitted=3708 completed=3580 inflight=128 rate=49.1 req/s
+  [main] submitted=3845 completed=3717 inflight=128 rate=65.7 req/s
+  [main] submitted=3973 completed=3846 inflight=127 rate=64.3 req/s
+  [main] submitted=4092 completed=3965 inflight=127 rate=58.2 req/s
+  [main] done: 4096 req in 68.10s = 60.14 req/s
+MAIN strategy=sticky_by_prefix total=4096 ok=4096 err=0 elapsed_s=68.102 throughput_rows_per_s=1924.6378
+per_endpoint_count: ep0=1024 ep1=1024 ep2=1024 ep3=1024

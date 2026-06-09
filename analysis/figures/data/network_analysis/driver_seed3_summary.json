@@ -1,0 +1,93 @@
+{
+  "label": null,
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "endpoint": "completions",
+  "n_concurrent": 128,
+  "n_requests": 1000,
+  "rows_per_request": 32,
+  "row_padding_words": 0,
+  "unique_prefix_words": 16,
+  "output_tokens_target": 64,
+  "natural_output": false,
+  "response_schema": "boolean_array",
+  "prompt_file": null,
+  "prompt_tokens_distribution": {
+    "n": 996,
+    "mean": 1357.295,
+    "min": 1325,
+    "max": 1370,
+    "p50": 1363,
+    "p95": 1367,
+    "p99": 1368
+  },
+  "completion_tokens_distribution": {
+    "n": 996,
+    "mean": 64,
+    "min": 64,
+    "max": 64,
+    "p50": 64,
+    "p95": 64,
+    "p99": 64
+  },
+  "completion_token_mismatches": 0,
+  "chunks_eq_tokens": 0.996,
+  "wall_clock_s": 40.3054,
+  "n_success": 1000,
+  "n_error": 0,
+  "throughput_output_tok_per_s": 1581.53,
+  "throughput_total_tok_per_s": 35122.11,
+  "throughput_requests_per_s": 24.8106,
+  "throughput_rows_per_s": 793.9387,
+  "ttft_ms": {
+    "n": 1000,
+    "mean": 1041.301,
+    "min": 73.634,
+    "max": 4564.558,
+    "p50": 848.002,
+    "p95": 3100.751,
+    "p99": 4549.988
+  },
+  "decode_ms": {
+    "n": 1000,
+    "mean": 4088.281,
+    "min": 659.846,
+    "max": 5068.263,
+    "p50": 4291.584,
+    "p95": 4616.682,
+    "p99": 4855.163
+  },
+  "e2e_ms": {
+    "n": 1000,
+    "mean": 5129.581,
+    "min": 1279.495,
+    "max": 8964.895,
+    "p50": 5142.547,
+    "p95": 7249.328,
+    "p99": 8752.065
+  },
+  "itl_ms_pooled": {
+    "n": 62895,
+    "mean": 64.946,
+    "min": 0.986,
+    "max": 220.024,
+    "p50": 12.031,
+    "p95": 214.103,
+    "p99": 215.356
+  },
+  "running": {
+    "max": 128.0,
+    "mean": 106.675
+  },
+  "waiting": {
+    "max": 102.0,
+    "mean": 9.55
+  },
+  "kv_util": {
+    "max": 0.1416,
+    "mean": 0.1159
+  },
+  "prefix_cache_hit_rate": 0.0,
+  "preemptions_delta": 0.0,
+  "errors_first3": [],
+  "out_dir": "/users/dmicloiu/projects/flock/analysis/results/network_analysis/2449275/driver_seed3"
+}
