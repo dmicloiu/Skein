@@ -1,0 +1,22 @@
+# ThreadSanitizer suppressions for flock_semantic_operator_tests.
+#
+# These silence ONE known TSan x UBSan runtime interaction -- NOT a flock race.
+#
+# The prebuilt duckdb_static linked here is a UBSan-instrumented debug build
+# (the project compiles with -fsanitize=undefined). When duckdb's UBSan vptr /
+# null checks run on our worker threads -- e.g. inside Value::ToString or a
+# DataChunk access on the dispatch hot path -- they call
+# __sanitizer::IsAccessibleMemoryRange, which probes memory via pipe(2) using a
+# PROCESS-GLOBAL static fd buffer inside libubsan. Two threads probing
+# concurrently both write that single shared buffer (TSan reports the racing
+# write at the SAME fixed address in both stacks), and TSan -- intercepting
+# pipe() -- flags a data race on the sanitizer's OWN internal state.
+#
+# It is never a race on flock state: a real engine race is on `pending` /
+# `completed` / `in_flight`, whose access stacks do not pass through libubsan.
+# Scoping to libubsan therefore cannot mask a genuine flock data race.
+#
+# The clean alternative is to link a non-UBSan duckdb_static (a full duckdb
+# rebuild); these two lines avoid that while keeping the engine fully TSan-checked.
+called_from_lib:libubsan.so.1
+race:IsAccessibleMemoryRange
