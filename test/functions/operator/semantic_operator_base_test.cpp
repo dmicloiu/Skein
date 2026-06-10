@@ -19,6 +19,7 @@
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/vector.hpp"
+#include "duckdb/execution/physical_plan_generator.hpp" 
 #include "duckdb/parallel/interrupt.hpp"
 
 #include <gtest/gtest.h>
@@ -283,7 +284,7 @@ TEST(SemanticOperatorBase, TailFlush_And_BlockingFinalize) {
 
 // Destroying the sink state with batches in flight must not UAF or hang: the
 // destructor bumps the generation + cancels, and no completion fires afterward.
-TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang) {
+void RunCancellationCheck(int N) {
     const auto cfg = MakeParams(/*cap=*/64, /*coalesce=*/4);  // big cap -> sink never blocks
     FakeLLMClient::Options fopts;
     fopts.delay = std::chrono::milliseconds(100);  // callbacks stay pending past the cancel
@@ -296,7 +297,6 @@ TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang) {
 
     const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
     auto chunks = BuildChunks(80, 8, types);
-    const int N = 8;
     std::vector<std::vector<DataChunk*>> partitions(N);
     for (size_t i = 0; i < chunks.size(); ++i) {
         partitions[i % N].push_back(chunks[i].get());
@@ -316,18 +316,26 @@ TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang) {
             th.join();
         }
     }
-    EXPECT_EQ(blocked.load(), 0u) << "big cap should not have blocked the sink";
+    EXPECT_EQ(blocked.load(), 0u) << "big cap should not have blocked the sink (N=" << N << ")";
 
     // Batches are now in flight (sleeping in the fake). Tear down on a side
     // thread; ~SemGlobalSinkState bumps the generation + CancelByGeneration.
     std::thread killer([&] { g.reset(); });
     const auto start = std::chrono::steady_clock::now();
     killer.join();
-    EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(2)) << "teardown hung";
+    EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(2)) << "teardown hung (N=" << N << ")";
 
     // Let still-sleeping fake workers wake; they must skip (generation is dead).
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    EXPECT_EQ(fake->FiredCount(), 0u) << "a completion fired after cancellation";
+    EXPECT_EQ(fake->FiredCount(), 0u) << "a completion fired after cancellation (N=" << N << ")";
+}
+
+TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang_N4) {
+    RunCancellationCheck(4);
+}
+
+TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang_N16) {
+    RunCancellationCheck(16);
 }
 
 // Fail-loud: a failed LLM response makes Drain throw rather than skip rows.
@@ -374,6 +382,95 @@ TEST(SemanticOperatorBase, FailLoud_OnFailedResponse) {
         }
     }
     EXPECT_TRUE(threw) << "Drain did not fail loud on a failed response";
+}
+
+// -- Operator-level smoke test -----------------------------------
+
+// Test-only concrete operator: pass-through hooks with call counters, so the
+// smoke test can confirm RenderPrompt/ParseAndEmit are actually driven through
+// the engine via the operator's wiring.
+class TestSemanticOperator : public SemanticOperatorBase {
+public:
+    TestSemanticOperator(duckdb::PhysicalPlan& plan, duckdb::vector<LogicalType> types,
+                         std::shared_ptr<ILLMClient> client, std::shared_ptr<EndpointRouter> router,
+                         SemanticParams cfg)
+        : SemanticOperatorBase(plan, duckdb::PhysicalOperatorType::EXTENSION, std::move(types),
+                               /*estimated_cardinality=*/0, std::move(client), std::move(router),
+                               std::move(cfg)) {}
+
+    std::string RenderPrompt(const RowData& row) const override {
+        render_calls.fetch_add(1, std::memory_order_relaxed);
+        return std::string("op:") + (row.values.empty() ? std::string() : row.values[0].ToString());
+    }
+    void ParseAndEmit(const nlohmann::json& choice, const RowData& row, DataChunk& out) const override {
+        (void)choice;
+        const idx_t idx = out.size();
+        for (idx_t c = 0; c < row.values.size(); ++c) {
+            out.SetValue(c, idx, row.values[c]);
+        }
+        out.SetCardinality(idx + 1);
+        emit_calls.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    mutable std::atomic<size_t> render_calls{0};
+    mutable std::atomic<size_t> emit_calls{0};
+};
+
+// Smokes the operator wrappers: flags, MaxThreads == cap, the source-reads-sink
+// bridge, and a full Sink -> Finalize -> Drain round-trip driven through the
+// operator's own RenderPrompt (auto-bound) + ParseAndEmit. The thin
+// Sink/Combine/Finalize/GetDataInternal adapters (Cast + forward) carry no logic
+// beyond the engine paths exercised here and in the threading tests; they get a
+// real ExecutionContext/Pipeline only under W4's planner.
+TEST(SemanticOperatorBase, Operator_FlagsBridgeAndHooks) {
+    const auto cfg = MakeParams(/*cap=*/8, /*coalesce=*/4);
+    auto fake = std::make_shared<FakeLLMClient>();
+    auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
+                                                   EndpointRouter::Strategy::RoundRobin);
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
+    auto& op = plan.Make<TestSemanticOperator>(types, fake, router, cfg).Cast<TestSemanticOperator>();
+
+    // Pipeline-breaker flags.
+    EXPECT_TRUE(op.IsSink());
+    EXPECT_TRUE(op.IsSource());
+    EXPECT_TRUE(op.ParallelSink());
+    EXPECT_TRUE(op.ParallelSource());
+
+    // MaxThreads == in_flight_cap on the source state (decoupling claim).
+    SemGlobalSourceState source_state(cfg.in_flight_cap);
+    EXPECT_EQ(source_state.MaxThreads(), cfg.in_flight_cap);
+
+    // Build the wired sink state through the operator; confirm the bridge
+    // resolves to it and reports the same cap.
+    op.sink_state = op.CreateGlobalSinkState();
+    auto& gss = op.sink_state->Cast<SemGlobalSinkState>();
+    EXPECT_EQ(gss.MaxThreads(1), cfg.in_flight_cap);
+
+    // Sink -> Finalize -> Drain through the operator's hooks.
+    const int64_t total = 20;  // 5 full batches of 4, no partial
+    auto chunks = BuildChunks(total, /*chunk_size=*/8, types);
+    auto local = std::make_unique<SemLocalSinkState>();
+    std::atomic<size_t> blocked{0};
+    for (auto& c : chunks) {
+        RunSinkWorker(gss, *local, {c.get()}, blocked);
+    }
+    gss.MergeLocal(*local);
+    std::atomic<size_t> fin_blocked{0};
+    RunFinalize(gss, fin_blocked);
+
+    std::vector<int64_t> out_values;
+    std::mutex out_mtx;
+    const SemGlobalSinkState::ParseFn parse = [&op](const nlohmann::json& choice, const RowData& row,
+                                                    DataChunk& out) { op.ParseAndEmit(choice, row, out); };
+    RunDrainWorker(gss, types, parse, out_values, out_mtx);
+
+    std::sort(out_values.begin(), out_values.end());
+    std::vector<int64_t> expected(static_cast<size_t>(total));
+    std::iota(expected.begin(), expected.end(), 0);
+    EXPECT_EQ(out_values, expected) << "operator round-trip lost/corrupted rows";
+    EXPECT_EQ(op.render_calls.load(), static_cast<size_t>(total)) << "RenderPrompt not driven per row";
+    EXPECT_EQ(op.emit_calls.load(), static_cast<size_t>(total)) << "ParseAndEmit not driven per row";
 }
 
 }  // namespace

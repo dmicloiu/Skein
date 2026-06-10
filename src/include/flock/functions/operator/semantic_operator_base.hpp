@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb/common/types/data_chunk.hpp"
+#include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/execution/physical_operator_states.hpp"
 #include "duckdb/parallel/interrupt.hpp"
 #include "flock/runtime/endpoint_router.h"
@@ -99,6 +100,10 @@ public:
     uint64_t Generation() const { return generation.load(std::memory_order_acquire); }
     const SemanticParams& Config() const { return cfg; }
 
+    duckdb::idx_t MaxThreads(duckdb::idx_t /*source_max_threads*/) override {
+        return static_cast<duckdb::idx_t>(cfg.in_flight_cap);
+    }
+
 private:
     // Completion callback body. Runs on the ILLMClient IO thread; keep cheap.
     void OnBatchComplete(uint64_t submit_generation, size_t endpoint_index, std::vector<uint64_t> row_ids,
@@ -138,6 +143,73 @@ private:
     std::atomic<bool> blocked_at_least_once{false};
 
     // dependencies
+    std::shared_ptr<ILLMClient> client;
+    std::shared_ptr<EndpointRouter> router;
+    SemanticParams cfg;
+};
+
+// Source-side states. The source phase reads the SINK state (the completed
+// queue) via the operator's sink_state; these carry only the thread-count cap
+// and a per-thread placeholder.
+class SemGlobalSourceState : public duckdb::GlobalSourceState {
+public:
+    explicit SemGlobalSourceState(uint64_t max_threads) : max_threads(max_threads) {}
+    duckdb::idx_t MaxThreads() override { return static_cast<duckdb::idx_t>(max_threads); }
+
+private:
+    uint64_t max_threads;
+};
+
+class SemLocalSourceState : public duckdb::LocalSourceState {};
+
+// Thin PhysicalOperator adapter over the dispatch engine.
+//
+// A pipeline-breaker that is BOTH sink and source. Every interface method just
+// Casts DuckDB's state objects to the engine states and forwards; the real
+// logic lives in SemGlobalSinkState. Concrete operators (W4: PhysicalSemFilter,
+// ...) inherit this and implement the two hooks.
+class SemanticOperatorBase : public duckdb::PhysicalOperator {
+public:
+    SemanticOperatorBase(duckdb::PhysicalPlan& physical_plan, duckdb::PhysicalOperatorType type,
+                         duckdb::vector<duckdb::LogicalType> types, duckdb::idx_t estimated_cardinality,
+                         std::shared_ptr<ILLMClient> client, std::shared_ptr<EndpointRouter> router,
+                         SemanticParams cfg);
+
+    bool IsSink() const override { return true; }
+    bool IsSource() const override { return true; }
+    bool ParallelSink() const override { return true; }
+    bool ParallelSource() const override { return true; }
+
+    // Sink interface (Cast DuckDB state -> engine, forward).
+    duckdb::unique_ptr<duckdb::GlobalSinkState> GetGlobalSinkState(duckdb::ClientContext& context) const override;
+    duckdb::unique_ptr<duckdb::LocalSinkState> GetLocalSinkState(duckdb::ExecutionContext& context) const override;
+    duckdb::SinkResultType Sink(duckdb::ExecutionContext& context, duckdb::DataChunk& chunk,
+                                duckdb::OperatorSinkInput& input) const override;
+    duckdb::SinkCombineResultType Combine(duckdb::ExecutionContext& context,
+                                          duckdb::OperatorSinkCombineInput& input) const override;
+    duckdb::SinkFinalizeType Finalize(duckdb::Pipeline& pipeline, duckdb::Event& event,
+                                      duckdb::ClientContext& context,
+                                      duckdb::OperatorSinkFinalizeInput& input) const override;
+
+    // Source interface.
+    duckdb::unique_ptr<duckdb::GlobalSourceState> GetGlobalSourceState(duckdb::ClientContext& context) const override;
+    duckdb::unique_ptr<duckdb::LocalSourceState> GetLocalSourceState(
+        duckdb::ExecutionContext& context, duckdb::GlobalSourceState& gstate) const override;
+
+    // The two operator-specific hooks W4 subclasses implement.
+    virtual std::string RenderPrompt(const RowData& row) const = 0;
+    virtual void ParseAndEmit(const nlohmann::json& choice, const RowData& row, duckdb::DataChunk& out) const = 0;
+
+    // The context-free core of GetGlobalSinkState: build the engine sink state
+    // and bind its render hook to this operator's RenderPrompt. Public so tests
+    // can construct the wired state without a ClientContext.
+    duckdb::unique_ptr<SemGlobalSinkState> CreateGlobalSinkState() const;
+
+protected:
+    // Source reads the sink state via op.sink_state->Cast<SemGlobalSinkState>().
+    duckdb::SourceResultType GetDataInternal(duckdb::ExecutionContext& context, duckdb::DataChunk& chunk,
+                                             duckdb::OperatorSourceInput& input) const override;
+
     std::shared_ptr<ILLMClient> client;
     std::shared_ptr<EndpointRouter> router;
     SemanticParams cfg;

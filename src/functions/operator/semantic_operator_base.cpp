@@ -316,4 +316,78 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     return SourceResultType::HAVE_MORE_OUTPUT;
 }
 
+// =============================================================================
+// SemanticOperatorBase -- thin PhysicalOperator adapters over the engine.
+// Each method Casts DuckDB's state to the engine state and forwards; no logic
+// lives here. The two pure virtuals (RenderPrompt / ParseAndEmit) are the only
+// per-operator behavior, bound into the engine via the render hook + ParseFn.
+// =============================================================================
+
+SemanticOperatorBase::SemanticOperatorBase(duckdb::PhysicalPlan& physical_plan,
+                                           duckdb::PhysicalOperatorType type,
+                                           duckdb::vector<duckdb::LogicalType> types,
+                                           duckdb::idx_t estimated_cardinality,
+                                           std::shared_ptr<ILLMClient> client,
+                                           std::shared_ptr<EndpointRouter> router, SemanticParams cfg)
+    : duckdb::PhysicalOperator(physical_plan, type, std::move(types), estimated_cardinality),
+      client(std::move(client)), router(std::move(router)), cfg(std::move(cfg)) {
+}
+
+duckdb::unique_ptr<SemGlobalSinkState> SemanticOperatorBase::CreateGlobalSinkState() const {
+    auto state = duckdb::make_uniq<SemGlobalSinkState>(client, router, cfg);
+    // Bind the engine's render hook to this operator's RenderPrompt. `this`
+    // outlives the sink state (the operator owns sink_state), and the hook is
+    // set once before any Sink call, then only read.
+    state->render_prompt = [this](const RowData& row) { return RenderPrompt(row); };
+    return state;
+}
+
+duckdb::unique_ptr<duckdb::GlobalSinkState> SemanticOperatorBase::GetGlobalSinkState(
+    duckdb::ClientContext& /*context*/) const {
+    return CreateGlobalSinkState();
+}
+
+duckdb::unique_ptr<duckdb::LocalSinkState> SemanticOperatorBase::GetLocalSinkState(
+    duckdb::ExecutionContext& /*context*/) const {
+    return duckdb::make_uniq<SemLocalSinkState>();
+}
+
+duckdb::SinkResultType SemanticOperatorBase::Sink(duckdb::ExecutionContext& /*context*/, DataChunk& chunk,
+                                                  duckdb::OperatorSinkInput& input) const {
+    return input.global_state.Cast<SemGlobalSinkState>().SinkChunk(
+        input.local_state.Cast<SemLocalSinkState>(), chunk, input.interrupt_state);
+}
+
+duckdb::SinkCombineResultType SemanticOperatorBase::Combine(duckdb::ExecutionContext& /*context*/,
+                                                            duckdb::OperatorSinkCombineInput& input) const {
+    input.global_state.Cast<SemGlobalSinkState>().MergeLocal(input.local_state.Cast<SemLocalSinkState>());
+    return duckdb::SinkCombineResultType::FINISHED;
+}
+
+SinkFinalizeType SemanticOperatorBase::Finalize(duckdb::Pipeline& /*pipeline*/, duckdb::Event& /*event*/,
+                                                duckdb::ClientContext& /*context*/,
+                                                duckdb::OperatorSinkFinalizeInput& input) const {
+    return input.global_state.Cast<SemGlobalSinkState>().FinalizeFlush(input.interrupt_state);
+}
+
+duckdb::unique_ptr<duckdb::GlobalSourceState> SemanticOperatorBase::GetGlobalSourceState(
+    duckdb::ClientContext& /*context*/) const {
+    return duckdb::make_uniq<SemGlobalSourceState>(cfg.in_flight_cap);
+}
+
+duckdb::unique_ptr<duckdb::LocalSourceState> SemanticOperatorBase::GetLocalSourceState(
+    duckdb::ExecutionContext& /*context*/, duckdb::GlobalSourceState& /*gstate*/) const {
+    return duckdb::make_uniq<SemLocalSourceState>();
+}
+
+SourceResultType SemanticOperatorBase::GetDataInternal(duckdb::ExecutionContext& /*context*/, DataChunk& chunk,
+                                                       duckdb::OperatorSourceInput& input) const {
+    // The confirmed bridge: the source phase reads the SINK state.
+    auto& gss = sink_state->Cast<SemGlobalSinkState>();
+    auto parse = [this](const nlohmann::json& choice, const RowData& row, DataChunk& out) {
+        ParseAndEmit(choice, row, out);
+    };
+    return gss.Drain(chunk, parse, input.interrupt_state);
+}
+
 }  // namespace flock
