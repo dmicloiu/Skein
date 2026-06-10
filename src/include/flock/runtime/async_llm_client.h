@@ -1,5 +1,7 @@
 #pragma once
 
+#include "flock/runtime/llm_client.h"
+
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -16,21 +18,11 @@ namespace flock {
 //
 // The client does NOT enforce in-flight caps; that is the caller's problem.
 // Retries, backoff, batching and routing are also out of scope.
-class AsyncLLMClient {
+class AsyncLLMClient : public ILLMClient {
 public:
-    struct Response {
-        bool ok = false;          // false on HTTP non-2xx, timeout, or curl error
-        int http_status = 0;      // HTTP status code, 0 if no response
-        std::string body;         // raw response body (caller parses JSON)
-        std::string error;        // human-readable error if !ok
-        int64_t latency_us = 0;   // submit -> complete wall time
-    };
-
-    struct RequestHandle {
-        uint64_t id = 0;
-    };
-
-    using OnDone = std::function<void(Response)>;
+    using Response = LLMResponse;
+    using RequestHandle = LLMRequestHandle;
+    using OnDone = LLMOnDone;
 
     struct Options {
         // CURLOPT_TIMEOUT_MS per request. Default 60s, intended to catch a
@@ -63,12 +55,12 @@ public:
         const std::string& payload,
         uint64_t generation,
         const std::string& request_id,
-        OnDone on_done);
+        OnDone on_done) override;
 
     // Mark a generation as dead. Any in-flight or queued request with this
     // generation has its callback dropped (not invoked). Curl resources are
     // still cleaned up. Thread-safe. Idempotent.
-    void CancelByGeneration(uint64_t generation);
+    void CancelByGeneration(uint64_t generation) override;
 
     // Optional: remove a generation from the dead set, allowing future
     // submissions on that generation to fire callbacks again. Bounded-growth
