@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -126,7 +127,7 @@ private:
     // --- guarded by THE one lock: the inherited StateWithBlockableTasks::Lock()
     //     Critical sections move buffers and adjust counters ONLY,
     //     router->Choose, client->Submit, or Callback(). ---
-    std::vector<PendingRequest> pending;  // global queue, submission order
+    std::deque<PendingRequest> pending;   // global FIFO
     std::queue<CompletedBatch> completed; // drained by the source phase
     bool input_exhausted = false;
     // Our OWN blocked-task lists (not StateWithBlockableTasks::blocked_tasks):

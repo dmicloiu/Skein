@@ -136,10 +136,9 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
                 std::vector<PendingRequest> batch;
                 batch.reserve(static_cast<size_t>(cfg.coalesce_size));
                 for (uint64_t k = 0; k < cfg.coalesce_size; ++k) {
-                    batch.push_back(std::move(pending[k]));
+                    batch.push_back(std::move(pending.front()));
+                    pending.pop_front();  // O(1) on deque
                 }
-                pending.erase(pending.begin(),
-                              pending.begin() + static_cast<std::ptrdiff_t>(cfg.coalesce_size));
                 const size_t now = in_flight.fetch_add(1, std::memory_order_relaxed) + 1;
                 NoteInFlight(now);
                 to_submit.push_back(std::move(batch));
@@ -209,6 +208,7 @@ void SemGlobalSinkState::MergeLocal(SemLocalSinkState& local) {
 
 SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
     std::vector<std::vector<PendingRequest>> to_submit;
+    std::vector<InterruptState> to_wake;
     bool must_block = false;
     {
         auto guard = Lock();
@@ -223,9 +223,9 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
                 std::vector<PendingRequest> batch;
                 batch.reserve(take);
                 for (size_t k = 0; k < take; ++k) {
-                    batch.push_back(std::move(pending[k]));
+                    batch.push_back(std::move(pending.front()));
+                    pending.pop_front();  // O(1) front pop
                 }
-                pending.erase(pending.begin(), pending.begin() + static_cast<std::ptrdiff_t>(take));
                 const size_t now = in_flight.fetch_add(1, std::memory_order_relaxed) + 1;
                 NoteInFlight(now);
                 to_submit.push_back(std::move(batch));
@@ -241,10 +241,17 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
             // Everything submitted; no more input will arrive. Outstanding
             // batches are already counted in in_flight, so Drain still waits.
             input_exhausted = true;
+            for (auto& is : blocked_sources) {
+                to_wake.push_back(is);
+            }
+            blocked_sources.clear();
         }
     }
     for (auto& batch : to_submit) {
         SubmitBatch(std::move(batch));
+    }
+    for (auto& is : to_wake) {
+        is.Callback();
     }
     return must_block ? SinkFinalizeType::BLOCKED : SinkFinalizeType::READY;
 }
@@ -295,13 +302,11 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     {
         auto guard = Lock();
         if (completed.empty()) {
-            if (in_flight.load(std::memory_order_relaxed) > 0) {
-                // Work outstanding: block until a completion wakes us.
+            // Terminate ONLY once the sink is finalized AND nothing is in flight:
+            if (in_flight.load(std::memory_order_relaxed) > 0 || !input_exhausted) {
                 blocked_sources.push_back(interrupt);
                 return SourceResultType::BLOCKED;
             }
-            // Nothing queued and nothing in flight. In the source phase the sink
-            // has finalized (input_exhausted), so there is no more output.
             return SourceResultType::FINISHED;
         }
         batch = std::move(completed.front());
