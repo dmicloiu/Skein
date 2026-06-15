@@ -3,6 +3,7 @@
 #include "duckdb/common/enums/set_scope.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/types/value.hpp"
+#include "duckdb/common/vector_size.hpp"
 #include "duckdb/main/config.hpp"
 #include "flock/core/common.hpp"
 #include "flock/core/config.hpp"
@@ -200,6 +201,19 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
     }
     if (args.contains("response_format")) {
         params.response_format = args["response_format"].get<std::string>();
+    }
+
+    // Authoritative range validation: this is the single chokepoint both the SET
+    // surface and model_args flow through. Fail loud rather than clamp -> an
+    // out-of-range value is a misconfiguration worth surfacing.
+    if (params.batch_size < 1 || params.batch_size > static_cast<uint64_t>(STANDARD_VECTOR_SIZE)) {
+        throw duckdb::InvalidInputException("semantic batch_size must be in [1, " +
+                                            std::to_string(STANDARD_VECTOR_SIZE) + "], got " +
+                                            std::to_string(params.batch_size));
+    }
+    if (params.in_flight_cap < 1) {
+        throw duckdb::InvalidInputException("semantic in_flight_cap must be >= 1, got " +
+                                            std::to_string(params.in_flight_cap));
     }
 
     // Relocated guardrail: warn once here on the fully-resolved values.

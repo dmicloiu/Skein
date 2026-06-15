@@ -96,8 +96,8 @@ void ModelParser::ParseCreateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
                 if (key == "tuple_format" || key == "model_parameters") {
                     model_args[key] = param_val;
                 } else if (key == "batch_size") {
-                    if (!param_val.is_number_integer()) {
-                        throw std::runtime_error("Expected 'batch_size' to be an integer.");
+                    if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
+                        throw std::runtime_error("Expected 'batch_size' to be a positive integer.");
                     }
                     model_args[key] = param_val.get<int>();
                 } else if (key == "in_flight_cap" || key == "coalesce_max_age_ms" ||
@@ -247,11 +247,11 @@ void ModelParser::ParseUpdateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
                     if (key == "tuple_format" || key == "model_parameters") {
                         new_model_args[key] = param_val;
                     } else if (key == "batch_size") {
-                        if (!param_val.is_number_integer()) {
-                            throw std::runtime_error("Expected 'batch_size' to be an integer.");
+                        if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
+                            throw std::runtime_error("Expected 'batch_size' to be a positive integer.");
                         }
                         new_model_args[key] = param_val.get<int>();
-                    } else if (key == "in_flight_cap" || key == "coalesce_size" || key == "coalesce_max_age_ms" ||
+                    } else if (key == "in_flight_cap" || key == "coalesce_max_age_ms" ||
                                key == "max_output_tokens") {
                         if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
                             throw std::runtime_error("Expected '" + key + "' to be a positive integer.");
