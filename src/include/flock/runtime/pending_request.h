@@ -23,11 +23,10 @@ struct RowData {
 //
 // INVARIANT: row_id is globally unique per query (a monotonic atomic in the
 // sink state), NOT chunk-local. That is what keeps the end-to-end alignment
-//     prompt[i] <-> row_id[i] <-> row[i] <-> choices[i]
+//     row_id[i] <-> row[i] <-> items[i]
 // intact while batches are coalesced across many threads and chunks.
 struct PendingRequest {
     uint64_t row_id = 0;
-    std::string prompt;
     RowData row;
 };
 

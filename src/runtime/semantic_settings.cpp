@@ -48,17 +48,17 @@ std::vector<std::string> SplitEndpoints(const std::string& raw) {
 }
 
 // Shared guardrail: warn (never error) when both knobs are pushed high enough
-// to risk overwhelming the endpoint. The two callbacks below feed it the
-// to-be-applied value plus the sibling read back from the current settings.
-void MaybeWarnGuardrail(int64_t in_flight_cap, int64_t coalesce_size) {
+// to risk overwhelming the endpoint. Evaluated once per operator invocation in
+// ResolveSemanticParams, on the resolved (model_args -> SET -> default) values.
+void MaybeWarnGuardrail(int64_t in_flight_cap, int64_t batch_size) {
     if (in_flight_cap > SemanticDefaults::kGuardrailInFlightCap &&
-        coalesce_size > SemanticDefaults::kGuardrailCoalesceSize) {
+        batch_size > SemanticDefaults::kGuardrailBatchSize) {
         duckdb::Printer::Print(
                 duckdb::OutputStream::STREAM_STDERR,
-                duckdb_fmt::format("Warning: semantic_in_flight_cap={} with semantic_coalesce_size={} may overwhelm the "
-                                   "endpoint (cap>{}, size>{}).",
-                                   in_flight_cap, coalesce_size, SemanticDefaults::kGuardrailInFlightCap,
-                                   SemanticDefaults::kGuardrailCoalesceSize));
+                duckdb_fmt::format("Warning: semantic_in_flight_cap={} with semantic_batch_size={} may overwhelm the "
+                                   "endpoint (cap>{}, batch>{}).",
+                                   in_flight_cap, batch_size, SemanticDefaults::kGuardrailInFlightCap,
+                                   SemanticDefaults::kGuardrailBatchSize));
     }
 }
 
@@ -82,17 +82,9 @@ void OnSetRouting(ClientContext& context, SetScope, Value& parameter) {
     ExtensionState::Get(context).router->SetStrategy(strategy);
 }
 
-void OnSetInFlightCap(ClientContext& context, SetScope, Value& parameter) {
-    const int64_t cap = parameter.GetValue<int64_t>();
-    const int64_t size = ReadIntSetting(context, semantic_option::kCoalesceSize, SemanticDefaults::kCoalesceSize);
-    MaybeWarnGuardrail(cap, size);
-}
-
-void OnSetCoalesceSize(ClientContext& context, SetScope, Value& parameter) {
-    const int64_t size = parameter.GetValue<int64_t>();
-    const int64_t cap = ReadIntSetting(context, semantic_option::kInFlightCap, SemanticDefaults::kInFlightCap);
-    MaybeWarnGuardrail(cap, size);
-}
+// in_flight_cap and batch_size carry NO set_option callback: the high-N/high-R
+// guardrail is evaluated once per invocation in ResolveSemanticParams (on the
+// resolved values), not at SET time.
 
 void OnSetResponseFormat(ClientContext&, SetScope, Value& parameter) {
     const std::string format = parameter.ToString();
@@ -153,10 +145,11 @@ void RegisterSemanticSettings(DBConfig& config) {
 
     config.AddExtensionOption(semantic_option::kInFlightCap,
                               "Maximum concurrent in-flight requests per semantic operator.", LogicalType::BIGINT,
-                              Value::BIGINT(SemanticDefaults::kInFlightCap), OnSetInFlightCap, SetScope::SESSION);
+                              Value::BIGINT(SemanticDefaults::kInFlightCap), nullptr, SetScope::SESSION);
 
-    config.AddExtensionOption(semantic_option::kCoalesceSize, "Number of rows coalesced into one LLM request.",
-                              LogicalType::BIGINT, Value::BIGINT(SemanticDefaults::kCoalesceSize), OnSetCoalesceSize,
+    config.AddExtensionOption(semantic_option::kBatchSize,
+                              "Rows packed into one multi-row LLM request (batch size); model_args overrides this.",
+                              LogicalType::BIGINT, Value::BIGINT(SemanticDefaults::kBatchSize), nullptr,
                               SetScope::SESSION);
 
     config.AddExtensionOption(semantic_option::kCoalesceMaxAgeMs,
@@ -178,8 +171,8 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
     SemanticParams params;
     params.in_flight_cap =
             static_cast<uint64_t>(ReadIntSetting(context, semantic_option::kInFlightCap, SemanticDefaults::kInFlightCap));
-    params.coalesce_size =
-            static_cast<uint64_t>(ReadIntSetting(context, semantic_option::kCoalesceSize, SemanticDefaults::kCoalesceSize));
+    params.batch_size =
+            static_cast<uint64_t>(ReadIntSetting(context, semantic_option::kBatchSize, SemanticDefaults::kBatchSize));
     params.coalesce_max_age_ms = static_cast<uint64_t>(
             ReadIntSetting(context, semantic_option::kCoalesceMaxAgeMs, SemanticDefaults::kCoalesceMaxAgeMs));
     params.max_output_tokens = static_cast<uint64_t>(
@@ -196,8 +189,8 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
     if (args.contains("in_flight_cap")) {
         params.in_flight_cap = args["in_flight_cap"].get<uint64_t>();
     }
-    if (args.contains("coalesce_size")) {
-        params.coalesce_size = args["coalesce_size"].get<uint64_t>();
+    if (args.contains("batch_size")) {
+        params.batch_size = args["batch_size"].get<uint64_t>();
     }
     if (args.contains("coalesce_max_age_ms")) {
         params.coalesce_max_age_ms = args["coalesce_max_age_ms"].get<uint64_t>();
@@ -208,6 +201,9 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
     if (args.contains("response_format")) {
         params.response_format = args["response_format"].get<std::string>();
     }
+
+    // Relocated guardrail: warn once here on the fully-resolved values.
+    MaybeWarnGuardrail(static_cast<int64_t>(params.in_flight_cap), static_cast<int64_t>(params.batch_size));
     return params;
 }
 
