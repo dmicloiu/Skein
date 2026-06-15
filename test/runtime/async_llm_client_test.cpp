@@ -196,6 +196,111 @@ TEST_F(AsyncLLMClientTest, Cancel_Queued_DroppedBeforeSubmit) {
     EXPECT_LT(fired.load(), kFlood) << "no callbacks were suppressed";
 }
 
+// -- 4b. Drain-on-cancel: cancel blocks while a callback is mid-flight --------
+//
+// The UAF this guards: the IO thread is INSIDE a callback (which in production
+// touches the sink state) when the canceller runs. Cancel must not return until
+// that callback finishes, so the caller can free the captured state safely.
+TEST_F(AsyncLLMClientTest, Cancel_DrainsInProgressCallback) {
+    server_->Start([](const MockVLLMServer::Request&) {
+        MockVLLMServer::Response r;
+        r.status = 200;
+        r.body = R"({"ok":true})";
+        return r;
+    });
+    client_ = std::make_unique<AsyncLLMClient>();
+
+    std::mutex m;
+    std::condition_variable started_cv;   // callback -> test: "I'm executing"
+    std::condition_variable release_cv;    // test -> callback: "you may return"
+    bool cb_started = false;
+    bool cb_finished = false;
+    bool allow_release = false;
+
+    client_->Submit(server_->Url("/v1/chat/completions"), R"({})", /*gen=*/7, "rid-drain",
+                    [&](AsyncLLMClient::Response) {
+                        std::unique_lock<std::mutex> lk(m);
+                        cb_started = true;
+                        started_cv.notify_all();
+                        // Hold here so the canceller catches us mid-flight.
+                        release_cv.wait(lk, [&] { return allow_release; });
+                        cb_finished = true;
+                    });
+
+    // Wait until the callback is actually executing.
+    {
+        std::unique_lock<std::mutex> lk(m);
+        ASSERT_TRUE(started_cv.wait_for(lk, 5s, [&] { return cb_started; }))
+            << "callback never started";
+    }
+
+    // Cancel from another thread; it must BLOCK until the callback returns.
+    std::atomic<bool> cancel_returned{false};
+    std::thread canceller([&] {
+        client_->CancelByGeneration(7);
+        cancel_returned.store(true, std::memory_order_release);
+    });
+
+    // Give the canceller ample time to (wrongly) return early. While the
+    // callback is held, the drain must still be blocked.
+    std::this_thread::sleep_for(100ms);
+    EXPECT_FALSE(cancel_returned.load(std::memory_order_acquire))
+        << "CancelByGeneration returned while a callback for its gen was in progress";
+    {
+        std::lock_guard<std::mutex> lk(m);
+        EXPECT_FALSE(cb_finished) << "callback finished before it was released (test bug)";
+    }
+
+    // Release the callback; only now may the drain complete.
+    {
+        std::lock_guard<std::mutex> lk(m);
+        allow_release = true;
+    }
+    release_cv.notify_all();
+    canceller.join();
+
+    EXPECT_TRUE(cancel_returned.load(std::memory_order_acquire));
+    {
+        std::lock_guard<std::mutex> lk(m);
+        EXPECT_TRUE(cb_finished)
+            << "CancelByGeneration returned before the in-progress callback completed";
+    }
+}
+
+// -- 4c. Cancel before completion: callback dropped, drain returns promptly ---
+//
+// A generation cancelled while its request is still on the wire (no callback yet
+// in progress) fires NO callback, and the drain returns immediately rather than
+// waiting out the in-flight HTTP round-trip.
+TEST_F(AsyncLLMClientTest, Cancel_BeforeCompletion_NoCallbackAndReturnsPromptly) {
+    server_->Start([](const MockVLLMServer::Request&) {
+        MockVLLMServer::Response r;
+        r.status = 200;
+        r.body = R"({"ok":true})";
+        r.delay = 500ms;  // request still in flight when we cancel
+        return r;
+    });
+    client_ = std::make_unique<AsyncLLMClient>();
+
+    std::atomic<bool> fired{false};
+    client_->Submit(server_->Url("/v1/chat/completions"), R"({})", /*gen=*/11, "rid-precancel",
+                    [&](AsyncLLMClient::Response) { fired.store(true, std::memory_order_release); });
+
+    std::this_thread::sleep_for(50ms);  // request submitted + on the wire, not yet done
+
+    // Drain must return promptly: nothing is in progress, so it does not block
+    // on the outstanding HTTP (well under the server's 500ms delay).
+    const auto start = std::chrono::steady_clock::now();
+    client_->CancelByGeneration(11);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    EXPECT_LT(elapsed, 300ms) << "drain blocked on an in-flight request that had no callback running";
+
+    // Past the server delay + slack: the suppressed callback must never fire.
+    std::this_thread::sleep_for(800ms);
+    EXPECT_FALSE(fired.load(std::memory_order_acquire))
+        << "a callback fired for a generation cancelled before its request completed";
+}
+
 // -- 5. HTTP 500 error ------------------------------------------------------
 
 TEST_F(AsyncLLMClientTest, HttpError_500_PopulatesResponse) {
