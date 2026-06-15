@@ -118,7 +118,6 @@ private:
     duckdb::SinkResultType MergeAndCoalesce(SemLocalSinkState& local, duckdb::idx_t resume_idx,
                                             duckdb::InterruptState& interrupt);
     // Build the /v1/completions JSON body for a batch: ONE multi-row prompt
-    // string (never prompt:[array])
     std::string BuildPayload(const std::string& prompt, size_t batch_rows) const;
     // Render the batch's single prompt, choose an endpoint, build the payload,
     // and Submit (all OUTSIDE the lock).

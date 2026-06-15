@@ -55,7 +55,7 @@ public:
     // Mark a generation dead, then BLOCK until any in-progress callback for it
     // has returned (drain-on-cancel). Queued/in-flight callbacks are dropped; one
     // already running finishes first. On return, no callback for `generation`
-    // runs or will start -- so the caller can free state it captured. Thread-safe,
+    // runs or will start - - -> so the caller can free state it captured. Thread-safe,
     // idempotent. NON-REENTRANT: never call it from inside an on_done for `g`
     // (self-deadlock).
     virtual void CancelByGeneration(uint64_t generation) = 0;

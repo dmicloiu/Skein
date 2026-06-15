@@ -24,7 +24,7 @@ namespace {
 // the same {"items":[...]} for FILTER, COMPLETE, ...; see
 // scalar/llm_filter/implementation.cpp's CollectCompletions()[0]["items"]), so
 // the operator and the scalar agree. Element TYPE (bool, string, struct, ...) is
-// the operator's concern -- this function only realigns the array with its rows.
+// the operator's concern -> this function only realigns the array with its rows.
 //
 // Fail-loud policy: a failed HTTP request, unparseable body/completion, a
 // missing choices/text/items field, or an items/rows length mismatch all throw.
@@ -96,7 +96,7 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
     // [TO DO - W4] body["model"] from the model catalog (the real client supplies
     // it; the fake ignores it).
     nlohmann::json body;
-    body["prompt"] = prompt;  // a single string -- never prompt:[array]
+    body["prompt"] = prompt;  // a single string
     body["max_tokens"] = cfg.max_output_tokens;
     if (cfg.response_format == "json_schema") {
         // FILTER ONLY for now: constrain the output to a boolean array of length
