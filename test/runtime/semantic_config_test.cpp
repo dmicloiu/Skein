@@ -81,22 +81,29 @@ TEST(SemanticSettingsTest, ResponseFormatInvalidErrors) {
 TEST(SemanticSettingsTest, CalibrationKnobsReadBack) {
     duckdb::Connection con(TestDB());
     RunSQL(con, "SET semantic_in_flight_cap=64");
-    RunSQL(con, "SET semantic_coalesce_size=16");
+    RunSQL(con, "SET semantic_batch_size=16");
     RunSQL(con, "SET semantic_coalesce_max_age_ms=999");
     RunSQL(con, "SET semantic_max_output_tokens=8");
     EXPECT_EQ(ReadInt(*con.context, semantic_option::kInFlightCap), 64);
-    EXPECT_EQ(ReadInt(*con.context, semantic_option::kCoalesceSize), 16);
+    EXPECT_EQ(ReadInt(*con.context, semantic_option::kBatchSize), 16);
     EXPECT_EQ(ReadInt(*con.context, semantic_option::kCoalesceMaxAgeMs), 999);
     EXPECT_EQ(ReadInt(*con.context, semantic_option::kMaxOutputTokens), 8);
 }
 
-// The guardrail (cap>128 && size>64) warns but does NOT error.
+// The relocated guardrail (cap>128 && batch_size>64) warns but does NOT error:
+// the high SETs succeed, and ResolveSemanticParams returns normally (the warning
+// is emitted to stderr) on the resolved high values.
 TEST(SemanticSettingsTest, GuardrailWarnsButSucceeds) {
     duckdb::Connection con(TestDB());
     EXPECT_FALSE(con.Query("SET semantic_in_flight_cap=256")->HasError());
-    EXPECT_FALSE(con.Query("SET semantic_coalesce_size=128")->HasError());
+    EXPECT_FALSE(con.Query("SET semantic_batch_size=128")->HasError());
     EXPECT_EQ(ReadInt(*con.context, semantic_option::kInFlightCap), 256);
-    EXPECT_EQ(ReadInt(*con.context, semantic_option::kCoalesceSize), 128);
+    EXPECT_EQ(ReadInt(*con.context, semantic_option::kBatchSize), 128);
+
+    SemanticParams params;
+    EXPECT_NO_THROW(params = ResolveSemanticParams(*con.context, "no_such_model_guardrail"));
+    EXPECT_EQ(params.in_flight_cap, 256u);
+    EXPECT_EQ(params.batch_size, 128u);
 }
 
 /**************************************************
@@ -108,13 +115,13 @@ TEST(SemanticModelParserTest, CreateAcceptsSemanticKeys) {
     std::unique_ptr<QueryStatement> statement;
     ModelParser parser;
     EXPECT_NO_THROW(parser.Parse(
-            "CREATE MODEL ('m', 'model', 'openai', {\"in_flight_cap\": 8, \"coalesce_size\": 4, "
+            "CREATE MODEL ('m', 'model', 'openai', {\"in_flight_cap\": 8, \"batch_size\": 4, "
             "\"coalesce_max_age_ms\": 250, \"max_output_tokens\": 32, \"response_format\": \"free_form\"})",
             statement));
     auto* create = dynamic_cast<CreateModelStatement*>(statement.get());
     ASSERT_NE(create, nullptr);
     EXPECT_EQ(create->model_args["in_flight_cap"], 8);
-    EXPECT_EQ(create->model_args["coalesce_size"], 4);
+    EXPECT_EQ(create->model_args["batch_size"], 4);
     EXPECT_EQ(create->model_args["coalesce_max_age_ms"], 250);
     EXPECT_EQ(create->model_args["max_output_tokens"], 32);
     EXPECT_EQ(create->model_args["response_format"], "free_form");
@@ -147,7 +154,7 @@ TEST(SemanticModelParserTest, BadTypesRejected) {
     std::unique_ptr<QueryStatement> statement;
     EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"in_flight_cap\": 0})", statement),
                  std::runtime_error);
-    EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"coalesce_size\": \"x\"})", statement),
+    EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"batch_size\": \"x\"})", statement),
                  std::runtime_error);
     EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"max_output_tokens\": -4})", statement),
                  std::runtime_error);
@@ -177,27 +184,36 @@ TEST(SemanticModelTest, CreatePersistsAndGetModelShows) {
 }
 
 // Precedence: model_args override wins over SET; SET wins where the model omits;
-// SemanticDefaults when neither sets a field.
+// SemanticDefaults when neither sets a field. batch_size now follows the same
+// two-check chain as in_flight_cap (model_args -> SET -> default).
 TEST(SemanticModelTest, ResolvePrecedence) {
     duckdb::Connection con(TestDB());
     con.Query("DELETE MODEL 'semantic_resolve_test'");
     RunSQL(con, "CREATE MODEL ('semantic_resolve_test', 'some-model', 'openai', {\"in_flight_cap\": 7})");
 
     // Session SET that the model does NOT override.
-    RunSQL(con, "SET semantic_coalesce_size=50");
+    RunSQL(con, "SET semantic_batch_size=50");
 
     auto params = ResolveSemanticParams(*con.context, "semantic_resolve_test");
-    EXPECT_EQ(params.in_flight_cap, 7u);   // model_args override
-    EXPECT_EQ(params.coalesce_size, 50u);  // SET value (model omits it)
+    EXPECT_EQ(params.in_flight_cap, 7u);  // model_args override
+    EXPECT_EQ(params.batch_size, 50u);    // SET value (model omits it)
+
+    // model_args wins over the SET when the model DOES pin batch_size.
+    con.Query("DELETE MODEL 'semantic_resolve_batch'");
+    RunSQL(con, "CREATE MODEL ('semantic_resolve_batch', 'some-model', 'openai', {\"batch_size\": 16})");
+    auto pinned = ResolveSemanticParams(*con.context, "semantic_resolve_batch");
+    EXPECT_EQ(pinned.batch_size, 16u);  // model_args override beats SET=50
 
     // A model with no overrides at all -> every field is the SET-or-default.
     duckdb::Connection fresh(TestDB());  // fresh session: no SESSION SETs applied
     auto defaults = ResolveSemanticParams(*fresh.context, "no_such_model_xyz");
     EXPECT_EQ(defaults.in_flight_cap, static_cast<uint64_t>(SemanticDefaults::kInFlightCap));
+    EXPECT_EQ(defaults.batch_size, static_cast<uint64_t>(SemanticDefaults::kBatchSize));
     EXPECT_EQ(defaults.max_output_tokens, static_cast<uint64_t>(SemanticDefaults::kMaxOutputTokens));
     EXPECT_EQ(defaults.response_format, std::string(SemanticDefaults::kResponseFormat));
 
     con.Query("DELETE MODEL 'semantic_resolve_test'");
+    con.Query("DELETE MODEL 'semantic_resolve_batch'");
 }
 
 }  // namespace flock

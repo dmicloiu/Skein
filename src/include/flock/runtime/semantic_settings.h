@@ -20,15 +20,16 @@ struct SemanticDefaults {
     static constexpr const char* kEndpoints = "http://localhost:8000/v1";
     static constexpr const char* kRouting = "round_robin";
     static constexpr int64_t kInFlightCap = 128;
-    static constexpr int64_t kCoalesceSize = 32;
+    // Rows packed into one multi-row prompt.
+    static constexpr int64_t kBatchSize = 32;
     static constexpr int64_t kCoalesceMaxAgeMs = 500;
     static constexpr const char* kResponseFormat = "json_schema";
     static constexpr int64_t kMaxOutputTokens = 16;
 
-    // Guardrail thresholds: when the resulting in_flight_cap AND coalesce_size
-    // both exceed these, the SET callbacks emit a warning (they never error).
+    // Guardrail thresholds: when the resolved in_flight_cap AND batch_size both
+    // exceed these, ResolveSemanticParams emits a warning (it never errors).
     static constexpr int64_t kGuardrailInFlightCap = 128;
-    static constexpr int64_t kGuardrailCoalesceSize = 64;
+    static constexpr int64_t kGuardrailBatchSize = 64;
 };
 
 // Canonical option names. Used by RegisterSemanticSettings and by
@@ -39,7 +40,7 @@ inline constexpr const char* kRewriteEnabled = "semantic_rewrite_enabled";
 inline constexpr const char* kEndpoints = "semantic_endpoints";
 inline constexpr const char* kRouting = "semantic_routing";
 inline constexpr const char* kInFlightCap = "semantic_in_flight_cap";
-inline constexpr const char* kCoalesceSize = "semantic_coalesce_size";
+inline constexpr const char* kBatchSize = "semantic_batch_size";
 inline constexpr const char* kCoalesceMaxAgeMs = "semantic_coalesce_max_age_ms";
 inline constexpr const char* kResponseFormat = "semantic_response_format";
 inline constexpr const char* kMaxOutputTokens = "semantic_max_output_tokens";
@@ -50,7 +51,7 @@ inline constexpr const char* kMaxOutputTokens = "semantic_max_output_tokens";
 // model-scoped (read directly from the SET surface / live router where needed).
 struct SemanticParams {
     uint64_t in_flight_cap;
-    uint64_t coalesce_size;
+    uint64_t batch_size;  // rows per multi-row prompt
     uint64_t coalesce_max_age_ms;
     uint64_t max_output_tokens;
     std::string response_format;  // "json_schema" | "free_form"

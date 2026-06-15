@@ -88,8 +88,8 @@ void ModelParser::ParseCreateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
         try {
             nlohmann::json input_args = nlohmann::json::parse(token.value);
             // Allow tuple_format, batch_size, model_parameters, plus the
-            // semantic calibration knobs (in_flight_cap, coalesce_size,
-            // coalesce_max_age_ms, max_output_tokens, response_format).
+            // semantic calibration knobs (in_flight_cap, coalesce_max_age_ms,
+            // max_output_tokens, response_format).
             for (auto it = input_args.begin(); it != input_args.end(); ++it) {
                 const std::string& key = it.key();
                 const auto& param_val = it.value();
@@ -100,7 +100,7 @@ void ModelParser::ParseCreateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
                         throw std::runtime_error("Expected 'batch_size' to be an integer.");
                     }
                     model_args[key] = param_val.get<int>();
-                } else if (key == "in_flight_cap" || key == "coalesce_size" || key == "coalesce_max_age_ms" ||
+                } else if (key == "in_flight_cap" || key == "coalesce_max_age_ms" ||
                            key == "max_output_tokens") {
                     if (!param_val.is_number_integer() || param_val.get<int64_t>() <= 0) {
                         throw std::runtime_error("Expected '" + key + "' to be a positive integer.");
@@ -113,7 +113,7 @@ void ModelParser::ParseCreateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
                     }
                     model_args[key] = param_val.get<std::string>();
                 } else {
-                    throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_size, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
+                    throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
                 }
             }
         } catch (const std::exception& e) {
@@ -238,8 +238,9 @@ void ModelParser::ParseUpdateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
             try {
                 nlohmann::json input_args = nlohmann::json::parse(token.value);
                 // Allow tuple_format, batch_size, model_parameters, plus the
-                // semantic calibration knobs (in_flight_cap, coalesce_size,
-                // coalesce_max_age_ms, max_output_tokens, response_format).
+                // semantic calibration knobs (in_flight_cap, coalesce_max_age_ms,
+                // max_output_tokens, response_format). batch_size accounts as the
+                // semantic rows-per-prompt knob.
                 for (auto it = input_args.begin(); it != input_args.end(); ++it) {
                     const std::string& key = it.key();
                     const auto& param_val = it.value();
@@ -263,7 +264,7 @@ void ModelParser::ParseUpdateModel(Tokenizer& tokenizer, std::unique_ptr<QuerySt
                         }
                         new_model_args[key] = param_val.get<std::string>();
                     } else {
-                        throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_size, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
+                        throw std::runtime_error("Unknown model_args parameter: '" + key + "'. Only tuple_format, batch_size, model_parameters, in_flight_cap, coalesce_max_age_ms, max_output_tokens, and response_format are allowed.");
                     }
                 }
             } catch (const std::exception& e) {
