@@ -19,6 +19,15 @@ own figures (no figure clobbers another's data):
                         recurring prefixes K -- sticky_by_prefix vs round_robin.
                         <- router_sticky_sweep_clariden.sh  (tags: sticky_k<K>,
                            round_robin_k<K>)
+  router_prefix_cache_throughput
+                        the performance CONSEQUENCE of that hit-rate gap: pool
+                        throughput (rows/s) vs K, sticky_by_prefix vs
+                        round_robin. Same sweep, same per-run blobs.
+                        <- router_sticky_sweep_clariden.sh
+  router_prefix_cache_combined
+                        the two above as one two-panel float (hit rate |
+                        throughput), sharing the K axis -- the form used in the
+                        paper. <- router_sticky_sweep_clariden.sh
 
 Inputs (in --results-dir):
   result_<tag>.json                       per-run blob from the integration binary
@@ -305,6 +314,152 @@ def _plot_sweep_line(ax, series, color, style, label):
     ax.plot(ks, pool, style, color=color, linewidth=2.0, markersize=6, label=label)
 
 
+def _sweep_throughput_series(results_dir, strat, Ks):
+    """[(K, rows_per_s), ...] read straight from the per-run blobs."""
+    out = []
+    for K in Ks:
+        r = load_result(results_dir, f"{strat}_k{K}")
+        if r and r.get("throughput_rows_per_s"):
+            out.append((K, r["throughput_rows_per_s"]))
+    return out
+
+
+def fig_prefix_cache_throughput(out_dir, results_dir):
+    """The sticky hit-rate advantage converts to higher end-to-end throughput.
+
+    The gain mirrors the hit-rate gap as a hump -> it peaks in the mid-K regime
+    where sticky's lead is widest and washes out at both ends (small K: nothing
+    to win, both fit; large K: both thrashed). The y axis is truncated to make
+    the gap legible, so the peak is annotated as a percentage to keep the
+    magnitude honest."""
+    import matplotlib.pyplot as plt
+    Ks = sorted(int(re.search(r"_k(\d+)\.json$", p.name).group(1))
+                for p in results_dir.glob("result_sticky_k*.json"))
+    if not Ks:
+        return
+    s = _sweep_throughput_series(results_dir, "sticky", Ks)
+    r = _sweep_throughput_series(results_dir, "round_robin", Ks)
+    if not (s and r):
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 4.8))
+    ax.plot([K for K, _ in s], [v for _, v in s], "-o", color=COLOR_STICKY,
+            linewidth=2.0, markersize=6, label="sticky_by_prefix")
+    ax.plot([K for K, _ in r], [v for _, v in r], "-s", color=COLOR_RR,
+            linewidth=2.0, markersize=6, label="round_robin")
+
+    # Peak-uplift annotation: vertical double-arrow at the K where sticky's
+    # throughput lead is widest, labelled as a percentage so the truncated y
+    # axis cannot overstate the magnitude.
+    sm = {K: v for K, v in s}
+    rm = {K: v for K, v in r}
+    common = sorted(set(sm) & set(rm))
+    if common:
+        kbest = max(common, key=lambda K: sm[K] - rm[K])
+        upl = sm[kbest] / rm[kbest] - 1.0
+        ax.annotate("", xy=(kbest, sm[kbest]), xytext=(kbest, rm[kbest]),
+                    arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
+        ax.text(kbest * 1.10, (sm[kbest] + rm[kbest]) / 2, f"+{upl*100:.0f}%",
+                ha="left", va="center", fontsize=10, fontweight="bold",
+                color=COLOR_STICKY)
+
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(Ks)
+    ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+    ax.set_xlabel("distinct recurring prefixes  K")
+    ax.set_ylabel(_label("pool throughput", "rows/s"))
+    allv = [v for _, v in s] + [v for _, v in r]
+    pad = (max(allv) - min(allv)) * 0.30
+    ax.set_ylim(min(allv) - pad, max(allv) + pad)
+    ax.set_title("Throughput vs prefix diversity")
+    ax.legend(loc="upper right")
+    _suptitle(fig, "sticky_by_prefix's cache reuse lifts pool throughput")
+    _save(fig, out_dir, "router_prefix_cache_throughput")
+    plt.close(fig)
+
+
+def fig_prefix_cache_combined(out_dir, results_dir, n):
+    """Single two-panel float pairing the prefix-cache MECHANISM (left: pool hit
+    rate vs K) with its CONSEQUENCE (right: pool throughput vs K), sharing the K
+    axis. Mirrors router_load_aware's cause|consequence layout, and avoids a
+    dual-y-axis (the two metrics have incomparable units/scales). The standalone
+    router_prefix_cache{,_throughput} figures stay available for slides."""
+    import matplotlib.pyplot as plt
+    Ks = sorted(int(re.search(r"_k(\d+)\.json$", p.name).group(1))
+                for p in results_dir.glob("result_sticky_k*.json"))
+    if not Ks:
+        return
+    s_hit = _sweep_series(results_dir, "sticky", Ks, n)
+    r_hit = _sweep_series(results_dir, "round_robin", Ks, n)
+    s_tp = _sweep_throughput_series(results_dir, "sticky", Ks)
+    r_tp = _sweep_throughput_series(results_dir, "round_robin", Ks)
+    if not (s_hit and s_tp):
+        return
+
+    fig, (axA, axB) = plt.subplots(1, 2, figsize=(13, 5.0))
+
+    # ---- (left) hit rate: the mechanism ----
+    _plot_sweep_line(axA, s_hit, COLOR_STICKY, "-o", "sticky_by_prefix")
+    _plot_sweep_line(axA, r_hit, COLOR_RR, "-s", "round_robin")
+    sm = {K: v for K, v, *_ in s_hit}
+    rm = {K: v for K, v, *_ in r_hit}
+    common = sorted(set(sm) & set(rm))
+    if common:
+        kbest = max(common, key=lambda K: sm[K] - rm[K])
+        gap = sm[kbest] - rm[kbest]
+        axA.annotate("", xy=(kbest, sm[kbest]), xytext=(kbest, rm[kbest]),
+                     arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
+        axA.text(kbest * 1.12, (sm[kbest] + rm[kbest]) / 2, f"+{gap*100:.0f} pts",
+                 ha="left", va="center", fontsize=9, fontweight="bold",
+                 color=COLOR_STICKY)
+    axA.set_xscale("log", base=2)
+    axA.set_xticks(Ks)
+    axA.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+    axA.yaxis.set_major_formatter(plt.matplotlib.ticker.PercentFormatter(xmax=1.0, decimals=0))
+    axA.set_xlabel("distinct recurring prefixes  K")
+    axA.set_ylabel("pool prefix-cache hit rate")
+    axA.set_ylim(0, 0.45)
+    axA.set_title("Prefix-cache reuse")
+    for K, v, *_ in s_hit:
+        axA.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
+                     xytext=(0, 8), ha="center", fontsize=7.5, color=COLOR_STICKY)
+    for K, v, *_ in r_hit:
+        axA.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
+                     xytext=(0, -13), ha="center", fontsize=7.5, color=COLOR_RR)
+    axA.legend(loc="upper right")
+
+    # ---- (right) throughput: the consequence ----
+    axB.plot([K for K, _ in s_tp], [v for _, v in s_tp], "-o", color=COLOR_STICKY,
+             linewidth=2.0, markersize=6, label="sticky_by_prefix")
+    axB.plot([K for K, _ in r_tp], [v for _, v in r_tp], "-s", color=COLOR_RR,
+             linewidth=2.0, markersize=6, label="round_robin")
+    sm2 = {K: v for K, v in s_tp}
+    rm2 = {K: v for K, v in r_tp}
+    common2 = sorted(set(sm2) & set(rm2))
+    if common2:
+        kbest2 = max(common2, key=lambda K: sm2[K] - rm2[K])
+        upl = sm2[kbest2] / rm2[kbest2] - 1.0
+        axB.annotate("", xy=(kbest2, sm2[kbest2]), xytext=(kbest2, rm2[kbest2]),
+                     arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
+        axB.text(kbest2 * 1.10, (sm2[kbest2] + rm2[kbest2]) / 2, f"+{upl*100:.0f}%",
+                 ha="left", va="center", fontsize=10, fontweight="bold",
+                 color=COLOR_STICKY)
+    axB.set_xscale("log", base=2)
+    axB.set_xticks(Ks)
+    axB.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+    axB.set_xlabel("distinct recurring prefixes  K")
+    axB.set_ylabel(_label("pool throughput", "rows/s"))
+    allv = [v for _, v in s_tp] + [v for _, v in r_tp]
+    pad = (max(allv) - min(allv)) * 0.30
+    axB.set_ylim(min(allv) - pad, max(allv) + pad)
+    axB.set_title("Throughput payoff")
+    axB.legend(loc="upper right")
+
+    _suptitle(fig, "sticky_by_prefix: reuse (left) lifts pool throughput (right)")
+    _save(fig, out_dir, "router_prefix_cache_combined")
+    plt.close(fig)
+
+
 def fig_load_aware(out_dir, ll, rr_hetero, n, throttled_ep=0):
     """Fig 3: least_loaded vs round_robin_hetero on the SAME throttled
     fleet -- two views of one experiment:
@@ -415,6 +570,8 @@ def main() -> int:
 
     fig_throughput(args.out_dir, single, rr, n)
     fig_prefix_cache_sweep(args.out_dir, rd, n)
+    fig_prefix_cache_throughput(args.out_dir, rd)
+    fig_prefix_cache_combined(args.out_dir, rd, n)
     fig_load_aware(args.out_dir, ll, rr_hetero, n, throttled_ep=0)
     return 0
 
