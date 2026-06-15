@@ -69,8 +69,8 @@ public:
     // No ClientContext
     SemGlobalSinkState(std::shared_ptr<ILLMClient> client, std::shared_ptr<EndpointRouter> router,
                        SemanticParams cfg);
-    // Bumps the generation and cancels outstanding callbacks. This is the guard
-    // against use-after-free on query teardown / cancellation.
+    // Drain-cancels this query's callbacks via the client before members die --
+    // the UAF guard on teardown / cancellation.
     ~SemGlobalSinkState() override;
 
     // Set ONCE before any Sink call (by the operator or directly by the test);
@@ -147,7 +147,9 @@ private:
 
     // --- atomics: lock-free hint reads + a cross-thread id source ---
     std::atomic<size_t> in_flight{0};        // outstanding HTTP batches
-    std::atomic<uint64_t> generation{1};     // bumped on destroy/cancel; callback no-ops on mismatch
+    // Unique per query (NextGeneration() at construction, never bumped): tags
+    // this query's Submits and is the gen drain-cancelled on teardown.
+    std::atomic<uint64_t> generation;
     std::atomic<uint64_t> next_row_id{0};    // monotonic, query-global row ids
     std::atomic<size_t> max_in_flight_seen{0};
     std::atomic<bool> blocked_at_least_once{false};

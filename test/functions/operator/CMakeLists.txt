@@ -11,6 +11,7 @@ find_package(Threads REQUIRED)
 add_executable(flock_semantic_operator_tests
     ${PROJECT_SOURCE_DIR}/src/functions/operator/semantic_operator_base.cpp
     ${PROJECT_SOURCE_DIR}/src/runtime/endpoint_router.cpp
+    ${PROJECT_SOURCE_DIR}/src/runtime/llm_client.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/semantic_operator_base_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/extension_loader_stub.cpp)
 
