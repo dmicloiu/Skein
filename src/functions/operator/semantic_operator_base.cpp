@@ -68,19 +68,16 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
 
 SemGlobalSinkState::SemGlobalSinkState(std::shared_ptr<ILLMClient> client,
                                        std::shared_ptr<EndpointRouter> router, SemanticParams cfg)
-    : client(std::move(client)), router(std::move(router)), cfg(std::move(cfg)) {
+    : generation(NextGeneration()), client(std::move(client)), router(std::move(router)),
+      cfg(std::move(cfg)) {
 }
 
 SemGlobalSinkState::~SemGlobalSinkState() {
-    // UAF guard on teardown / cancellation. Bump the generation FIRST so any
-    // late completion that races the destructor no-ops in OnBatchComplete, then
-    // tell the client to drop every outstanding callback for the prior
-    // generation. The client serializes the drop against in-progress callbacks,
-    // so once CancelByGeneration returns, no callback referencing `this` can
-    // still be running -- and member teardown that follows is safe.
-    const uint64_t old = generation.fetch_add(1, std::memory_order_acq_rel);
+    // First statement, and WITHOUT the sink lock: the drain blocks until the IO
+    // thread's in-flight callback returns, so members are still alive when it
+    // finishes + that callback wants the lock, so holding it would deadlock.
     if (client) {
-        client->CancelByGeneration(old);
+        client->CancelByGeneration(generation.load(std::memory_order_acquire));
     }
 }
 
@@ -306,11 +303,10 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
 void SemGlobalSinkState::OnBatchComplete(uint64_t submit_generation, size_t endpoint_index,
                                          std::vector<uint64_t> row_ids, std::vector<RowData> rows,
                                          LLMResponse response) {
-    // Generation guard: the sole in-engine protection against use-after-free.
-    // If the query was cancelled/destroyed, the captured generation no longer
-    // matches the live one and we MUST NOT touch `this` past this point. (The
-    // client also drops callbacks for cancelled generations; this handles a
-    // completion that raced the bump before the client's drop took effect.)
+    // Defense-in-depth, not the UAF guard (the client's drain is authoritative
+    // and per-query generations never collide); a cheap no-op for a cancelled gen.
+    // TODO: this skips router->OnComplete below (leaks the endpoint counter)
+    // fix if live-query row-level cancellation is added; harmless on teardown.
     if (submit_generation != generation.load(std::memory_order_acquire)) {
         return;
     }

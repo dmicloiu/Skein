@@ -57,9 +57,10 @@ public:
         const std::string& request_id,
         OnDone on_done) override;
 
-    // Mark a generation as dead. Any in-flight or queued request with this
-    // generation has its callback dropped (not invoked). Curl resources are
-    // still cleaned up. Thread-safe. Idempotent.
+    // Drains as the interface specifies: drops this gen's queued/in-flight
+    // callbacks, blocks until any mid-flight one returns. Only the canceller
+    // blocks; the IO thread / data path never does. Curl resources are still
+    // freed for dropped requests.
     void CancelByGeneration(uint64_t generation) override;
 
     // Optional: remove a generation from the dead set, allowing future

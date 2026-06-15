@@ -4,6 +4,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -63,9 +65,13 @@ struct AsyncLLMClient::Impl {
     };
 
     // ---- shared state ----
-    std::mutex mu;                                // protects inbox, dead_generations
+    std::mutex mu;                                // protects inbox, dead_generations, in_progress
     std::deque<Pending> inbox;
     std::unordered_set<uint64_t> dead_generations;
+    // gen -> live callbacks past the dead-check. CancelByGeneration waits on `cv`
+    // for the cancelled gen to drain to 0 (single IO thread => 0 or 1 in practice).
+    std::unordered_map<uint64_t, size_t> in_progress;
+    std::condition_variable cv;
     std::atomic<bool> stop{false};
     std::atomic<uint64_t> next_id{1};
 
@@ -145,6 +151,34 @@ struct AsyncLLMClient::Impl {
         return IsDeadLocked(generation);
     }
 
+    // Every callback invocation funnels through here. The dead-check and the
+    // in_progress increment are one atomic step under `mu`. This closes the
+    // cancel race -> then `cb` runs outside the lock. The RAII guard decrements
+    // and notifies the drain even if `cb` throws.
+    void InvokeIfAlive(uint64_t gen, OnDone& cb, Response resp) {
+        if (!cb) return;
+        {
+            std::lock_guard<std::mutex> lock(mu);
+            if (stop.load(std::memory_order_acquire) || IsDeadLocked(gen)) {
+                return;
+            }
+            ++in_progress[gen];
+        }
+        struct DrainGuard {
+            Impl* self;
+            uint64_t gen;
+            ~DrainGuard() {
+                std::lock_guard<std::mutex> lock(self->mu);
+                auto it = self->in_progress.find(gen);
+                if (it != self->in_progress.end() && --it->second == 0) {
+                    self->in_progress.erase(it);
+                    self->cv.notify_all();
+                }
+            }
+        } guard{this, gen};
+        cb(std::move(resp));
+    }
+
     RequestHandle Submit(const std::string& endpoint,
                          const std::string& payload,
                          uint64_t generation,
@@ -170,8 +204,13 @@ struct AsyncLLMClient::Impl {
     }
 
     void CancelByGeneration(uint64_t generation) {
-        std::lock_guard<std::mutex> lock(mu);
+        std::unique_lock<std::mutex> lock(mu);
         dead_generations.insert(generation);
+        // Drain in-flight callbacks for this gen (contract in the header).
+        cv.wait(lock, [&] {
+            auto it = in_progress.find(generation);
+            return it == in_progress.end() || it->second == 0;
+        });
     }
 
     void ForgetGeneration(uint64_t generation) {
@@ -225,10 +264,7 @@ struct AsyncLLMClient::Impl {
             r.http_status = 0;
             r.error = "curl_easy_init failed";
             r.latency_us = NowMicros() - p.submit_micros;
-            if (!stop.load(std::memory_order_acquire) && !IsDead(p.generation) &&
-                p.on_done) {
-                p.on_done(std::move(r));
-            }
+            InvokeIfAlive(p.generation, p.on_done, std::move(r));
             return;
         }
         in->generation = p.generation;
@@ -273,9 +309,7 @@ struct AsyncLLMClient::Impl {
             uint64_t gen = in->generation;
             if (in->headers) curl_slist_free_all(in->headers);
             curl_easy_cleanup(in->easy);
-            if (!stop.load(std::memory_order_acquire) && !IsDead(gen) && cb) {
-                cb(std::move(r));
-            }
+            InvokeIfAlive(gen, cb, std::move(r));
             return;
         }
         CURL* key = in->easy;
@@ -311,12 +345,8 @@ struct AsyncLLMClient::Impl {
         curl_easy_cleanup(easy);
         if (in->headers) curl_slist_free_all(in->headers);
 
-        // Late-drop check: don't invoke the callback if the generation was
-        // cancelled or the client is being destroyed.
-        if (!stop.load(std::memory_order_acquire) && !IsDead(in->generation) &&
-            in->on_done) {
-            in->on_done(std::move(r));
-        }
+        // Drops if cancelled/destroyed; else runs under the drain count.
+        InvokeIfAlive(in->generation, in->on_done, std::move(r));
     }
 };
 
