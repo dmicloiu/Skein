@@ -34,10 +34,10 @@ namespace flock {
 
 // A coalesced batch that has returned from the LLM, awaiting parse + emit by
 // the source phase. Carries everything Drain needs to realign the response
-// choices with their originating rows.
+// items with their originating rows.
 struct CompletedBatch {
     std::vector<uint64_t> row_ids;  // submission order
-    std::vector<RowData> rows;      // rows[i] <-> row_ids[i] <-> choices[i]
+    std::vector<RowData> rows;      // rows[i] <-> row_ids[i] <-> items[i]
     LLMResponse response;           // raw HTTP result; parsed once, in Drain
     size_t endpoint_index = 0;      // router slot (already released on completion)
 };
@@ -59,10 +59,12 @@ public:
 // Global sink state + the dispatch state machine. One instance per query.
 class SemGlobalSinkState : public duckdb::GlobalSinkState {
 public:
-    // Renders the prompt for one row.
-    using RenderFn = std::function<std::string(const RowData&)>;
-    // Parses one response choice and appends its output row to `out`.
-    using ParseFn = std::function<void(const nlohmann::json& choice, const RowData&, duckdb::DataChunk& out)>;
+    // Renders ONE multi-row prompt that packs the whole batch (flock's
+    // BatchAndComplete strategy). batch_size rows -> one prompt -> one request.
+    using RenderFn = std::function<std::string(const std::vector<RowData>& batch)>;
+    // Parses one element of the response's boolean_array and appends its output
+    // row to `out`. items[i] <-> rows[i].
+    using ParseFn = std::function<void(const nlohmann::json& element, const RowData&, duckdb::DataChunk& out)>;
 
     // No ClientContext
     SemGlobalSinkState(std::shared_ptr<ILLMClient> client, std::shared_ptr<EndpointRouter> router,
@@ -72,9 +74,10 @@ public:
     ~SemGlobalSinkState() override;
 
     // Set ONCE before any Sink call (by the operator or directly by the test);
-    // read-only and lock-free thereafter, so concurrent SinkChunk calls share
-    // it safely. SinkChunk needs it during the sink phase; the analogous parse
-    // hook is a Drain parameter because parsing runs in the source phase.
+    // read-only and lock-free thereafter, so concurrent batch renders share it
+    // safely. Invoked per batch by SubmitBatch (the coalescer), OUTSIDE the lock;
+    // the analogous parse hook is a Drain parameter because parsing runs in the
+    // source phase.
     RenderFn render_prompt;
 
     // --- engine entry points (operator forwards here; the test calls directly) ---
@@ -114,15 +117,21 @@ private:
     // iff a full batch is ready but the cap is saturated.
     duckdb::SinkResultType MergeAndCoalesce(SemLocalSinkState& local, duckdb::idx_t resume_idx,
                                             duckdb::InterruptState& interrupt);
-    // Build the /v1/completions JSON body for a batch (prompt: [array]). Pure;
-    // safe to call outside the lock.
-    std::string BuildPayload(const std::vector<PendingRequest>& batch) const;
-    // Choose an endpoint, build the payload, and Submit (all OUTSIDE the lock).
+    // Build the /v1/completions JSON body for a batch: ONE multi-row prompt
+    // string (never prompt:[array])
+    std::string BuildPayload(const std::string& prompt, size_t batch_rows) const;
+    // Render the batch's single prompt, choose an endpoint, build the payload,
+    // and Submit (all OUTSIDE the lock).
     void SubmitBatch(std::vector<PendingRequest> batch);
     // Monotonically record the in-flight peak (test instrumentation).
     void NoteInFlight(size_t now_in_flight);
 
     static constexpr size_t LOCAL_MERGE_THRESHOLD = 8;
+    // Bytes of the rendered prompt used as the StickyByPrefix routing key. Kept
+    // short on purpose: it must stay inside the shared template head so a query's
+    // batches hash identically; a longer slice would reach the per-row tail and
+    // scatter them. See SubmitBatch.
+    static constexpr size_t kStickyPrefixBytes = 256;
 
     // --- guarded by THE one lock: the inherited StateWithBlockableTasks::Lock()
     //     Critical sections move buffers and adjust counters ONLY,
@@ -197,9 +206,11 @@ public:
     duckdb::unique_ptr<duckdb::LocalSourceState> GetLocalSourceState(
         duckdb::ExecutionContext& context, duckdb::GlobalSourceState& gstate) const override;
 
-    // The two operator-specific hooks W4 subclasses implement.
-    virtual std::string RenderPrompt(const RowData& row) const = 0;
-    virtual void ParseAndEmit(const nlohmann::json& choice, const RowData& row, duckdb::DataChunk& out) const = 0;
+    // The two operator-specific hooks W4 subclasses implement. RenderPrompt
+    // packs a whole batch into one multi-row prompt (W4: flock's tuple
+    // formatter); ParseAndEmit consumes one boolean_array element per row.
+    virtual std::string RenderPrompt(const std::vector<RowData>& batch) const = 0;
+    virtual void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const = 0;
 
     // The context-free core of GetGlobalSinkState: build the engine sink state
     // and bind its render hook to this operator's RenderPrompt. Public so tests

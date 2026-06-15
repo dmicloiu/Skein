@@ -16,11 +16,19 @@ using duckdb::SourceResultType;
 
 namespace {
 
-// Parse an OpenAI-style completions response: {"choices":[ ... ]}.
+// Parse one /v1/completions response into the batch's per-row response array.
 //
-// Fail-loud policy: a failed HTTP request, unparseable body, missing choices
-// array, or a choices/rows length mismatch all throw.
-nlohmann::json ParseChoices(const CompletedBatch& batch) {
+// The batch was sent as ONE multi-row prompt, so the response carries ONE
+// completion whose text is a JSON object holding one element per row under the
+// "items" key. This is flock's shared batch envelope (BatchAndComplete returns
+// the same {"items":[...]} for FILTER, COMPLETE, ...; see
+// scalar/llm_filter/implementation.cpp's CollectCompletions()[0]["items"]), so
+// the operator and the scalar agree. Element TYPE (bool, string, struct, ...) is
+// the operator's concern -- this function only realigns the array with its rows.
+//
+// Fail-loud policy: a failed HTTP request, unparseable body/completion, a
+// missing choices/text/items field, or an items/rows length mismatch all throw.
+nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (!batch.response.ok) {
         throw std::runtime_error("flock semantic operator: LLM request failed (http " +
                                  std::to_string(batch.response.http_status) + "): " + batch.response.error);
@@ -29,16 +37,31 @@ nlohmann::json ParseChoices(const CompletedBatch& batch) {
     if (parsed.is_discarded()) {
         throw std::runtime_error("flock semantic operator: response body is not valid JSON");
     }
-    auto it = parsed.find("choices");
-    if (it == parsed.end() || !it->is_array()) {
-        throw std::runtime_error("flock semantic operator: response missing a 'choices' array");
+    auto cit = parsed.find("choices");
+    if (cit == parsed.end() || !cit->is_array() || cit->empty()) {
+        throw std::runtime_error("flock semantic operator: response missing a non-empty 'choices' array");
     }
-    if (it->size() != batch.row_ids.size()) {
-        throw std::runtime_error("flock semantic operator: choices/rows length mismatch (" +
-                                 std::to_string(it->size()) + " choices vs " +
+    // ONE completion for the whole batch: choices[0].text holds the items.
+    const auto& choice = (*cit)[0];
+    auto tit = choice.find("text");
+    if (tit == choice.end() || !tit->is_string()) {
+        throw std::runtime_error("flock semantic operator: completion missing a 'text' string");
+    }
+    nlohmann::json completion =
+            nlohmann::json::parse(tit->get<std::string>(), /*cb=*/nullptr, /*allow_exceptions=*/false);
+    if (completion.is_discarded()) {
+        throw std::runtime_error("flock semantic operator: completion text is not valid JSON");
+    }
+    auto iit = completion.find("items");
+    if (iit == completion.end() || !iit->is_array()) {
+        throw std::runtime_error("flock semantic operator: completion missing an 'items' array");
+    }
+    if (iit->size() != batch.row_ids.size()) {
+        throw std::runtime_error("flock semantic operator: items/rows length mismatch (" +
+                                 std::to_string(iit->size()) + " items vs " +
                                  std::to_string(batch.row_ids.size()) + " rows)");
     }
-    return std::move(*it);
+    return std::move(*iit);
 }
 
 }  // namespace
@@ -69,17 +92,32 @@ void SemGlobalSinkState::NoteInFlight(size_t now_in_flight) {
     }
 }
 
-std::string SemGlobalSinkState::BuildPayload(const std::vector<PendingRequest>& batch) const {
-    // N prompts in one /v1/completions
-    // body via prompt:[array]; the response returns a choices:[array] aligned by
-    // index. [TO DO - add functionality] Model name + response_format schema wiring.
+std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t batch_rows) const {
+    // ONE multi-row prompt -> ONE /v1/completions request (flock's
+    // BatchAndComplete strategy). The single completion returns an "items" array
+    // of batch_rows elements, realigned with the rows in ParseItems.
+    // [TO DO - W4] body["model"] from the model catalog (the real client supplies
+    // it; the fake ignores it).
     nlohmann::json body;
-    auto prompts = nlohmann::json::array();
-    for (const auto& p : batch) {
-        prompts.push_back(p.prompt);
-    }
-    body["prompt"] = std::move(prompts);
+    body["prompt"] = prompt;  // a single string -- never prompt:[array]
     body["max_tokens"] = cfg.max_output_tokens;
+    if (cfg.response_format == "json_schema") {
+        // FILTER ONLY for now: constrain the output to a boolean array of length
+        // batch_rows (mirrors flock's openai adapter `items` schema).
+        nlohmann::json items_schema = {{"type", "array"},
+                                       {"minItems", batch_rows},
+                                       {"maxItems", batch_rows},
+                                       {"items", {{"type", "boolean"}}}};
+        body["response_format"] = {
+                {"type", "json_schema"},
+                {"json_schema",
+                 {{"name", "filter_results"},
+                  {"schema",
+                   {{"type", "object"},
+                    {"properties", {{"items", std::move(items_schema)}}},
+                    {"required", nlohmann::json::array({"items"})},
+                    {"additionalProperties", false}}}}}};
+    }
     return body.dump();
 }
 
@@ -87,15 +125,8 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     if (batch.empty()) {
         return;
     }
-    // OUTSIDE the lock: routing + payload build + submit.
-    // Sticky routing key: the first row's rendered prompt (its cacheable head).
-    const std::string& prefix_key = batch.front().prompt;
-    EndpointRouter::Pick pick = router->Choose(prefix_key);
-    std::string payload = BuildPayload(batch);
-    const uint64_t gen = generation.load(std::memory_order_acquire);
-
-    // Carry the per-row data the completion needs, preserving submission order:
-    //   row_ids[i] <-> rows[i] <-> prompt[i] <-> choices[i].
+    // OUTSIDE the lock: gather the carry-over, render, route, build, submit.
+    // Preserve submission order: row_ids[i] <-> rows[i] <-> items[i].
     std::vector<uint64_t> row_ids;
     std::vector<RowData> rows;
     row_ids.reserve(batch.size());
@@ -104,6 +135,21 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
         row_ids.push_back(p.row_id);
         rows.push_back(std::move(p.row));
     }
+    // Pack the whole batch into ONE multi-row prompt (render hook is read-only
+    // after setup, so it is lock-free here).
+    const std::string prompt = render_prompt(rows);
+    // Sticky routing key: a BOUNDED LEADING SLICE of the prompt, not the whole
+    // string. The router hashes the key wholesale, so the key must be identical
+    // across a query's batches to co-locate them for vLLM prefix-cache reuse.
+    // flock puts the instruction/template head at the front and the per-row data
+    // in the tail, so a short leading slice stays inside the shared head while
+    // the variable tail is excluded. Keep it SHORT: too long crosses into the
+    // per-row tail and scatters batches. [TO DO - W4] key on the actual template
+    // head once the operator renders it from the catalog (exact head boundary).
+    const std::string sticky_key = prompt.substr(0, kStickyPrefixBytes);
+    EndpointRouter::Pick pick = router->Choose(sticky_key);
+    std::string payload = BuildPayload(prompt, rows.size());
+    const uint64_t gen = generation.load(std::memory_order_acquire);
     const size_t endpoint_index = pick.index;
     const std::string request_id = "sem-batch-" + std::to_string(row_ids.front());
 
@@ -131,11 +177,11 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
         // Coalesce as many full batches as the cap allows, in submission order.
         // The read-check-of-in_flight and the increment are BOTH under the lock,
         // so the cap is authoritative - - -> in_flight can never exceed the cap.
-        while (pending.size() >= cfg.coalesce_size) {
+        while (pending.size() >= cfg.batch_size) {
             if (in_flight.load(std::memory_order_relaxed) < cfg.in_flight_cap) {
                 std::vector<PendingRequest> batch;
-                batch.reserve(static_cast<size_t>(cfg.coalesce_size));
-                for (uint64_t k = 0; k < cfg.coalesce_size; ++k) {
+                batch.reserve(static_cast<size_t>(cfg.batch_size));
+                for (uint64_t k = 0; k < cfg.batch_size; ++k) {
                     batch.push_back(std::move(pending.front()));
                     pending.pop_front();  // O(1) on deque
                 }
@@ -174,9 +220,10 @@ SinkResultType SemGlobalSinkState::SinkChunk(SemLocalSinkState& local, DataChunk
         for (idx_t c = 0; c < cols; ++c) {
             row.values.push_back(chunk.GetValue(c, i));
         }
+        // Capture the row only; the prompt is rendered per BATCH by the
+        // coalescer (SubmitBatch), not per row.
         PendingRequest req;
         req.row_id = next_row_id.fetch_add(1, std::memory_order_relaxed);  // query-global, lock-free
-        req.prompt = render_prompt(row);
         req.row = std::move(row);
         local.pending.push_back(std::move(req));
 
@@ -213,13 +260,13 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
     {
         auto guard = Lock();
         // Submit ALL remaining rows -- including a trailing partial batch
-        // (< coalesce_size) respecting the cap.
+        // (< batch_size) respecting the cap.
         // [TO DO] coalesce_max_age_ms is honored opportunistically here
         // and in SinkChunk; a dedicated timer thread that flushes aged partial
         // batches during idle / trickle input is deferred.
         while (!pending.empty()) {
             if (in_flight.load(std::memory_order_relaxed) < cfg.in_flight_cap) {
-                const size_t take = std::min<size_t>(static_cast<size_t>(cfg.coalesce_size), pending.size());
+                const size_t take = std::min<size_t>(static_cast<size_t>(cfg.batch_size), pending.size());
                 std::vector<PendingRequest> batch;
                 batch.reserve(take);
                 for (size_t k = 0; k < take; ++k) {
@@ -312,11 +359,11 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
         batch = std::move(completed.front());
         completed.pop();
     }
-    // Parse + emit OUTSIDE the lock. One batch per call; coalesce_size is
-    // bounded well under STANDARD_VECTOR_SIZE, so a batch always fits in `out`.
-    nlohmann::json choices = ParseChoices(batch);  // fail-loud on any anomaly
+    // Parse + emit OUTSIDE the lock. One batch per call; batch_size is bounded
+    // well under STANDARD_VECTOR_SIZE, so a batch always fits in `out`.
+    nlohmann::json items = ParseItems(batch);  // fail-loud on any anomaly
     for (size_t i = 0; i < batch.rows.size(); ++i) {
-        parse_fn(choices[i], batch.rows[i], out);
+        parse_fn(items[i], batch.rows[i], out);
     }
     return SourceResultType::HAVE_MORE_OUTPUT;
 }
@@ -343,7 +390,7 @@ duckdb::unique_ptr<SemGlobalSinkState> SemanticOperatorBase::CreateGlobalSinkSta
     // Bind the engine's render hook to this operator's RenderPrompt. `this`
     // outlives the sink state (the operator owns sink_state), and the hook is
     // set once before any Sink call, then only read.
-    state->render_prompt = [this](const RowData& row) { return RenderPrompt(row); };
+    state->render_prompt = [this](const std::vector<RowData>& batch) { return RenderPrompt(batch); };
     return state;
 }
 
@@ -389,8 +436,8 @@ SourceResultType SemanticOperatorBase::GetDataInternal(duckdb::ExecutionContext&
                                                        duckdb::OperatorSourceInput& input) const {
     // The confirmed bridge: the source phase reads the SINK state.
     auto& gss = sink_state->Cast<SemGlobalSinkState>();
-    auto parse = [this](const nlohmann::json& choice, const RowData& row, DataChunk& out) {
-        ParseAndEmit(choice, row, out);
+    auto parse = [this](const nlohmann::json& element, const RowData& row, DataChunk& out) {
+        ParseAndEmit(element, row, out);
     };
     return gss.Drain(chunk, parse, input.interrupt_state);
 }

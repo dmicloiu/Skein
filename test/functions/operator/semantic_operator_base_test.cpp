@@ -46,27 +46,36 @@ using duckdb::SinkResultType;
 using duckdb::SourceResultType;
 using duckdb::Value;
 
-SemanticParams MakeParams(uint64_t cap, uint64_t coalesce) {
+SemanticParams MakeParams(uint64_t cap, uint64_t batch_size) {
     SemanticParams p;
     p.in_flight_cap = cap;
-    p.coalesce_size = coalesce;
+    p.batch_size = batch_size;
     p.coalesce_max_age_ms = 500;
     p.max_output_tokens = 16;
     p.response_format = "json_schema";
     return p;
 }
 
-// Test render hook: a stub prompt derived from the row's first value.
+// Test render hook: ONE multi-row prompt with exactly one newline-terminated
+// line per row. The FakeLLMClient counts those lines to size its items array,
+// so the line-per-row contract is load-bearing for the fake.
 SemGlobalSinkState::RenderFn StubRender() {
-    return [](const RowData& row) {
-        return std::string("p:") + (row.values.empty() ? std::string() : row.values[0].ToString());
+    return [](const std::vector<RowData>& batch) {
+        std::string prompt;
+        for (const auto& row : batch) {
+            prompt += "p:";
+            prompt += row.values.empty() ? std::string() : row.values[0].ToString();
+            prompt += "\n";
+        }
+        return prompt;
     };
 }
 
-// Test parse hook (W3 pass-through): append the original row's values to `out`.
+// Test parse hook (pass-through): append the original row's values to `out`.
+// `element` is one boolean_array entry; the pass-through ignores its value.
 SemGlobalSinkState::ParseFn PassThroughParse() {
-    return [](const nlohmann::json& choice, const RowData& row, DataChunk& out) {
-        (void)choice;
+    return [](const nlohmann::json& element, const RowData& row, DataChunk& out) {
+        (void)element;
         const idx_t idx = out.size();
         for (idx_t c = 0; c < row.values.size(); ++c) {
             out.SetValue(c, idx, row.values[c]);
@@ -230,7 +239,7 @@ PipelineResult RunPipeline(int N, const SemanticParams& cfg, const FakeLLMClient
 
 // Assertions 1-3 (no loss/dup, cap respected, BLOCKED+wakeup) for a given N.
 void RunMainPipelineChecks(int N) {
-    const auto cfg = MakeParams(/*cap=*/4, /*coalesce=*/4);
+    const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
     FakeLLMClient::Options fopts;
     fopts.delay = std::chrono::milliseconds(8);
     fopts.num_workers = 4;
@@ -262,10 +271,10 @@ TEST(SemanticOperatorBase, Pipeline_NoLoss_Cap_Block_N16) {
     RunMainPipelineChecks(16);
 }
 
-// Tail batch (count not divisible by coalesce_size) is flushed + emitted, and a
+// Tail batch (count not divisible by batch_size) is flushed + emitted, and a
 // cap-saturated finalize returns BLOCKED then completes.
 TEST(SemanticOperatorBase, TailFlush_And_BlockingFinalize) {
-    const auto cfg = MakeParams(/*cap=*/1, /*coalesce=*/4);
+    const auto cfg = MakeParams(/*cap=*/1, /*batch_size=*/4);
     FakeLLMClient::Options fopts;
     fopts.delay = std::chrono::milliseconds(80);  // keep the in-flight batch live across finalize entry
     fopts.num_workers = 2;
@@ -285,7 +294,7 @@ TEST(SemanticOperatorBase, TailFlush_And_BlockingFinalize) {
 // Destroying the sink state with batches in flight must not UAF or hang: the
 // destructor bumps the generation + cancels, and no completion fires afterward.
 void RunCancellationCheck(int N) {
-    const auto cfg = MakeParams(/*cap=*/64, /*coalesce=*/4);  // big cap -> sink never blocks
+    const auto cfg = MakeParams(/*cap=*/64, /*batch_size=*/4);  // big cap -> sink never blocks
     FakeLLMClient::Options fopts;
     fopts.delay = std::chrono::milliseconds(100);  // callbacks stay pending past the cancel
     fopts.num_workers = 4;
@@ -340,7 +349,7 @@ TEST(SemanticOperatorBase, Cancellation_NoUAF_NoHang_N16) {
 
 // Fail-loud: a failed LLM response makes Drain throw rather than skip rows.
 TEST(SemanticOperatorBase, FailLoud_OnFailedResponse) {
-    const auto cfg = MakeParams(/*cap=*/4, /*coalesce=*/4);
+    const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
     FakeLLMClient::Options fopts;
     fopts.delay = std::chrono::milliseconds(2);
     fopts.inject_error = true;
@@ -384,6 +393,53 @@ TEST(SemanticOperatorBase, FailLoud_OnFailedResponse) {
     EXPECT_TRUE(threw) << "Drain did not fail loud on a failed response";
 }
 
+// Fail-loud: a successful response whose boolean_array length != the batch's row
+// count makes Drain throw rather than emit a misaligned / truncated batch.
+TEST(SemanticOperatorBase, FailLoud_OnLengthMismatch) {
+    const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
+    FakeLLMClient::Options fopts;
+    fopts.delay = std::chrono::milliseconds(2);
+    fopts.verdict_count_delta = 1;  // emit rows+1 items -> items/rows mismatch
+    fopts.num_workers = 2;
+    auto fake = std::make_shared<FakeLLMClient>(fopts);
+    auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
+                                                   EndpointRouter::Strategy::RoundRobin);
+    auto g = std::make_unique<SemGlobalSinkState>(fake, router, cfg);
+    g->render_prompt = StubRender();
+
+    const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
+    auto chunks = BuildChunks(4, 8, types);  // exactly one batch
+    auto local = std::make_unique<SemLocalSinkState>();
+    std::atomic<size_t> blocked{0};
+    RunSinkWorker(*g, *local, {chunks[0].get()}, blocked);
+    g->MergeLocal(*local);
+    std::atomic<size_t> fin_blocked{0};
+    RunFinalize(*g, fin_blocked);
+
+    const auto parse = PassThroughParse();
+    auto& alloc = duckdb::Allocator::DefaultAllocator();
+    bool threw = false;
+    for (int attempt = 0; attempt < 2000 && !threw; ++attempt) {
+        DataChunk out;
+        out.Initialize(alloc, types);
+        auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+        InterruptState interrupt(signal);
+        try {
+            auto res = g->Drain(out, parse, interrupt);
+            if (res == SourceResultType::BLOCKED) {
+                signal->Await();
+                continue;
+            }
+            if (res == SourceResultType::FINISHED) {
+                break;
+            }
+        } catch (const std::exception&) {
+            threw = true;
+        }
+    }
+    EXPECT_TRUE(threw) << "Drain did not fail loud on an items/rows length mismatch";
+}
+
 // -- Operator-level smoke test -----------------------------------
 
 // Test-only concrete operator: pass-through hooks with call counters, so the
@@ -398,12 +454,21 @@ public:
                                /*estimated_cardinality=*/0, std::move(client), std::move(router),
                                std::move(cfg)) {}
 
-    std::string RenderPrompt(const RowData& row) const override {
-        render_calls.fetch_add(1, std::memory_order_relaxed);
-        return std::string("op:") + (row.values.empty() ? std::string() : row.values[0].ToString());
+    std::string RenderPrompt(const std::vector<RowData>& batch) const override {
+        // Count rows (not calls), so the per-row assertion holds regardless of
+        // how the engine partitions rows into batches. One line per row -> the
+        // fake counts lines to size its items array.
+        render_calls.fetch_add(batch.size(), std::memory_order_relaxed);
+        std::string prompt;
+        for (const auto& row : batch) {
+            prompt += "op:";
+            prompt += row.values.empty() ? std::string() : row.values[0].ToString();
+            prompt += "\n";
+        }
+        return prompt;
     }
-    void ParseAndEmit(const nlohmann::json& choice, const RowData& row, DataChunk& out) const override {
-        (void)choice;
+    void ParseAndEmit(const nlohmann::json& element, const RowData& row, DataChunk& out) const override {
+        (void)element;
         const idx_t idx = out.size();
         for (idx_t c = 0; c < row.values.size(); ++c) {
             out.SetValue(c, idx, row.values[c]);
@@ -423,7 +488,7 @@ public:
 // beyond the engine paths exercised here and in the threading tests; they get a
 // real ExecutionContext/Pipeline only under W4's planner.
 TEST(SemanticOperatorBase, Operator_FlagsBridgeAndHooks) {
-    const auto cfg = MakeParams(/*cap=*/8, /*coalesce=*/4);
+    const auto cfg = MakeParams(/*cap=*/8, /*batch_size=*/4);
     auto fake = std::make_shared<FakeLLMClient>();
     auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
                                                    EndpointRouter::Strategy::RoundRobin);
@@ -461,8 +526,8 @@ TEST(SemanticOperatorBase, Operator_FlagsBridgeAndHooks) {
 
     std::vector<int64_t> out_values;
     std::mutex out_mtx;
-    const SemGlobalSinkState::ParseFn parse = [&op](const nlohmann::json& choice, const RowData& row,
-                                                    DataChunk& out) { op.ParseAndEmit(choice, row, out); };
+    const SemGlobalSinkState::ParseFn parse = [&op](const nlohmann::json& element, const RowData& row,
+                                                    DataChunk& out) { op.ParseAndEmit(element, row, out); };
     RunDrainWorker(gss, types, parse, out_values, out_mtx);
 
     std::sort(out_values.begin(), out_values.end());

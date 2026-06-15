@@ -4,6 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -21,14 +22,20 @@ namespace flock {
 
 // Deterministic, in-process stand-in for AsyncLLMClient, used by the threading
 // test. It does NO I/O: a small worker pool sleeps a configurable delay, then
-// synthesizes an OpenAI-style {"choices":[...]} body whose array length matches
-// the submitted batch (parsed from payload["prompt"]).
+// synthesizes a /v1/completions body with ONE completion whose text is the
+// batch's boolean_array under the "items" key (flock's batch response shape):
+//     {"choices":[{"index":0,"text":"{\"items\":[true,true,...]}"}]}
+// It IGNORES the request schema; the verdict count is taken from the prompt,
+// which the test's per-batch render emits as one newline-terminated line per row
+// (so partial tail batches size correctly). Options::verdict_count_delta injects
+// a count != row-count to exercise the engine's fail-loud length check.
 class FakeLLMClient : public ILLMClient {
 public:
     struct Options {
         std::chrono::milliseconds delay = std::chrono::milliseconds(10);   // base completion delay
         std::chrono::milliseconds jitter = std::chrono::milliseconds(0);   // uniform extra delay in [0, jitter]
         bool inject_error = false;             // synthesize ok=false (fail-loud test)
+        int verdict_count_delta = 0;           // emit (rows + delta) items (fail-loud length test)
         int num_workers = 4;
         uint32_t seed = 0xF10C5EEDu;           // deterministic jitter RNG seed
     };
@@ -61,7 +68,7 @@ public:
         (void)request_id;
         Job job;
         job.generation = generation;
-        job.batch_size = CountPrompts(payload);
+        job.batch_size = CountRows(payload);
         job.extra_delay_us = JitterMicros();
         job.on_done = std::move(on_done);
         const uint64_t id = next_id_.fetch_add(1, std::memory_order_relaxed);
@@ -94,16 +101,19 @@ private:
         LLMOnDone on_done;
     };
 
-    static size_t CountPrompts(const std::string& payload) {
+    // Row count = newline-terminated lines in the single multi-row prompt string
+    // (the test's render emits one line per row). The schema is ignored.
+    static size_t CountRows(const std::string& payload) {
         auto parsed = nlohmann::json::parse(payload, nullptr, /*allow_exceptions=*/false);
         if (parsed.is_discarded()) {
             return 0;
         }
         auto it = parsed.find("prompt");
-        if (it == parsed.end() || !it->is_array()) {
+        if (it == parsed.end() || !it->is_string()) {
             return 0;
         }
-        return it->size();
+        const auto& prompt = it->get_ref<const std::string&>();
+        return static_cast<size_t>(std::count(prompt.begin(), prompt.end(), '\n'));
     }
 
     int64_t JitterMicros() {
@@ -125,15 +135,22 @@ private:
             r.body = R"({"error":"injected"})";
             return r;
         }
-        auto choices = nlohmann::json::array();
-        for (size_t i = 0; i < job.batch_size; ++i) {
-            nlohmann::json choice;
-            choice["index"] = i;
-            choice["text"] = "ok";
-            choices.push_back(std::move(choice));
+        // ONE completion for the whole batch. Its text is a JSON object holding
+        // a boolean_array of per-row verdicts under "items". verdict_count_delta
+        // lets a test produce a count != rows to trip the fail-loud length check.
+        const int64_t count = std::max<int64_t>(
+                0, static_cast<int64_t>(job.batch_size) + opts_.verdict_count_delta);
+        auto items = nlohmann::json::array();
+        for (int64_t i = 0; i < count; ++i) {
+            items.push_back(true);
         }
+        nlohmann::json completion;
+        completion["items"] = std::move(items);
+        nlohmann::json choice;
+        choice["index"] = 0;
+        choice["text"] = completion.dump();  // completion text is the JSON-encoded items object
         nlohmann::json body;
-        body["choices"] = std::move(choices);
+        body["choices"] = nlohmann::json::array({std::move(choice)});
         r.ok = true;
         r.http_status = 200;
         r.body = body.dump();
