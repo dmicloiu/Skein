@@ -26,3 +26,8 @@ analysis/results/
 
 # SLURM job stdout/stderr.
 logs/
+# Test-run scratch databases (gtest targets create these in CWD).
+flock_semantic_test.db
+flock_semantic_test.db.wal
+flock_sem_filter_test.db
+flock_sem_filter_test.db.wal
