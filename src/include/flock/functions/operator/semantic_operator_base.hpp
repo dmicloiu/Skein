@@ -1,6 +1,8 @@
 #pragma once
 
 #include "duckdb/common/types/data_chunk.hpp"
+#include "duckdb/common/types/selection_vector.hpp"
+#include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/execution/physical_operator_states.hpp"
 #include "duckdb/parallel/interrupt.hpp"
@@ -53,7 +55,12 @@ public:
     // Resume cursor INTO THE CURRENT CHUNK.
     duckdb::idx_t next_row_idx = 0;
 
-    // [TO DO - future addition] the residual-predicate ExpressionExecutor lives here
+    // Residual-predicate pre-filter. Null when there are no non-LLM conjuncts, in
+    // which case every row survives. SinkChunk evaluates it once per fresh chunk and
+    // caches the survivor selection + count so a BLOCKED resume reuses them.
+    duckdb::unique_ptr<duckdb::ExpressionExecutor> residual_executor;
+    duckdb::SelectionVector residual_sel;
+    duckdb::idx_t survivor_count = 0;
 };
 
 // Global sink state + the dispatch state machine. One instance per query.
@@ -79,6 +86,14 @@ public:
     // the analogous parse hook is a Drain parameter because parsing runs in the
     // source phase.
     RenderFn render_prompt;
+
+    // Served-model id stamped into body["model"]. Set ONCE before any Sink (like
+    // render_prompt); empty -> omitted from the body.
+    std::string served_model;
+    // Routing key for StickyByPrefix: a per-query-stable string so a query's batches
+    // co-locate on one endpoint for vLLM prefix-cache reuse. Set ONCE before any
+    // Sink; empty -> SubmitBatch falls back to a leading slice of the prompt.
+    std::string sticky_key;
 
     // --- engine entry points (operator forwards here; the test calls directly) ---
 
