@@ -1,6 +1,7 @@
 #include "flock/runtime/semantic_settings.h"
 
 #include "duckdb.hpp"
+#include "duckdb/common/vector_size.hpp"
 #include "flock/custom_parser/query/model_parser.hpp"
 #include "flock/runtime/endpoint_router.h"
 #include "flock/runtime/extension_state.h"
@@ -106,6 +107,35 @@ TEST(SemanticSettingsTest, GuardrailWarnsButSucceeds) {
     EXPECT_EQ(params.batch_size, 128u);
 }
 
+// ResolveSemanticParams is the authoritative range chokepoint: it throws on a
+// batch_size outside [1, STANDARD_VECTOR_SIZE] or an in_flight_cap < 1 (both
+// would hang/overflow the engine), reached via the SET surface here.
+TEST(SemanticSettingsTest, ResolveRejectsOutOfRange) {
+    duckdb::Connection con(TestDB());
+
+    RunSQL(con, "SET semantic_batch_size=0");
+    EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_bs0"), std::exception);
+
+    RunSQL(con, "SET semantic_batch_size=" + std::to_string(STANDARD_VECTOR_SIZE + 1));
+    EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_bsbig"), std::exception);
+
+    RunSQL(con, "SET semantic_batch_size=32");  // back in range
+    RunSQL(con, "SET semantic_in_flight_cap=0");
+    EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_cap0"), std::exception);
+}
+
+// In-range SET values and the bare defaults (32 / 128) resolve without throwing.
+TEST(SemanticSettingsTest, ResolveAcceptsInRangeAndDefaults) {
+    duckdb::Connection con(TestDB());
+    RunSQL(con, "SET semantic_batch_size=" + std::to_string(STANDARD_VECTOR_SIZE));  // boundary, valid
+    RunSQL(con, "SET semantic_in_flight_cap=1");
+    EXPECT_NO_THROW(ResolveSemanticParams(*con.context, "no_such_model_inrange"));
+
+    // Fresh session -> pure defaults, which are in range.
+    duckdb::Connection fresh(TestDB());
+    EXPECT_NO_THROW(ResolveSemanticParams(*fresh.context, "no_such_model_defaults"));
+}
+
 /**************************************************
  *        CREATE/UPDATE MODEL parser surface      *
  **************************************************/
@@ -159,6 +189,21 @@ TEST(SemanticModelParserTest, BadTypesRejected) {
     EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"max_output_tokens\": -4})", statement),
                  std::runtime_error);
     EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"response_format\": \"yaml\"})", statement),
+                 std::runtime_error);
+}
+
+// batch_size must be a positive integer at parse time on BOTH paths, and the
+// removed coalesce_size key is now rejected as unknown on UPDATE (matching CREATE).
+TEST(SemanticModelParserTest, BatchSizeAndCoalesceSizeRejected) {
+    ModelParser parser;
+    std::unique_ptr<QueryStatement> statement;
+    EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"batch_size\": 0})", statement),
+                 std::runtime_error);
+    EXPECT_THROW(parser.Parse("UPDATE MODEL ('m', 'model', 'openai', {\"batch_size\": 0})", statement),
+                 std::runtime_error);
+    EXPECT_THROW(parser.Parse("CREATE MODEL ('m', 'model', 'openai', {\"coalesce_size\": 16})", statement),
+                 std::runtime_error);
+    EXPECT_THROW(parser.Parse("UPDATE MODEL ('m', 'model', 'openai', {\"coalesce_size\": 16})", statement),
                  std::runtime_error);
 }
 

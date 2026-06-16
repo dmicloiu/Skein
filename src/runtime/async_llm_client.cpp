@@ -207,12 +207,17 @@ struct AsyncLLMClient::Impl {
         std::unique_lock<std::mutex> lock(mu);
         dead_generations.insert(generation);
         // Drain in-flight callbacks for this gen (contract in the header).
+        // Do NOT ForgetGeneration here -- see ForgetGeneration.
         cv.wait(lock, [&] {
             auto it = in_progress.find(generation);
             return it == in_progress.end() || it->second == 0;
         });
     }
 
+    // SAFETY: only call when no request for `generation` can still complete.
+    // After CancelByGeneration, requests may still be on the wire; dropping the
+    // gen lets such a late completion run its callback against a freed operator
+    // (UAF). Safe only once abort-in-flight (W4 (D)) clears outstanding handles.
     void ForgetGeneration(uint64_t generation) {
         std::lock_guard<std::mutex> lock(mu);
         dead_generations.erase(generation);
