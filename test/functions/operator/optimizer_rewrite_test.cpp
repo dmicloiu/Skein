@@ -48,6 +48,14 @@ std::string LlmFilter(const std::string& c1, const std::string& c2, const std::s
            "', 'context_columns': [{'data': " + c1 + "}, {'data': " + c2 + "}]})";
 }
 
+// A single-column llm_filter call (references one column). Because llm_filter is
+// VOLATILE, filter pushdown leaves it as a surviving LogicalFilter instead of
+// folding it into the scan, so the rewrite still engages.
+std::string LlmFilter1(const std::string& c, const std::string& prompt = "p") {
+    return "llm_filter({'model_name': 'gpt-4o'}, {'prompt': '" + prompt +
+           "', 'context_columns': [{'data': " + c + "}]})";
+}
+
 // Collect every LogicalSemFilter in the tree (pre-order).
 void CollectSemFilters(LogicalOperator& op, std::vector<LogicalSemFilter*>& out) {
     if (auto* sf = dynamic_cast<LogicalSemFilter*>(&op)) {
@@ -56,6 +64,15 @@ void CollectSemFilters(LogicalOperator& op, std::vector<LogicalSemFilter*>& out)
     for (auto& child : op.children) {
         CollectSemFilters(*child, out);
     }
+}
+
+// Count plain LogicalFilter nodes (a surviving, non-rewritten filter).
+size_t CountLogicalFilters(LogicalOperator& op) {
+    size_t n = (op.type == LogicalOperatorType::LOGICAL_FILTER) ? 1u : 0u;
+    for (auto& child : op.children) {
+        n += CountLogicalFilters(*child);
+    }
+    return n;
 }
 
 // Residual conjuncts of a sem-filter node = all expressions except the llm_call.
@@ -99,6 +116,8 @@ std::vector<LogicalSemFilter*> SemFiltersIn(LogicalOperator& plan) {
 // ===========================================================================
 TEST(OptimizerRewriteDump, AllPlans) {
     const std::vector<std::pair<std::string, std::string>> queries = {
+            {"VOLATILE single-col WHERE", "SELECT a FROM docs WHERE " + LlmFilter1("a")},
+            {"VOLATILE mixed (x>5 AND llm)", "SELECT a FROM docs WHERE x > 5 AND " + LlmFilter1("a")},
             {"#1 where llm_filter", "SELECT a FROM docs WHERE " + LlmFilter("a", "b")},
             {"#2 residual AND", "SELECT a FROM docs WHERE x <> y AND " + LlmFilter("a", "b")},
             {"#3 NOT", "SELECT a FROM docs WHERE NOT " + LlmFilter("a", "b")},
@@ -170,6 +189,37 @@ TEST(OptimizerRewrite, Case8_SubqueryInnerFilter) {
 }
 
 // ===========================================================================
+// VOLATILE: a single-column WHERE llm_filter survives pushdown and rewrites.
+// (Before marking llm_filter VOLATILE, this predicate was folded into the scan
+// as a generic ExpressionFilter, leaving no LogicalFilter and thus no rewrite.)
+// ===========================================================================
+TEST(OptimizerRewrite, Volatile_SingleColumnRewrites) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter1("a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_FALSE(sf[0]->invert);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);
+}
+
+// A pushable relational conjunct goes to the scan; only the llm_filter survives,
+// so the rewritten node carries NO residual (contrast Case2, where a two-column
+// residual could not be pushed and stayed on the node).
+TEST(OptimizerRewrite, Volatile_MixedPushesRelationalKeepsLlm) {
+    auto plan = Plan("SELECT a FROM docs WHERE x > 5 AND " + LlmFilter1("a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);  // x>5 was pushed into the scan, not kept
+}
+
+// Baseline (flag off): the single-column filter still SURVIVES pushdown (VOLATILE),
+// but is left as a plain LogicalFilter running the scalar llm_filter (no rewrite).
+TEST(OptimizerRewrite, Volatile_SingleColumnFlagOffStaysScalar) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter1("a"), /*flag_off=*/true);
+    EXPECT_TRUE(SemFiltersIn(*plan).empty());
+    EXPECT_GE(CountLogicalFilters(*plan), 1u);  // survived pushdown, just not rewritten
+}
+
+// ===========================================================================
 // Fallback patterns: #5, #6, #7, #9, #10, #11 (no rewrite).
 // ===========================================================================
 TEST(OptimizerRewrite, Case5_OrIsResidual) {
@@ -227,6 +277,9 @@ int main(int argc, char** argv) {
     setup.Query("CREATE SECRET (TYPE OPENAI, API_KEY 'test-key');");
     flock::Model::SetMockProvider(std::make_shared<flock::MockProvider>(flock::ModelDetails{}));
     setup.Query("CREATE TABLE docs(a VARCHAR, b VARCHAR, x INT, y INT);");
+    // A few rows so statistics don't prune a relational predicate (e.g. x>5) to an
+    // EMPTY_RESULT and collapse the plan we want to inspect.
+    setup.Query("INSERT INTO docs VALUES ('a1','b1',1,2), ('a2','b2',7,3), ('a3','b3',9,9), ('a4','b4',4,8);");
 
     int rc = RUN_ALL_TESTS();
 
