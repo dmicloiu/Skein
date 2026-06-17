@@ -4,9 +4,11 @@
 
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/extension_statement.hpp"
+#include "duckdb/optimizer/optimizer_extension.hpp"
 #include "flock/core/common.hpp"
 #include "flock/core/config.hpp"
 #include "flock/custom_parser/query_parser.hpp"
+#include "flock/functions/operator/optimizer_rewrite.hpp"
 #include "flock/runtime/semantic_settings.h"
 
 #include <flock/model_manager/model.hpp>
@@ -19,6 +21,13 @@ static void LoadInternal(ExtensionLoader& loader) {
     // Register parser and binder hooks using extension registration APIs.
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
     flock::RegisterSemanticSettings(config);
+
+    // Plan rewrite (llm_filter WHERE predicates -> LogicalSemFilter). Runs after
+    // DuckDB's optimizers; gated on the semantic_rewrite_enabled setting.
+    OptimizerExtension semantic_rewrite;
+    semantic_rewrite.optimize_function = flock::SemanticOptimizeFunction;
+    OptimizerExtension::Register(config, semantic_rewrite);
+
     DuckParserExtension duck_parser;
     ParserExtension::Register(config, duck_parser);
     OperatorExtension::Register(config, make_shared_ptr<DuckOperatorExtension>());

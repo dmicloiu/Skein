@@ -120,3 +120,37 @@ target_link_libraries(flock_sem_filter_tests PRIVATE
     Threads::Threads)
 
 add_test(NAME flock_sem_filter_tests COMMAND flock_sem_filter_tests)
+
+# -- Optimizer rewrite tests (llm_filter LogicalFilter -> LogicalSemFilter)
+#
+# Drives the registered OptimizerExtension on real post-optimizer plans
+# (Connection::ExtractPlan), so it opens a DuckDB with flock loaded and links the
+# full extension + duckdb_static, same recipe as flock_sem_filter_tests above
+# (-fno-gnu-unique for the LogicalType:: strong-constant ODR clash; CURL for the
+# linked-in AsyncLLMClient). It inspects plans only; it never executes a query.
+add_executable(flock_optimizer_rewrite_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/optimizer_rewrite_test.cpp)
+
+target_include_directories(flock_optimizer_rewrite_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_options(flock_optimizer_rewrite_tests PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_optimizer_rewrite_tests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
+add_test(NAME flock_optimizer_rewrite_tests COMMAND flock_optimizer_rewrite_tests)
