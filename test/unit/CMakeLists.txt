@@ -7,6 +7,14 @@ file(COPY unit_test.db DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(${PROJECT_NAME}_tests test_main.cpp ${TEST_SOURCES})
 
+# duckdb_static (built C++11-style) defines LogicalType::VARCHAR etc. as plain
+# strong globals; a C++17 TU that ODR-uses those constants emits them as
+# STB_GNU_UNIQUE, which GNU ld rejects as a multiple definition against the
+# archive's strong def. -fno-gnu-unique makes our objects emit weak linkonce_odr
+# instead, which resolves cleanly against duckdb's definition.
+target_compile_options(${PROJECT_NAME}_tests PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
 # GNU ld (Linux + MinGW) needs --start-group/--end-group for circular deps
 # jemalloc is only built on Linux
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE

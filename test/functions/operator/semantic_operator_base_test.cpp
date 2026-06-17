@@ -13,14 +13,18 @@
 
 #include "fake_llm_client.h"
 
+#include "duckdb.hpp"
 #include "duckdb/common/allocator.hpp"
 #include "duckdb/common/helper.hpp"  // duckdb::make_shared_ptr
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/vector.hpp"
-#include "duckdb/execution/physical_plan_generator.hpp" 
+#include "duckdb/execution/expression_executor.hpp"
+#include "duckdb/execution/physical_plan_generator.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "duckdb/parallel/interrupt.hpp"
+#include "duckdb/planner/expression/bound_reference_expression.hpp"
 
 #include <gtest/gtest.h>
 
@@ -536,6 +540,99 @@ TEST(SemanticOperatorBase, Operator_FlagsBridgeAndHooks) {
     EXPECT_EQ(out_values, expected) << "operator round-trip lost/corrupted rows";
     EXPECT_EQ(op.render_calls.load(), static_cast<size_t>(total)) << "RenderPrompt not driven per row";
     EXPECT_EQ(op.emit_calls.load(), static_cast<size_t>(total)) << "ParseAndEmit not driven per row";
+}
+
+// Residual pre-filter under concurrency: each thread's SemLocalSinkState carries
+// an ExpressionExecutor; SinkChunk must drop non-survivors before the LLM round
+// trip, lose/duplicate nothing, and stay TSan-clean (the residual state is
+// thread-local, so it adds no new shared-state races).
+TEST(SemanticOperatorBase, Residual_PreFilter_Concurrent) {
+    duckdb::DuckDB db(nullptr);
+    duckdb::Connection con(db);
+    auto& ctx = *con.context;
+
+    const int N = 4;
+    const int64_t total = 200;
+    const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
+    FakeLLMClient::Options fopts;
+    fopts.delay = std::chrono::milliseconds(4);
+    fopts.num_workers = 4;
+    auto fake = std::make_shared<FakeLLMClient>(fopts);
+    auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
+                                                   EndpointRouter::Strategy::RoundRobin);
+    auto g = std::make_unique<SemGlobalSinkState>(fake, router, cfg);
+    g->render_prompt = StubRender();
+
+    // Keep rows whose BOOLEAN column (index 1) is true; lives past the executors.
+    auto residual = duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::BOOLEAN, 1);
+
+    const duckdb::vector<LogicalType> types{LogicalType::BIGINT, LogicalType::BOOLEAN};
+    auto& alloc = duckdb::Allocator::DefaultAllocator();
+    std::vector<std::unique_ptr<DataChunk>> chunks;
+    int64_t v = 0;
+    while (v < total) {
+        auto chunk = std::make_unique<DataChunk>();
+        chunk->Initialize(alloc, types);
+        idx_t n = 0;
+        while (n < 8 && v < total) {
+            chunk->SetValue(0, n, Value::BIGINT(v));
+            chunk->SetValue(1, n, Value::BOOLEAN(v % 2 == 0));
+            ++n;
+            ++v;
+        }
+        chunk->SetCardinality(n);
+        chunks.push_back(std::move(chunk));
+    }
+    std::vector<std::vector<DataChunk*>> partitions(N);
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        partitions[i % N].push_back(chunks[i].get());
+    }
+
+    std::vector<std::unique_ptr<SemLocalSinkState>> locals;
+    for (int t = 0; t < N; ++t) {
+        auto local = std::make_unique<SemLocalSinkState>();
+        local->residual_executor = duckdb::make_uniq<duckdb::ExpressionExecutor>(ctx, *residual);
+        local->residual_sel.Initialize(STANDARD_VECTOR_SIZE);
+        locals.push_back(std::move(local));
+    }
+    std::atomic<size_t> blocked{0};
+    {
+        std::vector<std::thread> sink_threads;
+        for (int t = 0; t < N; ++t) {
+            sink_threads.emplace_back(RunSinkWorker, std::ref(*g), std::ref(*locals[t]),
+                                      std::cref(partitions[t]), std::ref(blocked));
+        }
+        for (auto& th : sink_threads) {
+            th.join();
+        }
+    }
+    for (auto& l : locals) {
+        g->MergeLocal(*l);
+    }
+    std::atomic<size_t> fin_blocked{0};
+    RunFinalize(*g, fin_blocked);
+
+    std::vector<int64_t> out_values;
+    std::mutex out_mtx;
+    const auto parse = PassThroughParse();
+    {
+        std::vector<std::thread> drain_threads;
+        for (int t = 0; t < N; ++t) {
+            drain_threads.emplace_back(RunDrainWorker, std::ref(*g), std::cref(types), std::cref(parse),
+                                       std::ref(out_values), std::ref(out_mtx));
+        }
+        for (auto& th : drain_threads) {
+            th.join();
+        }
+    }
+
+    std::sort(out_values.begin(), out_values.end());
+    std::vector<int64_t> expected;
+    for (int64_t k = 0; k < total; k += 2) {
+        expected.push_back(k);
+    }
+    EXPECT_EQ(out_values.size(), expected.size()) << "residual filter changed the survivor count";
+    EXPECT_EQ(out_values, expected) << "residual pre-filter kept the wrong rows";
 }
 
 }  // namespace

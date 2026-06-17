@@ -93,10 +93,11 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
     // ONE multi-row prompt -> ONE /v1/completions request (flock's
     // BatchAndComplete strategy). The single completion returns an "items" array
     // of batch_rows elements, realigned with the rows in ParseItems.
-    // [TO DO - W4] body["model"] from the model catalog (the real client supplies
-    // it; the fake ignores it).
     nlohmann::json body;
     body["prompt"] = prompt;  // a single string
+    if (!served_model.empty()) {
+        body["model"] = served_model;
+    }
     body["max_tokens"] = cfg.max_output_tokens;
     if (cfg.response_format == "json_schema") {
         // FILTER ONLY for now: constrain the output to a boolean array of length
@@ -135,16 +136,13 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     // Pack the whole batch into ONE multi-row prompt (render hook is read-only
     // after setup, so it is lock-free here).
     const std::string prompt = render_prompt(rows);
-    // Sticky routing key: a BOUNDED LEADING SLICE of the prompt, not the whole
-    // string. The router hashes the key wholesale, so the key must be identical
-    // across a query's batches to co-locate them for vLLM prefix-cache reuse.
-    // flock puts the instruction/template head at the front and the per-row data
-    // in the tail, so a short leading slice stays inside the shared head while
-    // the variable tail is excluded. Keep it SHORT: too long crosses into the
-    // per-row tail and scatters batches. [TO DO - W4] key on the actual template
-    // head once the operator renders it from the catalog (exact head boundary).
-    const std::string sticky_key = prompt.substr(0, kStickyPrefixBytes);
-    EndpointRouter::Pick pick = router->Choose(sticky_key);
+    // Routing key for StickyByPrefix. Prefer the operator-supplied sticky_key (the
+    // query-stable template head). Fall back to a bounded leading slice of the
+    // prompt, which stays inside flock's shared instruction/template head while
+    // excluding the variable per-row tail; keep that slice short so it never
+    // reaches the tail and scatters a query's batches across endpoints.
+    const std::string key = sticky_key.empty() ? prompt.substr(0, kStickyPrefixBytes) : sticky_key;
+    EndpointRouter::Pick pick = router->Choose(key);
     std::string payload = BuildPayload(prompt, rows.size());
     const uint64_t gen = generation.load(std::memory_order_acquire);
     const size_t endpoint_index = pick.index;
@@ -205,17 +203,24 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
 
 SinkResultType SemGlobalSinkState::SinkChunk(SemLocalSinkState& local, DataChunk& chunk,
                                              InterruptState& interrupt) {
-    const idx_t n = chunk.size();
     const idx_t cols = chunk.ColumnCount();
-    // [TO DO - add functionality] run the residual ExpressionExecutor here -> survivors. Now, every row
-    // is a survivor.
+    // Residual pre-filter: drop rows failing the non-LLM conjuncts before the LLM
+    // round-trip. Computed ONLY on a fresh chunk (next_row_idx == 0) and cached in
+    // `local`; a BLOCKED resume reuses the cached selection. No executor -> identity.
+    if (local.next_row_idx == 0) {
+        local.survivor_count = local.residual_executor
+                                       ? local.residual_executor->SelectExpression(chunk, local.residual_sel)
+                                       : chunk.size();
+    }
+    const idx_t n = local.survivor_count;
     for (idx_t i = local.next_row_idx; i < n; ++i) {
+        const idx_t src = local.residual_executor ? local.residual_sel.get_index(i) : i;
         // Full-row COPY: GetValue returns an owning Value, so the snapshot
         // outlives this (soon-recycled) chunk across the async round-trip.
         RowData row;
         row.values.reserve(cols);
         for (idx_t c = 0; c < cols; ++c) {
-            row.values.push_back(chunk.GetValue(c, i));
+            row.values.push_back(chunk.GetValue(c, src));
         }
         // Capture the row only; the prompt is rendered per BATCH by the
         // coalescer (SubmitBatch), not per row.
