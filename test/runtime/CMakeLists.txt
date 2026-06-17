@@ -102,6 +102,35 @@ target_link_libraries(flock_endpoint_router_vllm_integration PRIVATE
     CURL::libcurl
     Threads::Threads)
 
+# -- sem_filter operator throughput driver (DuckDB-embedding A/B) -------------
+#
+# Unlike the standalone router driver above, this one OPENS a real DuckDB with
+# flock loaded and runs the full SQL chain, so it links the full extension +
+# duckdb_static (same recipe + -fno-gnu-unique as test/functions/operator's
+# flock_sem_filter_e2e_tests). It is a plain main() driver (no gtest, not
+# registered with ctest; built and run manually on the cluster).
+add_executable(flock_sem_filter_vllm_integration
+    ${CMAKE_CURRENT_SOURCE_DIR}/sem_filter_vllm_integration.cpp)
+
+target_include_directories(flock_sem_filter_vllm_integration PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include)
+
+target_compile_options(flock_sem_filter_vllm_integration PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_sem_filter_vllm_integration PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
 # -- Semantic config tests (ExtensionState, SET surface, CREATE MODEL) --------
 #
 # Unlike the standalone targets above, ExtensionState
