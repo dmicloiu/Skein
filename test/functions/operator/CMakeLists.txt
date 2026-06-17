@@ -154,3 +154,41 @@ target_link_libraries(flock_optimizer_rewrite_tests PRIVATE
     Threads::Threads)
 
 add_test(NAME flock_optimizer_rewrite_tests COMMAND flock_optimizer_rewrite_tests)
+
+# -- End-to-end llm_filter -> PhysicalSemFilter test (mock-backed, A/B parity) --
+#
+# Opens a real in-memory DuckDB with flock loaded and EXECUTES queries against a
+# content-deterministic mock vLLM (test/runtime/mock_vllm_server), so it links the
+# full extension + duckdb_static like flock_optimizer_rewrite_tests above
+# (-fno-gnu-unique for the LogicalType:: strong-constant ODR clash; CURL for the
+# linked-in AsyncLLMClient + the scalar path's openai handler). Fully CI-able: no
+# GPU / no vLLM.
+add_executable(flock_sem_filter_e2e_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/sem_filter_e2e_test.cpp
+    ${PROJECT_SOURCE_DIR}/test/runtime/mock_vllm_server.cpp)
+
+target_include_directories(flock_sem_filter_e2e_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/test/runtime)
+
+target_compile_options(flock_sem_filter_e2e_tests PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_sem_filter_e2e_tests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    nlohmann_json::nlohmann_json
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
+add_test(NAME flock_sem_filter_e2e_tests COMMAND flock_sem_filter_e2e_tests)
