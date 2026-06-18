@@ -63,12 +63,22 @@ srun -ul --environment="$EDF" bash -c '
         PIDS=(); ENDPOINTS=""
         for i in $(seq 0 $((NGPU-1))); do
             local port=$((BASE_PORT+i))
+            # disable_any_whitespace: force COMPACT guided-JSON output. Without it,
+            # xgrammar lets the model emit whitespace between array elements; under
+            # greedy decoding (temperature=0) the model stalls on the last verdict
+            # and loops on whitespace until max_tokens, yielding truncated/invalid
+            # JSON (seen on both arms at scale). Requires backend pinned to xgrammar
+            # (validator rejects disable_any_whitespace with backend=auto).
             CUDA_VISIBLE_DEVICES=$i vllm serve "$MODEL" \
                 --dtype bfloat16 --max-model-len 16384 --enable-prefix-caching \
                 --gpu-memory-utilization "$FULL_UTIL" --host 127.0.0.1 --port "$port" \
+                --structured-outputs-config '\''{"backend": "xgrammar", "disable_any_whitespace": true}'\'' \
                 > "$OUT/vllm-ep$i-$(date +%s).log" 2>&1 &
             PIDS+=($!)
-            ENDPOINTS="${ENDPOINTS:+$ENDPOINTS,}http://127.0.0.1:$port/v1/completions"
+            # /v1/chat/completions: the operator now posts chat requests here (parity
+            # with the scalar arm). DeriveBaseUrl in the driver strips this back to
+            # /v1 for the scalar secret's base_url.
+            ENDPOINTS="${ENDPOINTS:+$ENDPOINTS,}http://127.0.0.1:$port/v1/chat/completions"
         done
         echo "started fleet -> $ENDPOINTS"
         for i in $(seq 0 $((NGPU-1))); do

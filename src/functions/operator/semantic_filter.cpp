@@ -262,7 +262,10 @@ bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {
         }
         return lower.find('1') != std::string::npos;
     }
-    return false;  // null / object / array -> fail-safe: do not emit
+    if (element.is_null()) {
+        return true;  // parity with scalar llm_filter: a null/missing verdict -> pass (keep)
+    }
+    return false;  // object / array -> fail-safe: do not emit
 }
 
 void PhysicalSemFilter::ParseAndEmit(const nlohmann::json& element, const RowData& row, DataChunk& out) const {

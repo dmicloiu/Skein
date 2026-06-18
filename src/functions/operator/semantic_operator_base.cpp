@@ -17,18 +17,22 @@ using duckdb::SourceResultType;
 
 namespace {
 
-// Parse one /v1/completions response into the batch's per-row response array.
+// Parse one /v1/chat/completions response into the batch's per-row response array.
 //
-// The batch was sent as ONE multi-row prompt, so the response carries ONE
-// completion whose text is a JSON object holding one element per row under the
-// "items" key. This is flock's shared batch envelope (BatchAndComplete returns
-// the same {"items":[...]} for FILTER, COMPLETE, ...; see
+// The batch was sent as ONE multi-row chat prompt, so the response carries ONE
+// completion whose message.content is a JSON object holding one element per row
+// under the "items" key. This is flock's shared batch envelope (BatchAndComplete
+// returns the same {"items":[...]} for FILTER, COMPLETE, ...; see
 // scalar/llm_filter/implementation.cpp's CollectCompletions()[0]["items"]), so
 // the operator and the scalar agree. Element TYPE (bool, string, struct, ...) is
 // the operator's concern -> this function only realigns the array with its rows.
 //
-// Fail-loud policy: a failed HTTP request, unparseable body/completion, a
-// missing choices/text/items field, or an items/rows length mismatch all throw.
+// Degraded-response parity with the scalar's BatchAndComplete: a short items
+// array is padded with null and a long one truncated, so the result aligns by
+// row (ParseVerdict maps null -> pass) instead of failing the query.
+//
+// Fail-loud policy: a failed HTTP request or an unparseable body/content/missing
+// choices/message/items field still throws.
 nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (!batch.response.ok) {
         throw std::runtime_error("flock semantic operator: LLM request failed (http " +
@@ -44,30 +48,41 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (cit == parsed.end() || !cit->is_array() || cit->empty()) {
         throw std::runtime_error("flock semantic operator: response missing a non-empty 'choices' array");
     }
-    // ONE completion for the whole batch: choices[0].text holds the items.
+    // ONE chat completion for the whole batch: choices[0].message.content holds
+    // the {"items":[...]} envelope (chat/completions, for parity with llm_filter).
     const auto& choice = (*cit)[0];
-    auto tit = choice.find("text");
-    if (tit == choice.end() || !tit->is_string()) {
-        throw std::runtime_error("flock semantic operator: completion missing a 'text' string");
+    auto mit = choice.find("message");
+    if (mit == choice.end() || !mit->is_object()) {
+        throw std::runtime_error("flock semantic operator: chat choice missing a 'message' object");
     }
-    const std::string completion_text = tit->get<std::string>();
+    auto ctit = mit->find("content");
+    if (ctit == mit->end() || !ctit->is_string()) {
+        throw std::runtime_error("flock semantic operator: chat message missing a 'content' string");
+    }
+    const std::string completion_text = ctit->get<std::string>();
     nlohmann::json completion =
             nlohmann::json::parse(completion_text, /*cb=*/nullptr, /*allow_exceptions=*/false);
     if (completion.is_discarded()) {
-        std::fprintf(stderr, "[flock debug] operator: completion text not valid JSON (len=%zu):\n%.2000s\n",
+        std::fprintf(stderr, "[flock debug] operator: message content not valid JSON (len=%zu):\n%.2000s\n",
                      completion_text.size(), completion_text.c_str());
-        throw std::runtime_error("flock semantic operator: completion text is not valid JSON");
+        throw std::runtime_error("flock semantic operator: message content is not valid JSON");
     }
     auto iit = completion.find("items");
     if (iit == completion.end() || !iit->is_array()) {
         throw std::runtime_error("flock semantic operator: completion missing an 'items' array");
     }
-    if (iit->size() != batch.row_ids.size()) {
-        throw std::runtime_error("flock semantic operator: items/rows length mismatch (" +
-                                 std::to_string(iit->size()) + " items vs " +
-                                 std::to_string(batch.row_ids.size()) + " rows)");
+    // Align with the rows the same way the scalar does: pad short with null
+    // (-> pass via ParseVerdict), truncate long. Under guided decoding the array
+    // is already exactly batch-sized, so this only matters for degraded responses.
+    nlohmann::json items = std::move(*iit);
+    const size_t want = batch.row_ids.size();
+    while (items.size() < want) {
+        items.push_back(nullptr);
     }
-    return std::move(*iit);
+    if (items.size() > want) {
+        items.erase(items.begin() + static_cast<long>(want), items.end());
+    }
+    return items;
 }
 
 }  // namespace
@@ -96,11 +111,16 @@ void SemGlobalSinkState::NoteInFlight(size_t now_in_flight) {
 }
 
 std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t batch_rows) const {
-    // ONE multi-row prompt -> ONE /v1/completions request (flock's
+    // ONE multi-row prompt -> ONE /v1/chat/completions request (flock's
     // BatchAndComplete strategy). The single completion returns an "items" array
     // of batch_rows elements, realigned with the rows in ParseItems.
     nlohmann::json body;
-    body["prompt"] = prompt;  // a single string
+    // Chat-completions for parity with the scalar llm_filter path: same single
+    // user message with a text content part, so vLLM applies the model's chat
+    // template (+ default system prompt) identically for both arms. (Mirrors
+    // flock's openai adapter message shape.)
+    body["messages"] = nlohmann::json::array(
+            {{{"role", "user"}, {"content", nlohmann::json::array({{{"type", "text"}, {"text", prompt}}})}}});
     if (!served_model.empty()) {
         body["model"] = served_model;
     }

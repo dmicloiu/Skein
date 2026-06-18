@@ -121,10 +121,15 @@ std::string SqlEscape(const std::string& s) {
 // first endpoint to recover the shared base (e.g. .../v1).
 std::string DeriveBaseUrl(const std::string& endpoints_csv) {
     std::string first = endpoints_csv.substr(0, endpoints_csv.find(','));
-    const std::string suffix = "/completions";
-    if (first.size() >= suffix.size() &&
-        first.compare(first.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        first.erase(first.size() - suffix.size());
+    // Strip the request path so the scalar's openai handler can re-append
+    // "chat/completions". Handle the chat URL (operator now posts there) and the
+    // legacy completions URL; check the longer suffix first.
+    for (const std::string& suffix : {std::string("/chat/completions"), std::string("/completions")}) {
+        if (first.size() >= suffix.size() &&
+            first.compare(first.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            first.erase(first.size() - suffix.size());
+            break;
+        }
     }
     return first;
 }
