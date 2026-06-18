@@ -39,7 +39,7 @@ srun -ul --environment="$EDF" bash -c '
     MODEL="Qwen/Qwen2.5-7B-Instruct"
     NGPU=1; BASE_PORT=8000; FULL_UTIL=0.90
     IN_FLIGHT=128; BATCH=32; TIMEOUT_MS=120000
-    DATA="${DATA:-$SEMBENCH/files/movie/source_data/rotten_tomatoes_movie_reviews.csv}"
+    DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-The following movie review is clearly positive.}"
     ROWS="${ROWS:-2000}"
