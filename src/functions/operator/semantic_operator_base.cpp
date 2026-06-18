@@ -1,6 +1,7 @@
 #include "flock/functions/operator/semantic_operator_base.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -35,6 +36,8 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     }
     nlohmann::json parsed = nlohmann::json::parse(batch.response.body, /*cb=*/nullptr, /*allow_exceptions=*/false);
     if (parsed.is_discarded()) {
+        std::fprintf(stderr, "[flock debug] operator: response body not valid JSON (len=%zu):\n%.2000s\n",
+                     batch.response.body.size(), batch.response.body.c_str());
         throw std::runtime_error("flock semantic operator: response body is not valid JSON");
     }
     auto cit = parsed.find("choices");
@@ -47,9 +50,12 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (tit == choice.end() || !tit->is_string()) {
         throw std::runtime_error("flock semantic operator: completion missing a 'text' string");
     }
+    const std::string completion_text = tit->get<std::string>();
     nlohmann::json completion =
-            nlohmann::json::parse(tit->get<std::string>(), /*cb=*/nullptr, /*allow_exceptions=*/false);
+            nlohmann::json::parse(completion_text, /*cb=*/nullptr, /*allow_exceptions=*/false);
     if (completion.is_discarded()) {
+        std::fprintf(stderr, "[flock debug] operator: completion text not valid JSON (len=%zu):\n%.2000s\n",
+                     completion_text.size(), completion_text.c_str());
         throw std::runtime_error("flock semantic operator: completion text is not valid JSON");
     }
     auto iit = completion.find("items");
@@ -99,6 +105,11 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
         body["model"] = served_model;
     }
     body["max_tokens"] = cfg.max_output_tokens;
+    // Deterministic, fair A/B: greedy decoding. Explicitly overrides the model's
+    // generation_config.json default (temperature=0.7) so the operator arm is
+    // reproducible and matches the scalar arm (which pins temperature via
+    // model_parameters). temperature=0 -> greedy, so top_p/top_k are no-ops.
+    body["temperature"] = 0.0;
     if (cfg.response_format == "json_schema") {
         // FILTER ONLY for now: constrain the output to a boolean array of length
         // batch_rows (mirrors flock's openai adapter `items` schema).

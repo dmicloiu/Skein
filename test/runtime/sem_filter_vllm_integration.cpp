@@ -191,8 +191,26 @@ int main(int argc, char** argv) {
     // Pin the served model id (== --model, what vLLM serves) and the batch_size so
     // BOTH paths batch identically (model_args batch_size also overrides the
     // operator's resolved batch_size, keeping the A/B fair).
+    //
+    // Bound the completion length for BOTH arms to the same value, scaled to the
+    // batch. The two arms read DIFFERENT surfaces (see below), so we set both:
+    //   - operator (rewrite=on): SemanticParams.max_output_tokens <- model_args
+    //     "max_output_tokens"; its default is only 16 (semantic_settings.h),
+    //     which truncates a 32-row verdict array -> "completion text is not valid
+    //     JSON".
+    //   - scalar (rewrite=off): the OpenAI provider only emits "max_tokens" if it
+    //     is present in model_parameters (openai.cpp AddCompletionRequest); with
+    //     none set the request is unbounded and the model over-generates until the
+    //     context limit -> truncated JSON. So we nest "max_tokens" there.
+    // 16 tokens/row is ~8x headroom over the ~2 tokens a guided boolean needs, so
+    // the cap never clips a valid array while still bounding a runaway generation.
+    const long long max_out_tokens = 16LL * args.rows_per_request;
+    const std::string tok = std::to_string(max_out_tokens);
     if (!Run(con, "CREATE MODEL ('" + SqlEscape(args.model) + "', '" + SqlEscape(args.model) +
-                          "', 'openai', {\"batch_size\": " + std::to_string(args.rows_per_request) + "});"))
+                          "', 'openai', {\"batch_size\": " + std::to_string(args.rows_per_request) +
+                          ", \"max_output_tokens\": " + tok +
+                          ", \"model_parameters\": {\"max_tokens\": " + tok +
+                          ", \"temperature\": 0}});"))
         return 1;
 
     if (!Run(con, "CREATE TABLE reviews AS SELECT reviewId, " + args.text_col +
@@ -220,6 +238,30 @@ int main(int argc, char** argv) {
                  "rewrite=%s threads=%d rows=%lld inflight=%d batch=%d model=%s endpoints=%s\n",
                  args.rewrite.c_str(), args.threads, rows_loaded, args.inflight,
                  args.rows_per_request, args.model.c_str(), args.endpoints_csv.c_str());
+
+    // --- burn-in (UNTIMED): warm vLLM compute on a fresh endpoint before timing.
+    // One full batch of SYNTHETIC rows through the SAME llm_filter path compiles
+    // the xgrammar guided-decoding kernel (the "JIT during inference" spike) and
+    // exercises the batch-sized CUDA graph. Synthetic content != the measured
+    // reviews, so the measured rows' per-row prefix-cache entries stay cold (the
+    // cold-fleet intent); only the shared instruction/template prefix warms, and
+    // it warms identically for both arms -> the A/B stays fair. Result discarded.
+    {
+        if (!Run(con, "CREATE TABLE warmup AS SELECT 'warmup review ' || i::VARCHAR AS " + args.text_col +
+                              " FROM range(" + std::to_string(args.rows_per_request) + ") t(i);"))
+            return 1;
+        auto warm = con.Query(
+                "SELECT count(*) FROM warmup AS r "
+                "WHERE llm_filter({'model_name': '" + SqlEscape(args.model) + "'}, "
+                "{'prompt': '" + SqlEscape(args.prompt) + "', "
+                "'context_columns': [{'data': r." + args.text_col + ", 'name': 'review'}]});");
+        if (warm->HasError()) {
+            std::fprintf(stderr, "burn-in query failed: %s\n", warm->GetError().c_str());
+            return 1;
+        }
+        if (!Run(con, "DROP TABLE warmup;")) return 1;
+        std::fprintf(stderr, "burn-in done (%d synthetic rows, untimed)\n", args.rows_per_request);
+    }
 
     // --- timed region: the filter query only -------------------------------
     const auto t0 = std::chrono::steady_clock::now();

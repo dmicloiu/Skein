@@ -35,6 +35,12 @@ srun -ul --environment="$EDF" bash -c '
     BIN="$FLOCK/build/flock_sem_filter_vllm_integration"
     OUT="$FLOCK/analysis/results/sem_filter_ab/${SLURM_JOB_ID}"; mkdir -p "$OUT"
 
+    # flock persists its model/secret catalog at ~/.duckdb/flock_storage; its
+    # CreateDirectory is non-recursive (src/core/config/config.cpp:47), so the
+    # ~/.duckdb parent must already exist or flock_storage fails to attach and
+    # every run dies with "Model not found". Create it up front.
+    mkdir -p "$HOME/.duckdb"
+
     # ---- experiment parameters --------------------------------------------
     MODEL="Qwen/Qwen2.5-7B-Instruct"
     NGPU=1; BASE_PORT=8000; FULL_UTIL=0.90

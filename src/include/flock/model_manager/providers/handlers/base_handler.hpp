@@ -240,6 +240,9 @@ protected:
                         results[i] = ExtractOutput(parsed, request_type);
                     } catch (const std::exception& e) {
                         std::string msg = e.what();
+                        std::fprintf(stderr,
+                                     "[flock debug] scalar output extraction failed (%s)\n  raw provider response (len=%zu):\n%.2000s\n",
+                                     msg.c_str(), requests[i].response.size(), requests[i].response.c_str());
                         if (msg.rfind("[ModelProvider]", 0) == 0) {
                             throw;
                         }
