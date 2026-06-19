@@ -44,7 +44,7 @@ srun -ul --environment="$EDF" bash -c '
     # ---- experiment parameters --------------------------------------------
     MODEL="Qwen/Qwen2.5-7B-Instruct"
     NGPU=1; BASE_PORT=8000; FULL_UTIL=0.90
-    IN_FLIGHT=128; BATCH=32; TIMEOUT_MS=120000
+    IN_FLIGHT=128; BATCH="${BATCH:-32}"; TIMEOUT_MS=120000
     DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-The following movie review is clearly positive.}"
@@ -77,7 +77,8 @@ srun -ul --environment="$EDF" bash -c '
             PIDS+=($!)
             # /v1/chat/completions: the operator now posts chat requests here (parity
             # with the scalar arm). DeriveBaseUrl in the driver strips this back to
-            # /v1 for the scalar secret's base_url.
+            # /v1 for the scalar secret base_url (avoid apostrophes here: this whole
+            # block is inside srun bash -c '\''...'\'' and a stray quote breaks it).
             ENDPOINTS="${ENDPOINTS:+$ENDPOINTS,}http://127.0.0.1:$port/v1/chat/completions"
         done
         echo "started fleet -> $ENDPOINTS"
