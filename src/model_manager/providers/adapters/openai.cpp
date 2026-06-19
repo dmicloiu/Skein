@@ -87,7 +87,13 @@ void OpenAIProvider::AddCompletionRequest(const std::string& prompt, const int n
                  {{"name", "flock_response"},
                   {"strict", false},
                   {"schema", {{"type", "object"}, {"properties", {{"items", {{"type", "array"}, {"minItems", num_output_tuples}, {"maxItems", num_output_tuples}, {"items", {{"type", GetOutputTypeString(output_type)}}}}}}}}}}}};
-        ;
+        // Require "items" + forbid extra keys, matching the model_parameters branch
+        // above and the semantic operator's schema. WITHOUT this, vLLM guided
+        // decoding lets the model satisfy the schema with "{}" -> no items -> padded
+        // null -> defaulted to "true", so EVERY row passes (the scalar all-true bug).
+        auto& sjs = request_payload["response_format"]["json_schema"]["schema"];
+        sjs["required"] = nlohmann::json::array({"items"});
+        sjs["additionalProperties"] = false;
     }
 
     model_handler_->AddRequest(request_payload);
