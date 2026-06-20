@@ -84,16 +84,29 @@ srun -ul --environment="$EDF" bash -c '
     cmake --build build/release --target "$TARGET" -j"$(nproc)"
 
     echo "==================== PLACE BINARY ===================="
-    # The experiment scripts expect the driver at build/<target> (same place the
-    # other integration binaries live). Find what ninja produced and copy it.
-    SRC="$(find build/release -name "$TARGET" -type f -perm -u+x 2>/dev/null | head -1)"
-    if [ -z "$SRC" ]; then
-        echo "ERROR: built target not found under build/release"; exit 1
+    if [ "$TARGET" = "flock_loadable_extension" ]; then
+        # The loadable target'\''s OUTPUT file is flock.duckdb_extension (name != the
+        # target name), and cross_system_analysis_clariden.sh reads it IN PLACE via
+        # FLOCK_EXTENSION_PATH -- so there is nothing to find-by-name or copy; just
+        # verify the artifact exists where the experiment expects it.
+        OUT_EXT="build/release/extension/flock/flock.duckdb_extension"
+        [ -f "$OUT_EXT" ] || { echo "ERROR: loadable not produced at $OUT_EXT"; exit 1; }
+        ls -la "$OUT_EXT"
+        file "$OUT_EXT" || true
+        echo "DONE: loadable ready at $FLOCK/$OUT_EXT"
+    else
+        # Test drivers: output filename == target name. The experiment scripts expect
+        # the driver at build/<target> (same place the other integration binaries
+        # live). Find what ninja produced and copy it.
+        SRC="$(find build/release -name "$TARGET" -type f -perm -u+x 2>/dev/null | head -1)"
+        if [ -z "$SRC" ]; then
+            echo "ERROR: built target not found under build/release"; exit 1
+        fi
+        echo "built: $SRC"
+        cp -f "$SRC" "build/$TARGET"
+        chmod +x "build/$TARGET"
+        ls -la "build/$TARGET"
+        file "build/$TARGET" || true
+        echo "DONE: driver ready at build/$TARGET"
     fi
-    echo "built: $SRC"
-    cp -f "$SRC" "build/$TARGET"
-    chmod +x "build/$TARGET"
-    ls -la "build/$TARGET"
-    file "build/$TARGET" || true
-    echo "DONE: driver ready at build/$TARGET"
 '
