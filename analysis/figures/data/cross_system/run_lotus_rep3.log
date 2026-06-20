@@ -1,0 +1,75 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: movie
+Model: vllm/Qwen/Qwen2.5-7B-Instruct
+Queries: 101
+Scale factor: 2000
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running lotus ---
+Using vLLM with custom configuration: model=hosted_vllm/Qwen/Qwen2.5-7B-Instruct, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+BEFORE ST load:
+Allocated: 0.0 GB
+Reserved: 0.0 GB
+2026-06-20 03:06:35,621 - INFO - Use pytorch device_name: cuda:0
+2026-06-20 03:06:35,621 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+AFTER ST load:
+Allocated: 0.40891551971435547 GB
+Reserved: 0.4609375 GB
+
+Running 1 queries for lotus
+Filtering:   0%|           0/2000 LM calls [00:00<?, ?it/s]
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+Filtering: 100%|██████████ 2000/2000 LM calls [00:07<00:00, 261.89it/s]Filtering: 100%|██████████ 2000/2000 LM calls [00:07<00:00, 261.89it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+  Error in Q101 execution: AttributeError: 'InternalServerError' object has no attribute 'choices'
+Traceback (most recent call last):
+  File "/users/dmicloiu/projects/sembench/src/runner/generic_lotus_runner/generic_lotus_runner.py", line 289, in execute_query
+    results = query_fn()
+              ^^^^^^^^^^
+  File "/users/dmicloiu/projects/sembench/src/scenario/movie/runner/lotus_runner/lotus_runner.py", line 130, in _execute_q101
+    filtered_reviews = reviews.sem_filter(
+                       ^^^^^^^^^^^^^^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/cache.py", line 93, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/sem_ops/sem_filter.py", line 381, in __call__
+    output = sem_filter(
+             ^^^^^^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/sem_ops/sem_filter.py", line 77, in sem_filter
+    lm_output: LMOutput = model(
+                          ^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py", line 119, in __call__
+    outputs = [self._get_top_choice(resp) for resp in all_responses]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py", line 119, in <listcomp>
+    outputs = [self._get_top_choice(resp) for resp in all_responses]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py", line 214, in _get_top_choice
+    choice = response.choices[0]
+             ^^^^^^^^^^^^^^^^
+AttributeError: 'InternalServerError' object has no attribute 'choices'
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/lotus/Q101.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for movie ---
+Evaluating lotus...
+Evaluating Q101 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  lotus: ✅ Completed
+    Q101: ❌ 0.00s, Error: 'InternalServerError' object has no attribute 'choices'
