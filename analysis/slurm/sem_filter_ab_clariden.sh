@@ -44,12 +44,28 @@ srun -ul --environment="$EDF" bash -c '
     # ---- experiment parameters --------------------------------------------
     MODEL="Qwen/Qwen2.5-7B-Instruct"
     NGPU=1; BASE_PORT=8000; FULL_UTIL=0.90
-    IN_FLIGHT=128; BATCH="${BATCH:-32}"; TIMEOUT_MS=120000
+    IN_FLIGHT=128; TIMEOUT_MS=120000
     DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-The following movie review is clearly positive.}"
-    ROWS="${ROWS:-2000}"
     THREADS_SWEEP="${THREADS_SWEEP:-1 2 4 8 16}"
+
+    # ---- morsel mode (optional) -------------------------------------------
+    # Default (MORSELS unset): the threads-sweep A/B on an in-memory table =
+    # ONE row group = ONE morsel, so the scalar is single-threaded regardless of
+    # --threads (min(threads, morsels) = 1). Set MORSELS to a list of morsel
+    # counts to instead materialise the rows into an attached on-disk DB whose
+    # ROW_GROUP_SIZE makes rows/ROW_GROUP_SIZE morsels, so the scalar can
+    # parallelise to min(MORSEL_THREADS, morsels). Backing file is on /tmp
+    # (tmpfs/node-local) -> no Lustre. Uses R=1 by default (the config of
+    # interest); each morsel = ROW_GROUP_SIZE rows so ROWS = M * ROW_GROUP_SIZE.
+    #   MORSELS="8 16" MORSEL_THREADS=8 ROW_GROUP_SIZE=2048 sbatch <this>
+    MORSELS="${MORSELS:-}"
+    ROW_GROUP_SIZE="${ROW_GROUP_SIZE:-2048}"   # must be a multiple of 2048
+    MORSEL_THREADS="${MORSEL_THREADS:-8}"
+    MORSEL_DB_DIR="${MORSEL_DB_DIR:-/tmp}"     # node-local; avoid Lustre $HOME
+    if [ -n "$MORSELS" ]; then BATCH="${BATCH:-1}"; else BATCH="${BATCH:-32}"; fi
+    ROWS="${ROWS:-2000}"
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT  rows=$ROWS  threads_sweep=[$THREADS_SWEEP]  (cold fleet per run)"
@@ -105,13 +121,20 @@ srun -ul --environment="$EDF" bash -c '
         done
     }
     # run <on|off> <threads> <tag>: one measurement against the CURRENT cold fleet.
+    # Reads ROWS/BATCH globals; in morsel mode also passes --row-group-size and a
+    # fresh node-local --attach-db so the rows become ROWS/ROW_GROUP_SIZE morsels.
     run() {
-        echo "------ RUN $3 (rewrite=$1 threads=$2 rows=$ROWS inflight=$IN_FLIGHT batch=$BATCH) ------"
+        local rgs_args=()
+        if [ "${RGS_ACTIVE:-0}" -gt 0 ]; then
+            rgs_args=(--row-group-size "$ROW_GROUP_SIZE" --attach-db "$MORSEL_DB_DIR/sem_morsel_${SLURM_JOB_ID:-x}_$3.db")
+        fi
+        echo "------ RUN $3 (rewrite=$1 threads=$2 rows=$ROWS inflight=$IN_FLIGHT batch=$BATCH rgs=${RGS_ACTIVE:-0}) ------"
         snap "before_$3"
         "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
                --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                --rewrite "$1" --threads "$2" --inflight "$IN_FLIGHT" --rows-per-request "$BATCH" \
-               --timeout-ms "$TIMEOUT_MS" --result-out "$OUT/result_$3.json" 2>&1 | tee "$OUT/run_$3.log"
+               --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
+               --result-out "$OUT/result_$3.json" 2>&1 | tee "$OUT/run_$3.log"
         snap "after_$3"
     }
     # cold_run: fresh endpoint per measurement so prefix caching never carries
@@ -122,12 +145,33 @@ srun -ul --environment="$EDF" bash -c '
         stop_fleet
     }
 
-    # ---- A/B across the threads sweep (cold endpoint every run) ------------
-    echo "==================== A/B (threads sweep, cold per run) ===================="
-    for T in $THREADS_SWEEP; do
-        cold_run on  "$T" "operator_t$T"     # PhysicalSemFilter: ~flat near ceiling (cap-bound)
-        cold_run off "$T" "scalar_t$T"       # scalar: rises toward min(threads,morsels)
-    done
+    if [ -n "$MORSELS" ]; then
+        # ---- MORSEL MODE: rows/ROW_GROUP_SIZE morsels at fixed MORSEL_THREADS ---
+        # Operator vs scalar at each morsel count. The scalar now reaches
+        # min(MORSEL_THREADS, morsels)-way (vs the 1-morsel in-memory case);
+        # the operator stays cap-bound. Answers "does the scalar catch up?".
+        echo "==================== MORSEL SWEEP (cold per run, R=$BATCH, threads=$MORSEL_THREADS) ===================="
+        echo "morsels=[$MORSELS]  row_group_size=$ROW_GROUP_SIZE  db_dir=$MORSEL_DB_DIR"
+        # The CSV must hold enough rows for the largest morsel count, or the table
+        # collapses to fewer row groups than intended (DATA=sf_2000 is too small).
+        MAXM=0; for M in $MORSELS; do [ "$M" -gt "$MAXM" ] && MAXM="$M"; done
+        NEED=$((MAXM * ROW_GROUP_SIZE)); AVAIL=$(($(wc -l < "$DATA") - 1))
+        [ "$AVAIL" -ge "$NEED" ] || { echo "FATAL: $DATA has $AVAIL rows; morsel mode needs >= $NEED (max ${MAXM} morsels x ${ROW_GROUP_SIZE}). Point DATA at a larger Reviews.csv."; exit 1; }
+        RGS_ACTIVE=1
+        for M in $MORSELS; do
+            ROWS=$((M * ROW_GROUP_SIZE))
+            cold_run on  "$MORSEL_THREADS" "operator_m${M}_t${MORSEL_THREADS}"
+            cold_run off "$MORSEL_THREADS" "scalar_m${M}_t${MORSEL_THREADS}"
+        done
+    else
+        # ---- A/B across the threads sweep (cold endpoint every run) ------------
+        echo "==================== A/B (threads sweep, cold per run) ===================="
+        RGS_ACTIVE=0
+        for T in $THREADS_SWEEP; do
+            cold_run on  "$T" "operator_t$T"     # PhysicalSemFilter: ~flat near ceiling (cap-bound)
+            cold_run off "$T" "scalar_t$T"       # scalar: 1 morsel here -> single-threaded
+        done
+    fi
     trap - EXIT
 
     # ---- quick read-out (rigorous aggregation happens off-cluster) ---------

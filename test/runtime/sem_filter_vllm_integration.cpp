@@ -47,6 +47,13 @@ struct Args {
     int rows_per_request = 32;  // == batch_size (operator) / model batch_size (scalar)
     int timeout_ms = 120000;
     std::string result_out;
+    // Morsel control: 0 = default (in-memory table, one row group => one morsel,
+    // single-threaded scan). >0 attaches an on-disk DB with this ROW_GROUP_SIZE
+    // (must be a multiple of 2048) and materialises the reviews there, so the
+    // scan sees rows/row_group_size morsels and the scalar can parallelise to
+    // min(threads, morsels). attach_db is the (fresh) file backing that DB.
+    int row_group_size = 0;
+    std::string attach_db;
 };
 
 void Usage(const char* prog) {
@@ -54,7 +61,9 @@ void Usage(const char* prog) {
                  "Usage: %s --endpoints URL1,URL2,... --model NAME --data PATH\n"
                  "          [--text-col NAME] [--prompt TEXT] [--rows N]\n"
                  "          --rewrite on|off [--threads T] [--inflight N]\n"
-                 "          [--rows-per-request N] [--timeout-ms N] [--result-out PATH]\n",
+                 "          [--rows-per-request N] [--timeout-ms N] [--result-out PATH]\n"
+                 "          [--row-group-size N (mult. of 2048; >0 => rows/N morsels)]\n"
+                 "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n",
                  prog);
 }
 
@@ -80,6 +89,8 @@ bool ParseArgs(int argc, char** argv, Args* a) {
         else if (!std::strcmp(k, "--rows-per-request")) a->rows_per_request = std::atoi(need("--rows-per-request"));
         else if (!std::strcmp(k, "--timeout-ms")) a->timeout_ms = std::atoi(need("--timeout-ms"));
         else if (!std::strcmp(k, "--result-out")) a->result_out = need("--result-out");
+        else if (!std::strcmp(k, "--row-group-size")) a->row_group_size = std::atoi(need("--row-group-size"));
+        else if (!std::strcmp(k, "--attach-db")) a->attach_db = need("--attach-db");
         else if (!std::strcmp(k, "-h") || !std::strcmp(k, "--help")) {
             Usage(argv[0]);
             return false;
@@ -100,6 +111,16 @@ bool ParseArgs(int argc, char** argv, Args* a) {
     if (a->rewrite != "on" && a->rewrite != "off") {
         std::fprintf(stderr, "--rewrite must be 'on' or 'off'\n");
         return false;
+    }
+    if (a->row_group_size != 0) {
+        if (a->row_group_size % 2048 != 0) {
+            std::fprintf(stderr, "--row-group-size must be a multiple of 2048 (the vector size)\n");
+            return false;
+        }
+        if (a->attach_db.empty()) {
+            std::fprintf(stderr, "--row-group-size requires --attach-db PATH (the on-disk DB to back it)\n");
+            return false;
+        }
     }
     return true;
 }
@@ -158,6 +179,8 @@ void WriteResultJson(const Args& a, long long passes, long long rows_loaded, dou
     out << "  \"passes\": " << passes << ",\n";
     out << "  \"elapsed_s\": " << elapsed_s << ",\n";
     out << "  \"rows_per_s\": " << rows_per_s << ",\n";
+    out << "  \"row_group_size\": " << a.row_group_size << ",\n";
+    out << "  \"morsels\": " << (a.row_group_size > 0 ? rows_loaded / a.row_group_size : 1) << ",\n";
     out << "  \"inflight\": " << a.inflight << ",\n";
     out << "  \"batch\": " << a.rows_per_request << ",\n";
     out << "  \"model\": \"" << a.model << "\",\n";
@@ -218,14 +241,30 @@ int main(int argc, char** argv) {
                           ", \"temperature\": 0}});"))
         return 1;
 
-    if (!Run(con, "CREATE TABLE reviews AS SELECT reviewId, " + args.text_col +
+    // Default: in-memory table => one row group => one morsel => single-threaded
+    // scan (the scalar can't parallelise regardless of --threads). With
+    // --row-group-size, materialise into an attached on-disk DB whose row groups
+    // are that size, so the scan sees rows/row_group_size morsels and the scalar
+    // parallelises to min(threads, morsels). The backing file goes on node-local
+    // /tmp (tmpfs) -- see the slurm script -- so there is no network-FS cost.
+    std::string table = "reviews";
+    if (args.row_group_size > 0) {
+        std::remove(args.attach_db.c_str());
+        std::remove((args.attach_db + ".wal").c_str());
+        if (!Run(con, "ATTACH '" + SqlEscape(args.attach_db) + "' AS m (ROW_GROUP_SIZE " +
+                              std::to_string(args.row_group_size) + ");"))
+            return 1;
+        table = "m.reviews";
+    }
+
+    if (!Run(con, "CREATE TABLE " + table + " AS SELECT reviewId, " + args.text_col +
                           " FROM read_csv_auto('" + SqlEscape(args.data) + "') LIMIT " +
                           std::to_string(args.rows) + ";"))
         return 1;
 
     long long rows_loaded = 0;
     {
-        auto res = con.Query("SELECT count(*) FROM reviews;");
+        auto res = con.Query("SELECT count(*) FROM " + table + ";");
         if (res->HasError()) {
             std::fprintf(stderr, "row count failed: %s\n", res->GetError().c_str());
             return 1;
@@ -234,7 +273,7 @@ int main(int argc, char** argv) {
     }
 
     const std::string timed =
-            "SELECT count(*) AS passes FROM reviews AS r "
+            "SELECT count(*) AS passes FROM " + table + " AS r "
             "WHERE llm_filter({'model_name': '" + SqlEscape(args.model) + "'}, "
             "{'prompt': '" + SqlEscape(args.prompt) + "', "
             "'context_columns': [{'data': r." + args.text_col + ", 'name': 'review'}]});";
