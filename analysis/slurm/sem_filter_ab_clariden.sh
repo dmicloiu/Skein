@@ -63,6 +63,11 @@ srun -ul --environment="$EDF" bash -c '
     MORSELS="${MORSELS:-}"
     ROW_GROUP_SIZE="${ROW_GROUP_SIZE:-2048}"   # must be a multiple of 2048
     MORSEL_THREADS="${MORSEL_THREADS:-8}"
+    # ARMS selects which rewrite arms run (morsel mode only). Default "on off"
+    # runs both (one job). Set ARMS="on" or ARMS="off" to run a single arm as
+    # its own short job -> fits the <1h backfill window on a busy partition
+    # (a 2-arm job at 262k rows/arm needs >1h and gets starved by short jobs).
+    ARMS="${ARMS:-on off}"
     MORSEL_DB_DIR="${MORSEL_DB_DIR:-/tmp}"     # node-local; avoid Lustre $HOME
     if [ -n "$MORSELS" ]; then BATCH="${BATCH:-1}"; else BATCH="${BATCH:-32}"; fi
     ROWS="${ROWS:-2000}"
@@ -158,10 +163,13 @@ srun -ul --environment="$EDF" bash -c '
         NEED=$((MAXM * ROW_GROUP_SIZE)); AVAIL=$(($(wc -l < "$DATA") - 1))
         [ "$AVAIL" -ge "$NEED" ] || { echo "FATAL: $DATA has $AVAIL rows; morsel mode needs >= $NEED (max ${MAXM} morsels x ${ROW_GROUP_SIZE}). Point DATA at a larger Reviews.csv."; exit 1; }
         RGS_ACTIVE=1
+        echo "arms=[$ARMS]"
         for M in $MORSELS; do
             ROWS=$((M * ROW_GROUP_SIZE))
-            cold_run on  "$MORSEL_THREADS" "operator_m${M}_t${MORSEL_THREADS}"
-            cold_run off "$MORSEL_THREADS" "scalar_m${M}_t${MORSEL_THREADS}"
+            for arm in $ARMS; do
+                if [ "$arm" = "on" ]; then tag="operator"; else tag="scalar"; fi
+                cold_run "$arm" "$MORSEL_THREADS" "${tag}_m${M}_t${MORSEL_THREADS}"
+            done
         done
     else
         # ---- A/B across the threads sweep (cold endpoint every run) ------------
