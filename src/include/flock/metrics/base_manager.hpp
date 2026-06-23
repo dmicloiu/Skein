@@ -3,17 +3,27 @@
 #include "flock/metrics/data_structures.hpp"
 #include <algorithm>
 #include <cstdint>
+#include <mutex>
 #include <sstream>
 #include <type_traits>
 #include <unordered_map>
 
 namespace flock {
 
-// Core metrics tracking functionality shared between scalar and aggregate functions
+// Core metrics tracking functionality shared between scalar and aggregate functions.
+//
+// THREAD SAFETY: the scalar llm_filter runs on every DuckDB worker thread, so all
+// of these maps are mutated concurrently (e.g. 128 worker threads at 128 morsels).
+// The maps are NOT intrinsically thread-safe, so every public method takes
+// metrics_mutex_. It is a recursive_mutex because the recording methods nest
+// (StartInvocation -> RegisterThread -> GetThreadMetrics; UpdateTokens ->
+// GetThreadMetrics). Metrics ops happen at most per LLM request (spaced by HTTP
+// latency), so the coarse lock costs nothing next to the request latency.
 template<typename StateId>
 class BaseMetricsManager {
 public:
     ThreadMetrics& GetThreadMetrics(const StateId& state_id) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         const auto tid = std::this_thread::get_id();
         auto& thread_map = thread_metrics_[tid];
 
@@ -31,6 +41,7 @@ public:
 
     // Initialize metrics tracking and assign registration order
     void StartInvocation(const StateId& state_id, FunctionType type) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         RegisterThread(state_id);
 
         const auto tid = std::this_thread::get_id();
@@ -51,6 +62,7 @@ public:
 
     // Store model name and provider (first call wins)
     void SetModelInfo(const StateId& state_id, FunctionType type, const std::string& model_name, const std::string& provider) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         auto& thread_metrics = GetThreadMetrics(state_id);
         auto& metrics = thread_metrics.GetMetrics(type);
         if (metrics.model_name.empty()) {
@@ -63,6 +75,7 @@ public:
 
     // Add input and output tokens (accumulative)
     void UpdateTokens(const StateId& state_id, FunctionType type, int64_t input, int64_t output) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         auto& thread_metrics = GetThreadMetrics(state_id);
         auto& metrics = thread_metrics.GetMetrics(type);
         metrics.input_tokens += input;
@@ -71,21 +84,25 @@ public:
 
     // Increment API call counter
     void IncrementApiCalls(const StateId& state_id, FunctionType type) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         GetThreadMetrics(state_id).GetMetrics(type).api_calls++;
     }
 
     // Add API duration in microseconds (accumulative)
     void AddApiDuration(const StateId& state_id, FunctionType type, int64_t duration_us) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         GetThreadMetrics(state_id).GetMetrics(type).api_duration_us += duration_us;
     }
 
     // Add execution time in microseconds (accumulative)
     void AddExecutionTime(const StateId& state_id, FunctionType type, int64_t duration_us) {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         GetThreadMetrics(state_id).GetMetrics(type).execution_time_us += duration_us;
     }
 
     // Get flattened metrics structure (merged across threads)
     nlohmann::json GetMetrics() const {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         nlohmann::json result = nlohmann::json::object();
 
         struct Key {
@@ -182,6 +199,7 @@ public:
 
     // Get nested metrics structure preserving thread/state info (for debugging)
     nlohmann::json GetDebugMetrics() const {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         nlohmann::json result;
         nlohmann::json threads_json = nlohmann::json::object();
 
@@ -242,12 +260,18 @@ public:
 
     // Clear all metrics and registration tracking
     void Reset() {
+        std::lock_guard<std::recursive_mutex> lk(metrics_mutex_);
         thread_metrics_.clear();
         state_function_registration_order_.clear();
         thread_function_counters_.clear();
     }
 
 protected:
+    // Guards every map below; mutable so the const getters can lock. recursive_
+    // so the nesting recording methods (StartInvocation -> GetThreadMetrics, etc.)
+    // don't self-deadlock.
+    mutable std::recursive_mutex metrics_mutex_;
+
     // Main storage: thread_id -> state_id -> ThreadMetrics
     std::unordered_map<std::thread::id, std::unordered_map<StateId, ThreadMetrics>, ThreadIdHash> thread_metrics_;
 

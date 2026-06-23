@@ -6,6 +6,7 @@
 #include "flock/metrics/types.hpp"
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 namespace flock {
@@ -20,6 +21,12 @@ public:
         }
 
         static std::unordered_map<duckdb::DatabaseInstance*, std::unique_ptr<MetricsManager>> db_managers;
+        // Worker threads concurrently fetch the manager (the scalar path runs on
+        // every DuckDB thread); guard the find/insert. The MetricsManager objects
+        // are heap-stable (held by unique_ptr), so the returned reference stays
+        // valid after the lock is released.
+        static std::mutex db_managers_mutex;
+        std::lock_guard<std::mutex> db_lk(db_managers_mutex);
 
         auto it = db_managers.find(db);
         if (it == db_managers.end()) {

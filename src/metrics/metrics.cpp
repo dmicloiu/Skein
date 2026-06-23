@@ -59,6 +59,10 @@ void MetricsManager::MergeAggregateMetrics(duckdb::DatabaseInstance* db,
     }
 
     auto& manager = GetForDatabase(db);
+    // Make the whole read-merge-write atomic against concurrent aggregate
+    // finalisation (parallel GROUP BY) and recording threads. recursive_mutex:
+    // the nested StartInvocation/GetThreadMetrics calls re-lock the same mutex.
+    std::lock_guard<std::recursive_mutex> lk(manager.metrics_mutex_);
 
     // Use the first state_id as the merged state_id
     const void* merged_state_id = processed_state_ids[0];
