@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-"""sem_filter operator A/B: PhysicalSemFilter (semantic_rewrite_enabled=true) vs
+"""[DESIGNED FOR SEM FILTER THREAD SWEEP A/B EXPERIMENT ANALYSIS]
+sem_filter operator A/B: PhysicalSemFilter (semantic_rewrite_enabled=true) vs
 the scalar llm_filter, from the data produced on Clariden by
 analysis/slurm/sem_filter_ab_clariden.sh.
-
-The async operator decouples LLM HTTP concurrency from DuckDB's morsel/thread
-parallelism: stock flock's concurrency is min(#threads, #chunks) (each thread
-blocks on one in-flight request); the operator sustains in_flight_cap requests
-regardless of threads. This run used 2000 rows == one DuckDB DataChunk, so the
-scalar is pinned at one in-flight request at every thread count (vLLM Running:1).
 
 Renders TWO paper figures (png + pdf each), in the house style of
 plot_router_experiment.py. NO run configuration is baked into the images -- the
@@ -168,7 +163,8 @@ def render_threads(data: dict, out_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Figure 2: the operator's trade -- latency vs throughput at equal quality
+# Figure 2: the operator's trade -> latency vs throughput at equal quality
+# fixed experiment at a representative thread (TRADEOFF_THREAD)
 # ---------------------------------------------------------------------------
 def _pair_bars(ax, sc_v, op_v, ylabel, title, fmt="{:,.0f}", top_pad=1.30):
     bars = ax.bar(["scalar", "operator"], [sc_v, op_v], width=0.6,

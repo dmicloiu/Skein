@@ -14,9 +14,19 @@ Inputs (in --results-dir):
   <arm>_rep<r>_<system>.json                harness metrics + P/R/F1 (Q<query>)
   metrics_{before,after}_<arm>_rep<r>.txt   vLLM /metrics snapshots
 
-Outputs (in --out-dir, default = --results-dir):
-  cross_system_summary.csv   one row per arm, full column set
-  cross_system_summary.md    same columns as a Markdown table + legend + notes
+Outputs:
+  cross_system_summary.csv   one row per arm, full column set (the single source
+                             of truth). Curated tables and interpretive findings
+                             live in the write-up, not here, so nothing
+                             regenerated can go stale.
+
+Columns (derived metrics):
+  rows_s          rows scanned / execution_time (NOT the runner's survivors/s).
+  tok_s           total (prompt+gen) tokens / s = engine efficiency.
+  prefill_tok_s   prompt-token throughput; decode_tok_s = gen-token throughput.
+  req_s           requests / s; tok_per_row = total tokens / row.
+  precision/recall/f1   vs ground truth (full-set for the no-limit Q101).
+  pareto_rows_f1 / pareto_tok_f1   `*` = on the (throughput | engine-eff) x F1 frontier.
 
 Usage:
   python analysis/summarize_cross_system.py \
@@ -170,14 +180,6 @@ COLUMNS = [
     "prefill_tok_s", "decode_tok_s", "survivors", "precision", "recall", "f1",
     "pareto_rows_f1", "pareto_tok_f1",
 ]
-# Narrower column set for the readable Markdown table.
-MD_COLUMNS = [
-    "arm", "n", "time_s", "rows_s", "req_s", "total_tok", "tok_s",
-    "prefill_tok_s", "decode_tok_s", "survivors", "precision", "recall", "f1",
-    "pareto_tok_f1",
-]
-
-
 def write_csv(rows: list[dict], path: Path) -> None:
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS)
@@ -192,61 +194,6 @@ def _fmt(v) -> str:
     if isinstance(v, float):
         return f"{v:g}"
     return str(v)
-
-
-def write_md(rows: list[dict], path: Path, rows_scanned: int, query: int) -> None:
-    lines = []
-    lines.append(f"# Cross-system movie comparison (Q{query}, {rows_scanned} rows, 1x GH200, Qwen2.5-7B)\n")
-    lines.append("flock async PhysicalSemFilter operator vs LOTUS vs Palimpzest, "
-                 "same local vLLM. Numbers are medians over the per-arm repeats; "
-                 "tokens/requests are vLLM /metrics deltas (uniform across systems). "
-                 "`rows_s = rows / execution_time` (rows scanned, not survivors). "
-                 "`*` in `pareto_tok_f1` = on the tokens/s x F1 frontier (engine "
-                 "efficiency at quality).\n")
-    header = "| " + " | ".join(MD_COLUMNS) + " |"
-    sep = "| " + " | ".join("---" for _ in MD_COLUMNS) + " |"
-    lines.append(header)
-    lines.append(sep)
-    for r in rows:
-        lines.append("| " + " | ".join(_fmt(r.get(c)) for c in MD_COLUMNS) + " |")
-    lines.append("\nFull column set (incl. precision/recall split, prompt/gen "
-                 "tokens, time min/max, rows/s x F1 frontier) is in the CSV.\n")
-
-    by = {r["arm"]: r for r in rows}
-
-    def ratio(a, b, k):
-        if a in by and b in by and by[a].get(k) and by[b].get(k):
-            return by[a][k] / by[b][k]
-        return None
-
-    lines.append("## Notes\n")
-    notes = []
-    if ratio("flock_scalar", "flock_op_r32", "time_s"):
-        notes.append(f"- **Operator vs scalar (engine):** ~{ratio('flock_scalar','flock_op_r32','time_s'):.1f}x faster at R=32 "
-                     f"and ~{ratio('flock_scalar_r1','flock_op_r1','time_s'):.1f}x at R=1, at byte-identical tokens and "
-                     f"matched F1 (operator preserves scalar semantics).")
-    if ratio("flock_op_r1", "lotus", "tok_s"):
-        notes.append(f"- **Engine efficiency (tokens/s):** flock_op_r1 is highest "
-                     f"({by['flock_op_r1']['tok_s']:.0f} tok/s) -- {ratio('flock_op_r1','lotus','tok_s'):.2f}x LOTUS, "
-                     f"{ratio('flock_op_r1','palimpzest','tok_s'):.2f}x Palimpzest -- and on tokens/s x F1 it "
-                     f"dominates LOTUS, Palimpzest, and flock_op_r32.")
-    notes.append("- **LOTUS' wall-clock lead is from doing less work:** lowest tokens "
-                 "(294k vs flock_op_r1 1012k, ~3.4x fewer) via a lighter prompt + lower "
-                 "recall -- not a faster engine (its tok/s is ~half flock's).")
-    notes.append("- **R=32 vs R=1 is a recall trade:** R=32 packs 32 rows/prompt -> "
-                 "~9.6x fewer tokens and 4.4x more rows/s, but recall collapses "
-                 "(0.97 -> 0.37, F1 0.93 -> 0.53). The usable flock config is R=1.")
-    notes.append("- **flock_op_r1 vs flock_scalar_r1 F1 (0.931 vs 0.933) is within the "
-                 "temp-0 noise floor** -- both `*` on the tokens/s x F1 frontier, but op_r1 "
-                 "is the usable one (7.8x higher engine throughput at equal quality).")
-    notes.append("- **flock tok/s is prefill-dominated** (gen ~8 tok/req, by design for a "
-                 "boolean filter) -- on decode tok/s flock is lowest, Palimpzest highest "
-                 "(~65 gen tok/req, verbose). Show the prompt/decode split if challenged.")
-    notes.append("- **Caveats:** LOTUS n=2 (rep3 hit a transient vLLM 500); dataset is "
-                 "~75% positive, which flatters a recall-leaning system; quality is each "
-                 "system's default operating point (no threshold tuning).")
-    lines.extend(notes)
-    path.write_text("\n".join(lines) + "\n")
 
 
 def print_console(rows: list[dict]) -> None:
@@ -278,10 +225,8 @@ def main() -> int:
         print("no successful runs found", file=sys.stderr)
         return 1
     write_csv(rows, out_dir / "cross_system_summary.csv")
-    write_md(rows, out_dir / "cross_system_summary.md", args.rows, args.query)
     print_console(rows)
     print(f"\nwrote {out_dir/'cross_system_summary.csv'}", file=sys.stderr)
-    print(f"wrote {out_dir/'cross_system_summary.md'}", file=sys.stderr)
     return 0
 
 
