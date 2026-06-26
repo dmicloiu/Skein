@@ -5,15 +5,18 @@
 //
 // Two transports, one mock. The SAME query produces the SAME per-row verdicts on
 // both code paths because the mock decides each verdict from a marker embedded in
-// the row text, independent of prompt formatting or batch grouping:
+// the row text, independent of prompt formatting or batch grouping. Both arms now
+// speak the chat-completions shape ("messages" + choices[0].message.content):
 //   * operator path (semantic_rewrite_enabled=true): PhysicalSemFilter -> the
-//     ExtensionState AsyncLLMClient -> POST semantic_endpoints (/v1/completions).
-//     Body carries a single multi-row "prompt"; response is choices[0].text.
+//     ExtensionState AsyncLLMClient -> POST semantic_endpoints. BuildPayload emits
+//     a chat body ("messages"); ParseItems reads choices[0].message.content.
 //   * scalar path (semantic_rewrite_enabled=false): the VOLATILE llm_filter scalar
 //     -> OpenAIProvider -> POST the openai secret's base_url + /chat/completions.
 //     Body carries "messages"; response is choices[0].message.content.
 // Both responses wrap a stringified {"items":[bool,...]} (flock's shared batch
-// envelope), so a single marker scan serves both shapes.
+// envelope), so a single marker scan serves both. The mock keys off the request
+// BODY (not the URL path), so it serves chat to both regardless of the endpoint
+// string set for semantic_endpoints.
 //
 // Markers are the distinctive tokens __KEEPROW__ / __DROPROW__ (never produced by
 // a prompt template or JSON escaping), scanned left-to-right == row order.
@@ -77,9 +80,11 @@ MockVLLMServer::Response MarkerHandler(const MockVLLMServer::Request& req) {
 
     const nlohmann::json body = nlohmann::json::parse(req.body, /*cb=*/nullptr, /*allow_exceptions=*/false);
 
-    // Pick the text to scan and the response shape from the request body:
-    // "messages" => chat/completions (scalar path); "prompt" => completions
-    // (operator path). Fall back to scanning the raw body if neither is present.
+    // Pick the text to scan and the response shape from the request body.
+    // "messages" => chat shape: BOTH arms (operator + scalar) post this now.
+    // "prompt" => legacy completions shape: a fallback no current arm exercises
+    // (kept so the mock still serves a /v1/completions-style body if one appears).
+    // Fall back to scanning the raw body if neither is present.
     bool is_chat = false;
     std::string scan_text;
     if (!body.is_discarded() && body.contains("messages") && body["messages"].is_array()) {
