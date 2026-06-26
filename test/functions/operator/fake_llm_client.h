@@ -22,9 +22,9 @@ namespace flock {
 
 // Deterministic, in-process stand-in for AsyncLLMClient, used by the threading
 // test. It does NO I/O: a small worker pool sleeps a configurable delay, then
-// synthesizes a /v1/completions body with ONE completion whose text is the
-// batch's boolean_array under the "items" key (flock's batch response shape):
-//     {"choices":[{"index":0,"text":"{\"items\":[true,true,...]}"}]}
+// synthesizes a /v1/chat/completions body with ONE completion whose
+// message.content is the batch's boolean_array under the "items" key:
+//     {"choices":[{"index":0,"message":{"content":"{\"items\":[true,...]}"}}]}
 // It IGNORES the request schema; the verdict count is taken from the prompt,
 // which the test's per-batch render emits as one newline-terminated line per row
 // (so partial tail batches size correctly). Options::verdict_count_delta injects
@@ -101,18 +101,29 @@ private:
         LLMOnDone on_done;
     };
 
-    // Row count = newline-terminated lines in the single multi-row prompt string
-    // (the test's render emits one line per row). The schema is ignored.
+    // Row count = newline-terminated lines in the multi-row prompt (the test's
+    // render emits one line per row). The operator posts CHAT: the prompt lives in
+    // messages[0].content (an array of {type:text,text:...} parts, or a string).
     static size_t CountRows(const std::string& payload) {
         auto parsed = nlohmann::json::parse(payload, nullptr, /*allow_exceptions=*/false);
         if (parsed.is_discarded()) {
             return 0;
         }
-        auto it = parsed.find("prompt");
-        if (it == parsed.end() || !it->is_string()) {
+        auto mit = parsed.find("messages");
+        if (mit == parsed.end() || !mit->is_array() || mit->empty()) {
             return 0;
         }
-        const auto& prompt = it->get_ref<const std::string&>();
+        const auto& content = (*mit)[0].value("content", nlohmann::json());
+        std::string prompt;
+        if (content.is_string()) {
+            prompt = content.get<std::string>();
+        } else if (content.is_array()) {
+            for (const auto& part : content) {
+                if (part.contains("text") && part["text"].is_string()) {
+                    prompt += part["text"].get<std::string>();
+                }
+            }
+        }
         return static_cast<size_t>(std::count(prompt.begin(), prompt.end(), '\n'));
     }
 
@@ -148,7 +159,9 @@ private:
         completion["items"] = std::move(items);
         nlohmann::json choice;
         choice["index"] = 0;
-        choice["text"] = completion.dump();  // completion text is the JSON-encoded items object
+        // Chat shape (parity with the scalar arm): choices[0].message.content holds
+        // the JSON-encoded items object that ParseItems decodes.
+        choice["message"]["content"] = completion.dump();
         nlohmann::json body;
         body["choices"] = nlohmann::json::array({std::move(choice)});
         r.ok = true;

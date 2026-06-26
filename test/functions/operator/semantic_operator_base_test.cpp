@@ -397,51 +397,72 @@ TEST(SemanticOperatorBase, FailLoud_OnFailedResponse) {
     EXPECT_TRUE(threw) << "Drain did not fail loud on a failed response";
 }
 
-// Fail-loud: a successful response whose boolean_array length != the batch's row
-// count makes Drain throw rather than emit a misaligned / truncated batch.
-TEST(SemanticOperatorBase, FailLoud_OnLengthMismatch) {
-    const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
-    FakeLLMClient::Options fopts;
-    fopts.delay = std::chrono::milliseconds(2);
-    fopts.verdict_count_delta = 1;  // emit rows+1 items -> items/rows mismatch
-    fopts.num_workers = 2;
-    auto fake = std::make_shared<FakeLLMClient>(fopts);
-    auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
-                                                   EndpointRouter::Strategy::RoundRobin);
-    auto g = std::make_unique<SemGlobalSinkState>(fake, router, cfg);
-    g->render_prompt = StubRender();
-
+// ParseItems reconciles to exactly the row count (pad short with null -> pass;
+// truncate long), so the engine still emits one row per input row. (Under guided
+// decoding the array is always batch-sized; this path only triggers on a degraded
+// response.)
+TEST(SemanticOperatorBase, LengthMismatch_PadsOrTruncates) {
+    const int64_t total = 4;  // exactly one batch (batch_size = 4)
     const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
-    auto chunks = BuildChunks(4, 8, types);  // exactly one batch
-    auto local = std::make_unique<SemLocalSinkState>();
-    std::atomic<size_t> blocked{0};
-    RunSinkWorker(*g, *local, {chunks[0].get()}, blocked);
-    g->MergeLocal(*local);
-    std::atomic<size_t> fin_blocked{0};
-    RunFinalize(*g, fin_blocked);
 
-    const auto parse = PassThroughParse();
-    auto& alloc = duckdb::Allocator::DefaultAllocator();
-    bool threw = false;
-    for (int attempt = 0; attempt < 2000 && !threw; ++attempt) {
-        DataChunk out;
-        out.Initialize(alloc, types);
-        auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
-        InterruptState interrupt(signal);
-        try {
-            auto res = g->Drain(out, parse, interrupt);
-            if (res == SourceResultType::BLOCKED) {
-                signal->Await();
-                continue;
-            }
-            if (res == SourceResultType::FINISHED) {
+    // Run the one-batch pipeline with a response that is `delta` items off the row
+    // count; returns {threw, emitted_rows}.
+    auto run_with_delta = [&](int delta) -> std::pair<bool, size_t> {
+        const auto cfg = MakeParams(/*cap=*/4, /*batch_size=*/4);
+        FakeLLMClient::Options fopts;
+        fopts.delay = std::chrono::milliseconds(2);
+        fopts.verdict_count_delta = delta;  // emit rows+delta items -> items/rows mismatch
+        fopts.num_workers = 2;
+        auto fake = std::make_shared<FakeLLMClient>(fopts);
+        auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
+                                                       EndpointRouter::Strategy::RoundRobin);
+        auto g = std::make_unique<SemGlobalSinkState>(fake, router, cfg);
+        g->render_prompt = StubRender();
+
+        auto chunks = BuildChunks(total, 8, types);  // one chunk == one batch
+        auto local = std::make_unique<SemLocalSinkState>();
+        std::atomic<size_t> blocked{0};
+        RunSinkWorker(*g, *local, {chunks[0].get()}, blocked);
+        g->MergeLocal(*local);
+        std::atomic<size_t> fin_blocked{0};
+        RunFinalize(*g, fin_blocked);
+
+        const auto parse = PassThroughParse();
+        auto& alloc = duckdb::Allocator::DefaultAllocator();
+        size_t emitted = 0;
+        bool threw = false;
+        for (int attempt = 0; attempt < 2000; ++attempt) {
+            DataChunk out;
+            out.Initialize(alloc, types);
+            auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+            InterruptState interrupt(signal);
+            try {
+                auto res = g->Drain(out, parse, interrupt);
+                if (res == SourceResultType::BLOCKED) {
+                    signal->Await();
+                    continue;
+                }
+                emitted += out.size();
+                if (res == SourceResultType::FINISHED) {
+                    break;
+                }
+            } catch (const std::exception&) {
+                threw = true;
                 break;
             }
-        } catch (const std::exception&) {
-            threw = true;
         }
-    }
-    EXPECT_TRUE(threw) << "Drain did not fail loud on an items/rows length mismatch";
+        return {threw, emitted};
+    };
+
+    // Long response (rows+1): the extra verdict is truncated; all rows emitted.
+    auto long_res = run_with_delta(1);
+    EXPECT_FALSE(long_res.first) << "length mismatch (long) must not fail loud (truncate)";
+    EXPECT_EQ(long_res.second, static_cast<size_t>(total));
+
+    // Short response (rows-1): the missing verdict is padded (-> pass); all rows emitted.
+    auto short_res = run_with_delta(-1);
+    EXPECT_FALSE(short_res.first) << "length mismatch (short) must not fail loud (pad null)";
+    EXPECT_EQ(short_res.second, static_cast<size_t>(total));
 }
 
 // -- Operator-level smoke test -----------------------------------

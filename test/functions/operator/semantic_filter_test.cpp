@@ -64,7 +64,7 @@ std::shared_ptr<EndpointRouter> MakeRouter() {
 }
 
 // Deterministic in-process client. Fires on_done inline (single-threaded tests),
-// synthesizing flock's batch envelope: one completion whose text is {"items":[...]}.
+// synthesizing flock's batch envelope: one completion whose message.content is {"items":[...]}.
 // Verdicts are derived per <column>VALUE</column> in the rendered prompt, so they
 // align with the rows regardless of how the engine batches them.
 class ScriptedFakeClient : public ILLMClient {
@@ -85,9 +85,22 @@ public:
 private:
     LLMResponse Synthesize(const std::string& payload) const {
         auto parsed = nlohmann::json::parse(payload, nullptr, /*allow_exceptions=*/false);
-        std::string prompt = (!parsed.is_discarded() && parsed.contains("prompt") && parsed["prompt"].is_string())
-                                     ? parsed["prompt"].get<std::string>()
-                                     : std::string();
+        // The operator posts CHAT: the multi-row prompt is in messages[0].content
+        // (an array of {type:text,text:...} parts, or a string).
+        std::string prompt;
+        if (!parsed.is_discarded() && parsed.contains("messages") && parsed["messages"].is_array() &&
+            !parsed["messages"].empty()) {
+            const auto& content = parsed["messages"][0].value("content", nlohmann::json());
+            if (content.is_string()) {
+                prompt = content.get<std::string>();
+            } else if (content.is_array()) {
+                for (const auto& part : content) {
+                    if (part.contains("text") && part["text"].is_string()) {
+                        prompt += part["text"].get<std::string>();
+                    }
+                }
+            }
+        }
         // One verdict per <row> block (skip the <header> row), keyed on the row's
         // first <column> value -> verdicts align with rows regardless of batching.
         auto items = nlohmann::json::array();
@@ -116,7 +129,7 @@ private:
         completion["items"] = std::move(items);
         nlohmann::json choice;
         choice["index"] = 0;
-        choice["text"] = completion.dump();
+        choice["message"]["content"] = completion.dump();
         nlohmann::json body;
         body["choices"] = nlohmann::json::array({std::move(choice)});
         LLMResponse r;
