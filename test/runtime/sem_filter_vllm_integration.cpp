@@ -54,6 +54,12 @@ struct Args {
     // min(threads, morsels). attach_db is the (fresh) file backing that DB.
     int row_group_size = 0;
     std::string attach_db;
+    // Skip the untimed burn-in query. Only used by the verdict-dump pass of the
+    // R-sweep: there we discard timing, and skipping burn-in keeps the dump file
+    // to the real query's rows (the burn-in would otherwise emit R synthetic rows
+    // with colliding row_ids). Never set it on a timed run -- burn-in warms the
+    // xgrammar kernel and is what makes the throughput number clean.
+    bool skip_burn_in = false;
 };
 
 void Usage(const char* prog) {
@@ -63,7 +69,8 @@ void Usage(const char* prog) {
                  "          --rewrite on|off [--threads T] [--inflight N]\n"
                  "          [--rows-per-request N] [--timeout-ms N] [--result-out PATH]\n"
                  "          [--row-group-size N (mult. of 2048; >0 => rows/N morsels)]\n"
-                 "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n",
+                 "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n"
+                 "          [--skip-burn-in (untimed verdict-dump pass only)]\n",
                  prog);
 }
 
@@ -91,6 +98,7 @@ bool ParseArgs(int argc, char** argv, Args* a) {
         else if (!std::strcmp(k, "--result-out")) a->result_out = need("--result-out");
         else if (!std::strcmp(k, "--row-group-size")) a->row_group_size = std::atoi(need("--row-group-size"));
         else if (!std::strcmp(k, "--attach-db")) a->attach_db = need("--attach-db");
+        else if (!std::strcmp(k, "--skip-burn-in")) a->skip_burn_in = true;
         else if (!std::strcmp(k, "-h") || !std::strcmp(k, "--help")) {
             Usage(argv[0]);
             return false;
@@ -290,7 +298,7 @@ int main(int argc, char** argv) {
     // reviews, so the measured rows' per-row prefix-cache entries stay cold (the
     // cold-fleet intent); only the shared instruction/template prefix warms, and
     // it warms identically for both arms -> the A/B stays fair. Result discarded.
-    {
+    if (!args.skip_burn_in) {
         if (!Run(con, "CREATE TABLE warmup AS SELECT 'warmup review ' || i::VARCHAR AS " + args.text_col +
                               " FROM range(" + std::to_string(args.rows_per_request) + ") t(i);"))
             return 1;

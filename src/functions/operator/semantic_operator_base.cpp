@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -83,6 +85,29 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
         items.erase(items.begin() + static_cast<long>(want), items.end());
     }
     return items;
+}
+
+// Optional per-row verdict dump for prompt-degradation diagnostics
+// (env FLOCK_VERDICT_DUMP=<path>). One JSONL line per row: the query-global
+// row_id (== table scan order at threads=1), the row's 0-based position within
+// its batch, and the raw model verdict element. Inert unless the env var is set;
+// buffered (no per-batch flush) and, by protocol, only ever enabled on an
+// untimed pass, so it cannot perturb a measured run. Serialises the raw element
+// generically, so it is not filter-specific.
+void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
+    static std::FILE* out = [] {
+        const char* p = std::getenv("FLOCK_VERDICT_DUMP");
+        return (p && *p) ? std::fopen(p, "wb") : nullptr;
+    }();
+    if (!out) {
+        return;
+    }
+    static std::mutex mu;
+    std::lock_guard<std::mutex> guard(mu);
+    for (size_t i = 0; i < batch.rows.size(); ++i) {
+        std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"v\":%s}\n",
+                     static_cast<unsigned long long>(batch.row_ids[i]), i, items[i].dump().c_str());
+    }
 }
 
 }  // namespace
@@ -397,6 +422,7 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     for (size_t i = 0; i < batch.rows.size(); ++i) {
         parse_fn(items[i], batch.rows[i], out);
     }
+    DumpVerdicts(batch, items);  // no-op unless FLOCK_VERDICT_DUMP is set (diagnostics)
     return SourceResultType::HAVE_MORE_OUTPUT;
 }
 
