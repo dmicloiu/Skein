@@ -54,6 +54,9 @@ struct Args {
     // min(threads, morsels). attach_db is the (fresh) file backing that DB.
     int row_group_size = 0;
     std::string attach_db;
+    // Per-row output-token budget multiplier: max_output_tokens = mult * R. Default
+    // 16 fits the bare boolean array.
+    int max_out_mult = 16;
     // Skip the untimed burn-in query. Only used by the verdict-dump pass of the
     // R-sweep: there we discard timing, and skipping burn-in keeps the dump file
     // to the real query's rows (the burn-in would otherwise emit R synthetic rows
@@ -70,7 +73,8 @@ void Usage(const char* prog) {
                  "          [--rows-per-request N] [--timeout-ms N] [--result-out PATH]\n"
                  "          [--row-group-size N (mult. of 2048; >0 => rows/N morsels)]\n"
                  "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n"
-                 "          [--skip-burn-in (untimed verdict-dump pass only)]\n",
+                 "          [--skip-burn-in (untimed verdict-dump pass only)]\n"
+                 "          [--max-out-mult N (max_output_tokens = N*R; default 16)]\n",
                  prog);
 }
 
@@ -99,6 +103,7 @@ bool ParseArgs(int argc, char** argv, Args* a) {
         else if (!std::strcmp(k, "--row-group-size")) a->row_group_size = std::atoi(need("--row-group-size"));
         else if (!std::strcmp(k, "--attach-db")) a->attach_db = need("--attach-db");
         else if (!std::strcmp(k, "--skip-burn-in")) a->skip_burn_in = true;
+        else if (!std::strcmp(k, "--max-out-mult")) a->max_out_mult = std::atoi(need("--max-out-mult"));
         else if (!std::strcmp(k, "-h") || !std::strcmp(k, "--help")) {
             Usage(argv[0]);
             return false;
@@ -240,7 +245,7 @@ int main(int argc, char** argv) {
     //     context limit -> truncated JSON. So we nest "max_tokens" there.
     // 16 tokens/row is ~8x headroom over the ~2 tokens a guided boolean needs, so
     // the cap never clips a valid array while still bounding a runaway generation.
-    const long long max_out_tokens = 16LL * args.rows_per_request;
+    const long long max_out_tokens = static_cast<long long>(args.max_out_mult) * args.rows_per_request;
     const std::string tok = std::to_string(max_out_tokens);
     if (!Run(con, "CREATE MODEL ('" + SqlEscape(args.model) + "', '" + SqlEscape(args.model) +
                           "', 'openai', {\"batch_size\": " + std::to_string(args.rows_per_request) +

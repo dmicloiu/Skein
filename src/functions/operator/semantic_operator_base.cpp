@@ -17,6 +17,23 @@ using duckdb::SinkFinalizeType;
 using duckdb::SinkResultType;
 using duckdb::SourceResultType;
 
+// FILTER output-schema mode from FLOCK_SEM_SCHEMA, read once. Default kBool keeps
+// the committed behaviour byte-identical.
+SemSchema SemSchemaModeFromEnv() {
+    static const SemSchema mode = [] {
+        const char* p = std::getenv("FLOCK_SEM_SCHEMA");
+        const std::string s = p ? p : "";
+        if (s == "id") {
+            return SemSchema::kId;
+        }
+        if (s == "id_reason") {
+            return SemSchema::kIdReason;
+        }
+        return SemSchema::kBool;
+    }();
+    return mode;
+}
+
 namespace {
 
 // Parse one /v1/chat/completions response into the batch's per-row response array.
@@ -73,11 +90,37 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (iit == completion.end() || !iit->is_array()) {
         throw std::runtime_error("flock semantic operator: completion missing an 'items' array");
     }
-    // Align with the rows the same way the scalar does: pad short with null
-    // (-> pass via ParseVerdict), truncate long. Under guided decoding the array
-    // is already exactly batch-sized, so this only matters for degraded responses.
-    nlohmann::json items = std::move(*iit);
     const size_t want = batch.row_ids.size();
+    // id / id_reason (Rec-1 ablation): each element is an object {id[,reason],
+    // verdict}. Realign to positional order BY the batch-local id (1..R) and
+    // reduce to the bare verdict, so ParseVerdict / ParseAndEmit / DumpVerdicts
+    // and the diagnostic all stay identical to the bool path. A missing id stays
+    // null -> pass (parity); extras / out-of-range ids are ignored.
+    if (SemSchemaModeFromEnv() != SemSchema::kBool) {
+        nlohmann::json verdicts = nlohmann::json::array();
+        for (size_t i = 0; i < want; ++i) {
+            verdicts.push_back(nullptr);
+        }
+        for (const auto& obj: *iit) {
+            if (!obj.is_object()) {
+                continue;
+            }
+            const auto id_it = obj.find("id");
+            const auto v_it = obj.find("verdict");
+            if (id_it == obj.end() || !id_it->is_number_integer() || v_it == obj.end()) {
+                continue;
+            }
+            const long id = id_it->get<long>();
+            if (id >= 1 && static_cast<size_t>(id) <= want) {
+                verdicts[static_cast<size_t>(id) - 1] = *v_it;
+            }
+        }
+        return verdicts;
+    }
+    // bool: pad short with null (-> pass via ParseVerdict), truncate long. Under
+    // guided decoding the array is already exactly batch-sized, so this only
+    // matters for degraded responses.
+    nlohmann::json items = std::move(*iit);
     while (items.size() < want) {
         items.push_back(nullptr);
     }
@@ -156,12 +199,33 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
     // model_parameters). temperature=0 -> greedy, so top_p/top_k are no-ops.
     body["temperature"] = 0.0;
     if (cfg.response_format == "json_schema") {
-        // FILTER ONLY for now: constrain the output to a boolean array of length
-        // batch_rows (mirrors flock's openai adapter `items` schema).
+        // FILTER output element. bool: a boolean. The Rec-1 ablation modes make it
+        // a per-row object so the model anchors to a row id (kId) and reasons
+        // before the verdict (kIdReason); ParseItems reduces either back to a
+        // positional verdict array. Property order id,reason,verdict is preserved
+        // by the schema so the rationale is emitted before the verdict.
+        const SemSchema mode = SemSchemaModeFromEnv();
+        nlohmann::json element;
+        if (mode == SemSchema::kBool) {
+            element = {{"type", "boolean"}};
+        } else if (mode == SemSchema::kId) {
+            element = {{"type", "object"},
+                       {"properties", {{"id", {{"type", "integer"}}},
+                                       {"verdict", {{"type", "boolean"}}}}},
+                       {"required", nlohmann::json::array({"id", "verdict"})},
+                       {"additionalProperties", false}};
+        } else {  // kIdReason: id, then reason (<= ~12 words), then verdict
+            element = {{"type", "object"},
+                       {"properties", {{"id", {{"type", "integer"}}},
+                                       {"reason", {{"type", "string"}, {"maxLength", 80}}},
+                                       {"verdict", {{"type", "boolean"}}}}},
+                       {"required", nlohmann::json::array({"id", "reason", "verdict"})},
+                       {"additionalProperties", false}};
+        }
         nlohmann::json items_schema = {{"type", "array"},
                                        {"minItems", batch_rows},
                                        {"maxItems", batch_rows},
-                                       {"items", {{"type", "boolean"}}}};
+                                       {"items", std::move(element)}};
         body["response_format"] = {
                 {"type", "json_schema"},
                 {"json_schema",

@@ -237,8 +237,36 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
         column["data"] = std::move(data);
         columns.push_back(std::move(column));
     }
-    return std::get<0>(
+    const SemSchema mode = SemSchemaModeFromEnv();
+    if (mode != SemSchema::kBool) {
+        // Rec-1 ablation: prepend an explicit batch-local row id per row so the
+        // model can anchor each verdict; the guided schema requires it to echo id.
+        nlohmann::json id_col;
+        id_col["name"] = "row_id";
+        auto ids = nlohmann::json::array();
+        for (size_t k = 0; k < batch.size(); ++k) {
+            ids.push_back(k + 1);
+        }
+        id_col["data"] = std::move(ids);
+        columns.insert(columns.begin(), std::move(id_col));
+    }
+    std::string prompt = std::get<0>(
             PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+    // The bool template says "return true/false"; override it for the object modes
+    // (the guided schema enforces shape; this makes the model use id/reason).
+    if (mode == SemSchema::kId) {
+        prompt += "\n\n## Output (structured)\n"
+                  "For EACH row return one object with that row's `row_id` and a boolean `verdict` "
+                  "(true iff the review satisfies the user prompt). One object per row, in row order, keyed "
+                  "to its row_id. Judge every row independently on its own merits.";
+    } else if (mode == SemSchema::kIdReason) {
+        prompt += "\n\n## Output (structured, reason first)\n"
+                  "For EACH row return one object with that row's `row_id`, then a brief `reason` "
+                  "(<=12 words) for the judgement, then a boolean `verdict` (true iff the review satisfies "
+                  "the user prompt). Write the reason BEFORE the verdict. One object per row, in row order, "
+                  "keyed to its row_id. Judge every row independently on its own merits.";
+    }
+    return prompt;
 }
 
 bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {

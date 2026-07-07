@@ -34,6 +34,11 @@ namespace flock {
 // Casts DuckDB's state objects and forwards here.
 // =============================================================================
 
+// FILTER output-schema mode, selected once per process by the env var
+// FLOCK_SEM_SCHEMA (default kBool).
+enum class SemSchema { kBool, kId, kIdReason };
+SemSchema SemSchemaModeFromEnv();
+
 // A coalesced batch that has returned from the LLM, awaiting parse + emit by
 // the source phase. Carries everything Drain needs to realign the response
 // items with their originating rows.
