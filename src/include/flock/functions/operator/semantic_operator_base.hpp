@@ -39,6 +39,10 @@ namespace flock {
 enum class SemSchema { kBool, kId, kIdReason };
 SemSchema SemSchemaModeFromEnv();
 
+// Per-row rationale budget for kIdReason, from FLOCK_SEM_REASON_WORDS (default
+// 12). Drives both the instruction ("<= N words") and the schema string maxLength.
+int SemReasonWords();
+
 // A coalesced batch that has returned from the LLM, awaiting parse + emit by
 // the source phase. Carries everything Drain needs to realign the response
 // items with their originating rows.

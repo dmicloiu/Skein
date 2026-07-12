@@ -261,8 +261,9 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
                   "to its row_id. Judge every row independently on its own merits.";
     } else if (mode == SemSchema::kIdReason) {
         prompt += "\n\n## Output (structured, reason first)\n"
-                  "For EACH row return one object with that row's `row_id`, then a brief `reason` "
-                  "(<=12 words) for the judgement, then a boolean `verdict` (true iff the review satisfies "
+                  "For EACH row return one object with that row's `row_id`, then a brief `reason` (<="
+                  + std::to_string(SemReasonWords()) +
+                  " words) for the judgement, then a boolean `verdict` (true iff the review satisfies "
                   "the user prompt). Write the reason BEFORE the verdict. One object per row, in row order, "
                   "keyed to its row_id. Judge every row independently on its own merits.";
     }

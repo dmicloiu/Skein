@@ -34,6 +34,21 @@ SemSchema SemSchemaModeFromEnv() {
     return mode;
 }
 
+// kIdReason rationale budget from FLOCK_SEM_REASON_WORDS (default 12), read once.
+int SemReasonWords() {
+    static const int words = [] {
+        const char* p = std::getenv("FLOCK_SEM_REASON_WORDS");
+        if (p && *p) {
+            const int v = std::atoi(p);
+            if (v > 0) {
+                return v;
+            }
+        }
+        return 12;
+    }();
+    return words;
+}
+
 namespace {
 
 // Parse one /v1/chat/completions response into the batch's per-row response array.
@@ -214,10 +229,13 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
                                        {"verdict", {{"type", "boolean"}}}}},
                        {"required", nlohmann::json::array({"id", "verdict"})},
                        {"additionalProperties", false}};
-        } else {  // kIdReason: id, then reason (<= ~12 words), then verdict
+        } else {  // kIdReason: id, then reason (<= SemReasonWords() words), then verdict
+            // ~7 chars/word (incl. space) bounds the string to the word budget so
+            // guided decoding forces brevity for the cheap-reason variants.
+            const int reason_max_chars = 7 * SemReasonWords();
             element = {{"type", "object"},
                        {"properties", {{"id", {{"type", "integer"}}},
-                                       {"reason", {{"type", "string"}, {"maxLength", 80}}},
+                                       {"reason", {{"type", "string"}, {"maxLength", reason_max_chars}}},
                                        {"verdict", {{"type", "boolean"}}}}},
                        {"required", nlohmann::json::array({"id", "reason", "verdict"})},
                        {"additionalProperties", false}};
