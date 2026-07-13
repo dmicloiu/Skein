@@ -250,8 +250,22 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
         id_col["data"] = std::move(ids);
         columns.insert(columns.begin(), std::move(id_col));
     }
-    std::string prompt = std::get<0>(
-            PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+    std::string prompt;
+    if (SemPromptSlim()) {
+        // Lean, text-only head + the SAME tuples (byte-parity on the rows),
+        // dropping the META_PROMPT image/audio boilerplate.
+        prompt = "For each row in the table below, decide whether it satisfies the criterion, "
+                 "judging every row independently on its own merits.\n"
+                 "Criterion: " + prompt_template_ + "\n\n"
+                 + PromptManager::ConstructInputTuples(columns, tuple_format_);
+        if (mode == SemSchema::kBool) {
+            // full mode carries RESPONSE_FORMAT::FILTER; slim must state the shape.
+            prompt += "\n\nReturn a JSON object {\"items\": [...]} with one boolean per row, in row order.";
+        }
+    } else {
+        prompt = std::get<0>(
+                PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+    }
     // The bool template says "return true/false"; override it for the object modes
     // (the guided schema enforces shape; this makes the model use id/reason).
     if (mode == SemSchema::kId) {

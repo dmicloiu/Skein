@@ -43,6 +43,9 @@ SemSchema SemSchemaModeFromEnv();
 // 12). Drives both the instruction ("<= N words") and the schema string maxLength.
 int SemReasonWords();
 
+// PROMPT SLIMMING -> default includes the original flock meta-prompt
+bool SemPromptSlim();
+
 // A coalesced batch that has returned from the LLM, awaiting parse + emit by
 // the source phase. Carries everything Drain needs to realign the response
 // items with their originating rows.

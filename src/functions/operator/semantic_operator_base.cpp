@@ -49,6 +49,15 @@ int SemReasonWords() {
     return words;
 }
 
+// Check if prompt slim-ing is on.
+bool SemPromptSlim() {
+    static const bool slim = [] {
+        const char* p = std::getenv("FLOCK_SEM_PROMPT");
+        return p && std::string(p) == "slim";
+    }();
+    return slim;
+}
+
 namespace {
 
 // Parse one /v1/chat/completions response into the batch's per-row response array.
