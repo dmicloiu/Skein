@@ -131,6 +131,34 @@ target_link_libraries(flock_sem_filter_vllm_integration PRIVATE
     CURL::libcurl
     Threads::Threads)
 
+# -- sem_extract operator throughput driver (llm_complete projection A/B) ------
+#
+# Sibling of flock_sem_filter_vllm_integration above (same recipe + -fno-gnu-unique
+# + full extension link). Plain main() driver, not a ctest; built + run manually on
+# the cluster. Times a materialised projected llm_complete (PhysicalSemExtract vs
+# the scalar) across the morsel sweep.
+add_executable(flock_sem_extract_vllm_integration
+    ${CMAKE_CURRENT_SOURCE_DIR}/sem_extract_vllm_integration.cpp)
+
+target_include_directories(flock_sem_extract_vllm_integration PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include)
+
+target_compile_options(flock_sem_extract_vllm_integration PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_sem_extract_vllm_integration PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
 # -- Semantic config tests (ExtensionState, SET surface, CREATE MODEL) --------
 #
 # Unlike the standalone targets above, ExtensionState
