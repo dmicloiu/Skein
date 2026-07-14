@@ -73,92 +73,6 @@ duckdb::unique_ptr<Expression> CombineConjunction(duckdb::vector<duckdb::unique_
     return std::move(conjunction);
 }
 
-// Find the child expression of a bound struct literal by its field name.
-Expression* FindStructField(const duckdb::BoundFunctionExpression& struct_expr, const LogicalType& struct_type,
-                            const std::string& field_name) {
-    const idx_t fields = StructType::GetChildCount(struct_type);
-    for (idx_t i = 0; i < fields && i < struct_expr.children.size(); ++i) {
-        if (StructType::GetChildName(struct_type, i) == field_name) {
-            return struct_expr.children[i].get();
-        }
-    }
-    return nullptr;
-}
-
-// Extract the prompt-context columns from the bound prompt struct (llm_call's 2nd
-// argument). v1 supports tabular columns whose `data` is a direct column reference;
-// anything else (computed data, image/audio) is rejected loudly.
-std::vector<SemContextColumn> ExtractContextColumns(duckdb::ClientContext& context,
-                                                    const duckdb::BoundFunctionExpression& llm_call) {
-    if (llm_call.children.size() < 2) {
-        throw duckdb::InvalidInputException("sem_filter: llm_filter expects (model, prompt) arguments");
-    }
-    auto& prompt_expr = *llm_call.children[1];
-    if (prompt_expr.expression_class != ExpressionClass::BOUND_FUNCTION) {
-        throw duckdb::NotImplementedException("sem_filter: prompt argument must be a struct literal");
-    }
-    auto& prompt_struct = prompt_expr.Cast<duckdb::BoundFunctionExpression>();
-    auto* cc_expr = FindStructField(prompt_struct, prompt_expr.return_type, "context_columns");
-    if (!cc_expr) {
-        throw duckdb::NotImplementedException("sem_filter: llm_filter requires context_columns");
-    }
-    if (cc_expr->expression_class != ExpressionClass::BOUND_FUNCTION) {
-        throw duckdb::NotImplementedException("sem_filter: context_columns must be a list literal");
-    }
-    auto& list_expr = cc_expr->Cast<duckdb::BoundFunctionExpression>();
-
-    std::vector<SemContextColumn> columns;
-    for (auto& element : list_expr.children) {
-        if (element->expression_class != ExpressionClass::BOUND_FUNCTION) {
-            throw duckdb::NotImplementedException("sem_filter: each context column must be a struct literal");
-        }
-        auto& col_struct = element->Cast<duckdb::BoundFunctionExpression>();
-        const auto& col_type = element->return_type;
-
-        SemContextColumn cc;
-        bool has_data = false;
-        const idx_t fields = StructType::GetChildCount(col_type);
-        for (idx_t j = 0; j < fields && j < col_struct.children.size(); ++j) {
-            const auto field = StructType::GetChildName(col_type, j);
-            auto& child = *col_struct.children[j];
-            if (field == "data") {
-                if (child.expression_class != ExpressionClass::BOUND_REF) {
-                    throw duckdb::NotImplementedException(
-                            "sem_filter: context column 'data' must be a direct column reference");
-                }
-                cc.data_index = child.Cast<duckdb::BoundReferenceExpression>().index;
-                has_data = true;
-            } else {
-                // Static metadata (name/type/detail): fold the constant, drop NULLs.
-                if (!child.IsFoldable()) {
-                    throw duckdb::NotImplementedException("sem_filter: context column metadata must be constant");
-                }
-                auto value = duckdb::ExpressionExecutor::EvaluateScalar(context, child);
-                if (value.IsNull()) {
-                    continue;
-                }
-                auto str = value.ToString();
-                if (str == "NULL") {
-                    continue;
-                }
-                if (field == "type" && (str == "image" || str == "audio")) {
-                    throw duckdb::NotImplementedException(
-                            "sem_filter: image/audio context columns are not supported");
-                }
-                cc.metadata[field] = str;
-            }
-        }
-        if (!has_data) {
-            throw duckdb::InvalidInputException("sem_filter: context column missing 'data'");
-        }
-        columns.push_back(std::move(cc));
-    }
-    if (columns.empty()) {
-        throw duckdb::NotImplementedException("sem_filter: llm_filter requires at least one context column");
-    }
-    return columns;
-}
-
 }  // namespace
 
 duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& context,
@@ -176,7 +90,7 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
     SemanticParams params = ResolveSemanticParams(context, model_details.model_name);
     auto& extension_state = ExtensionState::Get(context);
 
-    auto context_columns = ExtractContextColumns(context, llm_call);
+    auto context_columns = ExtractContextColumns(context, llm_call, "sem_filter");
 
     // Sticky key: the per-query-stable template head. Rendering with no tuples
     // leaves the {{TUPLES}} block untouched, yielding the same head for every batch.
@@ -227,16 +141,7 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     // Rebuild the scalar's context_columns JSON for this batch (metadata verbatim,
     // data = each row's value stringified), then render through the shared builder
     // so the bytes match llm_filter at the same batch_size.
-    auto columns = nlohmann::json::array();
-    for (const auto& cc : context_columns_) {
-        nlohmann::json column = cc.metadata;
-        auto data = nlohmann::json::array();
-        for (const auto& row : batch) {
-            data.push_back(row.values[cc.data_index].ToString());
-        }
-        column["data"] = std::move(data);
-        columns.push_back(std::move(column));
-    }
+    auto columns = BuildContextColumnsJson(context_columns_, batch);
     const SemSchema mode = SemSchemaModeFromEnv();
     if (mode != SemSchema::kBool) {
         // Rec-1 ablation: prepend an explicit batch-local row id per row so the
@@ -309,6 +214,35 @@ bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {
         return true;  // parity with scalar llm_filter: a null/missing verdict -> pass (keep)
     }
     return false;  // object / array -> fail-safe: do not emit
+}
+
+nlohmann::json PhysicalSemFilter::BuildResponseFormat(size_t batch_rows) const {
+    // FILTER output element. bool: a boolean. The ablation modes make it a
+    // per-row object so the model anchors to a row id (kId) and reasons before the
+    // verdict (kIdReason); ParseItems reduces either back to a positional verdict
+    // array. Property order id,reason,verdict is preserved so the rationale is
+    // emitted before the verdict.
+    const SemSchema mode = SemSchemaModeFromEnv();
+    nlohmann::json element;
+    if (mode == SemSchema::kBool) {
+        element = {{"type", "boolean"}};
+    } else if (mode == SemSchema::kId) {
+        element = {{"type", "object"},
+                   {"properties", {{"id", {{"type", "integer"}}}, {"verdict", {{"type", "boolean"}}}}},
+                   {"required", nlohmann::json::array({"id", "verdict"})},
+                   {"additionalProperties", false}};
+    } else {  // kIdReason: id, then reason (<= SemReasonWords() words), then verdict
+        // ~7 chars/word (incl. space) bounds the string to the word budget so guided
+        // decoding forces brevity for the cheap-reason variants.
+        const int reason_max_chars = 7 * SemReasonWords();
+        element = {{"type", "object"},
+                   {"properties", {{"id", {{"type", "integer"}}},
+                                   {"reason", {{"type", "string"}, {"maxLength", reason_max_chars}}},
+                                   {"verdict", {{"type", "boolean"}}}}},
+                   {"required", nlohmann::json::array({"id", "reason", "verdict"})},
+                   {"additionalProperties", false}};
+    }
+    return ItemsResponseFormat("filter_results", std::move(element), batch_rows);
 }
 
 void PhysicalSemFilter::ParseAndEmit(const nlohmann::json& element, const RowData& row, DataChunk& out) const {

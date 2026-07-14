@@ -107,6 +107,16 @@ public:
     // Sink; empty -> SubmitBatch falls back to a leading slice of the prompt.
     std::string sticky_key;
 
+    // Per-operator guided-decoding schema. Set ONCE before any Sink
+    // (like render_prompt), bound by CreateGlobalSinkState to the operator's
+    // BuildResponseFormat. Returns the JSON assigned to body["response_format"]
+    // for a batch of `batch_rows` rows, or null to send no guided schema. Null /
+    // unset -> BuildPayload emits no response_format (free_form). This is where
+    // filter (boolean element) and extract (string element) diverge; the engine
+    // stays element-type agnostic.
+    using SchemaFn = std::function<nlohmann::json(size_t batch_rows)>;
+    SchemaFn response_schema;
+
     // --- engine entry points (operator forwards here; the test calls directly) ---
 
     // Sink one chunk. Returns NEED_MORE_INPUT when the chunk is consumed, or
@@ -236,9 +246,20 @@ public:
 
     // The two operator-specific hooks W4 subclasses implement. RenderPrompt
     // packs a whole batch into one multi-row prompt (W4: flock's tuple
-    // formatter); ParseAndEmit consumes one boolean_array element per row.
+    // formatter); ParseAndEmit consumes one response element per row.
     virtual std::string RenderPrompt(const std::vector<RowData>& batch) const = 0;
     virtual void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const = 0;
+
+    // Guided-decoding schema hook. Returns the value for body["response_format"]
+    // for a batch of `batch_rows` rows, or null (the default) to send no schema.
+    // Concrete operators override it with their per-row element schema; the base
+    // stays agnostic to bool vs string. Bound into the engine via response_schema.
+    virtual nlohmann::json BuildResponseFormat(size_t batch_rows) const;
+
+    // Wrap a per-row `element` schema in flock's shared {"items":[...]} envelope of
+    // exactly `batch_rows` elements, under the json_schema `name`. Both operators'
+    // guided schemas share this shape; only the element schema (+ name) differ.
+    static nlohmann::json ItemsResponseFormat(const std::string& name, nlohmann::json element, size_t batch_rows);
 
     // The context-free core of GetGlobalSinkState: build the engine sink state
     // and bind its render hook to this operator's RenderPrompt. Public so tests
