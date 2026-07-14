@@ -2,13 +2,13 @@
   "rewrite": "on",
   "threads": 1,
   "rows": 2000,
-  "passes": 1128,
-  "elapsed_s": 4.09441,
-  "rows_per_s": 488.471,
+  "passes": 964,
+  "elapsed_s": 3.16571,
+  "rows_per_s": 631.77,
   "row_group_size": 0,
   "morsels": 1,
   "inflight": 128,
-  "batch": 2,
+  "batch": 32,
   "model": "Qwen/Qwen2.5-7B-Instruct",
   "endpoints": "http://127.0.0.1:8000/v1/chat/completions"
 }
