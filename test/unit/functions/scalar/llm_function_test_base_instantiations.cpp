@@ -15,6 +15,11 @@ void LLMFunctionTestBase<FunctionClass>::SetUp() {
     con.Query("  CREATE SECRET ("
               "       TYPE OLLAMA,"
               "    API_URL '127.0.0.1:11434');");
+    // These fixtures test the SCALAR implementations (they mock the provider), so
+    // opt out of the semantic-operator rewrite: with it on (the default), a projected
+    // llm_complete would be re-planned as PhysicalSemExtract and bypass the mock.
+    // GLOBAL so the per-test connections (fresh Config::GetConnection()) inherit it.
+    con.Query("SET GLOBAL semantic_rewrite_enabled=false;");
 
     mock_provider = std::make_shared<MockProvider>(ModelDetails{});
     Model::SetMockProvider(mock_provider);
