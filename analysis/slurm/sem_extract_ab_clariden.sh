@@ -48,6 +48,11 @@ srun -ul --environment="$EDF" bash -c '
     MODEL="Qwen/Qwen2.5-7B-Instruct"
     NGPU=1; BASE_PORT=8000; FULL_UTIL=0.90
     IN_FLIGHT=128; TIMEOUT_MS=120000
+    # Per-row output-token cap = MAX_OUT_MULT * rows_per_request. Morsel mode
+    # (rows_per_request=1) makes this the per-row ceiling; 16 truncates rows
+    # where the model echoes the review -> invalid JSON -> query fails. Override
+    # higher for morsel reruns (both arms, so the A/B stays fair).
+    MAX_OUT_MULT="${MAX_OUT_MULT:-16}"
     DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-Classify the sentiment of this movie review as exactly POSITIVE or NEGATIVE.}"
@@ -142,7 +147,7 @@ srun -ul --environment="$EDF" bash -c '
         "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
                --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                --rewrite "$1" --threads "$2" --inflight "$IN_FLIGHT" --rows-per-request "$BATCH" \
-               --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
+               --max-out-mult "$MAX_OUT_MULT" --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
                --result-out "$OUT/result_$3.json" 2>&1 | tee "$OUT/run_$3.log"
         snap "after_$3"
     }
