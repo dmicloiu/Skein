@@ -6,7 +6,6 @@
 #include "duckdb/execution/physical_plan_generator.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
-#include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "flock/functions/llm_function_bind_data.hpp"
 #include "flock/model_manager/model.hpp"
 #include "flock/prompt_manager/prompt_manager.hpp"
@@ -22,10 +21,8 @@ namespace flock {
 using duckdb::ColumnBinding;
 using duckdb::DataChunk;
 using duckdb::Expression;
-using duckdb::ExpressionClass;
 using duckdb::idx_t;
 using duckdb::LogicalType;
-using duckdb::StructType;
 
 // =============================================================================
 // LogicalSemFilter
