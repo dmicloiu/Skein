@@ -36,6 +36,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -413,6 +414,127 @@ TEST(SemExtract, Engine_EmitsExtractedColumn) {
     for (int64_t v = 0; v < total; ++v) {
         EXPECT_EQ(rows[v].first, v);
         EXPECT_EQ(rows[v].second, "dx:" + std::to_string(v));  // completion = prefix + the row's value
+    }
+}
+
+// Concurrent Sink: N threads each drive op.Sink with their OWN
+// SemExtractLocalSinkState (own capture executor + capture chunk) against the
+// shared global sink state. Exercises the per-thread pre-projection path under
+// parallelism; this catches logic races in the capture
+// path (lost/duplicated/corrupted rows) that a single-threaded drive would miss.
+TEST(SemExtract, Engine_ConcurrentSink_NoLossNoCorruption) {
+    duckdb::Connection con(*g_db);
+    auto& ctx = *con.context;
+
+    const int N = 4;
+    const int64_t total = 200;
+    auto fake = std::make_shared<ScriptedFakeClient>("dx:");
+
+    // Same shape as Engine_EmitsExtractedColumn: output [BIGINT id, JSON dx], llm
+    // at position 1; the single BIGINT child column is both the sibling and the
+    // context data.
+    duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> capture_exprs;
+    capture_exprs.push_back(duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::BIGINT, 0));
+    capture_exprs.push_back(duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::BIGINT, 0));
+    duckdb::vector<LogicalType> capture_types{LogicalType::BIGINT, LogicalType::BIGINT};
+    std::vector<SemContextColumn> ccs;
+    SemContextColumn cc;
+    cc.data_index = 1;
+    cc.data_type = LogicalType::BIGINT;
+    ccs.push_back(std::move(cc));
+
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemExtract>(
+                       duckdb::vector<LogicalType>{LogicalType::BIGINT, LogicalType::JSON()}, 0, fake,
+                       MakeRouter(), MakeParams(/*cap=*/4, /*batch_size=*/4), std::move(capture_exprs),
+                       std::move(capture_types), /*llm_call_index=*/1, std::move(ccs), "p", "XML",
+                       std::string(), std::string())
+                       .Cast<PhysicalSemExtract>();
+
+    auto chunks = BuildBigintChunks(total, /*chunk_size=*/8);
+    std::vector<std::vector<DataChunk*>> partitions(N);
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        partitions[i % N].push_back(chunks[i].get());
+    }
+
+    auto gstate = op.GetGlobalSinkState(ctx);
+    auto& gss = gstate->Cast<SemGlobalSinkState>();
+    // Per-thread state built SEQUENTIALLY (executor construction reads ctx); the
+    // threads then only USE their own local (thread-local by construction).
+    std::vector<std::unique_ptr<duckdb::ThreadContext>> thread_ctxs;
+    std::vector<std::unique_ptr<duckdb::ExecutionContext>> econtexts;
+    std::vector<duckdb::unique_ptr<duckdb::LocalSinkState>> locals;
+    for (int t = 0; t < N; ++t) {
+        thread_ctxs.push_back(std::make_unique<duckdb::ThreadContext>(ctx));
+        econtexts.push_back(std::make_unique<duckdb::ExecutionContext>(ctx, *thread_ctxs[t], nullptr));
+        locals.push_back(op.GetLocalSinkState(*econtexts[t]));
+    }
+
+    auto worker = [&](int t) {
+        for (DataChunk* chunk : partitions[t]) {
+            for (;;) {
+                auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+                InterruptState interrupt(signal);
+                duckdb::OperatorSinkInput sink_input{*gstate, *locals[t], interrupt};
+                if (op.Sink(*econtexts[t], *chunk, sink_input) != SinkResultType::BLOCKED) {
+                    break;
+                }
+                signal->Await();
+            }
+        }
+    };
+    {
+        std::vector<std::thread> ts;
+        for (int t = 0; t < N; ++t) {
+            ts.emplace_back(worker, t);
+        }
+        for (auto& th : ts) {
+            th.join();
+        }
+    }
+
+    for (int t = 0; t < N; ++t) {
+        gss.MergeLocal(locals[t]->Cast<SemLocalSinkState>());
+    }
+    for (;;) {
+        auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+        InterruptState interrupt(signal);
+        if (gss.FinalizeFlush(interrupt) != SinkFinalizeType::BLOCKED) {
+            break;
+        }
+        signal->Await();
+    }
+
+    std::vector<std::pair<int64_t, std::string>> rows;
+    auto& alloc = duckdb::Allocator::DefaultAllocator();
+    const auto parse = [&op](const nlohmann::json& element, const RowData& row, DataChunk& out) {
+        op.ParseAndEmit(element, row, out);
+    };
+    for (;;) {
+        DataChunk out;
+        out.Initialize(alloc, op.GetTypes());
+        auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+        InterruptState interrupt(signal);
+        auto res = gss.Drain(out, parse, interrupt);
+        if (res == SourceResultType::BLOCKED) {
+            signal->Await();
+            continue;
+        }
+        if (res == SourceResultType::HAVE_MORE_OUTPUT) {
+            for (idx_t i = 0; i < out.size(); ++i) {
+                rows.emplace_back(out.GetValue(0, i).GetValue<int64_t>(), out.GetValue(1, i).ToString());
+            }
+            continue;
+        }
+        break;
+    }
+
+    // No loss / dup / corruption: exactly `total` rows, each id once, dx aligned.
+    ASSERT_EQ(rows.size(), static_cast<size_t>(total));
+    std::sort(rows.begin(), rows.end());
+    for (int64_t v = 0; v < total; ++v) {
+        EXPECT_EQ(rows[v].first, v);
+        EXPECT_EQ(rows[v].second, "dx:" + std::to_string(v));
     }
 }
 
