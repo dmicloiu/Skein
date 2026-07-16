@@ -182,8 +182,13 @@ void PhysicalSemExtract::ParseAndEmit(const nlohmann::json& element, const RowDa
 }
 
 nlohmann::json PhysicalSemExtract::BuildResponseFormat(size_t batch_rows) const {
-    // One string completion per row (mirrors the scalar's OutputType::STRING schema).
-    nlohmann::json element = {{"type", "string"}};
+    // One string completion per row (mirrors the scalar's OutputType::STRING schema),
+    // but bound each string to its share of the output-token budget (~4 chars/token).
+    // The bound scales with the configured budget and R, so it never
+    // clips a completion the budget could actually fit.
+    const uint64_t per_row_tokens = batch_rows > 0 ? cfg.max_output_tokens / batch_rows : cfg.max_output_tokens;
+    const int max_chars = static_cast<int>((per_row_tokens > 0 ? per_row_tokens : 1) * 4);
+    nlohmann::json element = {{"type", "string"}, {"maxLength", max_chars}};
     return ItemsResponseFormat("extract_results", std::move(element), batch_rows);
 }
 
