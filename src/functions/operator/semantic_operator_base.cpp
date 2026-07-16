@@ -222,46 +222,11 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
     // reproducible and matches the scalar arm (which pins temperature via
     // model_parameters). temperature=0 -> greedy, so top_p/top_k are no-ops.
     body["temperature"] = 0.0;
-    if (cfg.response_format == "json_schema") {
-        // FILTER output element. bool: a boolean. The Rec-1 ablation modes make it
-        // a per-row object so the model anchors to a row id (kId) and reasons
-        // before the verdict (kIdReason); ParseItems reduces either back to a
-        // positional verdict array. Property order id,reason,verdict is preserved
-        // by the schema so the rationale is emitted before the verdict.
-        const SemSchema mode = SemSchemaModeFromEnv();
-        nlohmann::json element;
-        if (mode == SemSchema::kBool) {
-            element = {{"type", "boolean"}};
-        } else if (mode == SemSchema::kId) {
-            element = {{"type", "object"},
-                       {"properties", {{"id", {{"type", "integer"}}},
-                                       {"verdict", {{"type", "boolean"}}}}},
-                       {"required", nlohmann::json::array({"id", "verdict"})},
-                       {"additionalProperties", false}};
-        } else {  // kIdReason: id, then reason (<= SemReasonWords() words), then verdict
-            // ~7 chars/word (incl. space) bounds the string to the word budget so
-            // guided decoding forces brevity for the cheap-reason variants.
-            const int reason_max_chars = 7 * SemReasonWords();
-            element = {{"type", "object"},
-                       {"properties", {{"id", {{"type", "integer"}}},
-                                       {"reason", {{"type", "string"}, {"maxLength", reason_max_chars}}},
-                                       {"verdict", {{"type", "boolean"}}}}},
-                       {"required", nlohmann::json::array({"id", "reason", "verdict"})},
-                       {"additionalProperties", false}};
+    if (cfg.response_format == "json_schema" && response_schema) {
+        nlohmann::json rf = response_schema(batch_rows);
+        if (!rf.is_null()) {
+            body["response_format"] = std::move(rf);
         }
-        nlohmann::json items_schema = {{"type", "array"},
-                                       {"minItems", batch_rows},
-                                       {"maxItems", batch_rows},
-                                       {"items", std::move(element)}};
-        body["response_format"] = {
-                {"type", "json_schema"},
-                {"json_schema",
-                 {{"name", "filter_results"},
-                  {"schema",
-                   {{"type", "object"},
-                    {"properties", {{"items", std::move(items_schema)}}},
-                    {"required", nlohmann::json::array({"items"})},
-                    {"additionalProperties", false}}}}}};
     }
     return body.dump();
 }
@@ -534,12 +499,34 @@ SemanticOperatorBase::SemanticOperatorBase(duckdb::PhysicalPlan& physical_plan,
       client(std::move(client)), router(std::move(router)), cfg(std::move(cfg)) {
 }
 
+nlohmann::json SemanticOperatorBase::BuildResponseFormat(size_t /*batch_rows*/) const {
+    // Default: no guided schema. Concrete operators override to supply one.
+    return nullptr;
+}
+
+nlohmann::json SemanticOperatorBase::ItemsResponseFormat(const std::string& name, nlohmann::json element,
+                                                         size_t batch_rows) {
+    nlohmann::json items_schema = {{"type", "array"},
+                                   {"minItems", batch_rows},
+                                   {"maxItems", batch_rows},
+                                   {"items", std::move(element)}};
+    return {{"type", "json_schema"},
+            {"json_schema",
+             {{"name", name},
+              {"schema",
+               {{"type", "object"},
+                {"properties", {{"items", std::move(items_schema)}}},
+                {"required", nlohmann::json::array({"items"})},
+                {"additionalProperties", false}}}}}};
+}
+
 duckdb::unique_ptr<SemGlobalSinkState> SemanticOperatorBase::CreateGlobalSinkState() const {
     auto state = duckdb::make_uniq<SemGlobalSinkState>(client, router, cfg);
-    // Bind the engine's render hook to this operator's RenderPrompt. `this`
-    // outlives the sink state (the operator owns sink_state), and the hook is
-    // set once before any Sink call, then only read.
+    // Bind the engine's render + schema hooks to this operator. `this` outlives the
+    // sink state (the operator owns sink_state), and both hooks are set once before
+    // any Sink call, then only read.
     state->render_prompt = [this](const std::vector<RowData>& batch) { return RenderPrompt(batch); };
+    state->response_schema = [this](size_t batch_rows) { return BuildResponseFormat(batch_rows); };
     return state;
 }
 

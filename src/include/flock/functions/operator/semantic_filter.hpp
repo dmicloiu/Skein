@@ -3,6 +3,7 @@
 #include "duckdb/planner/column_binding.hpp"
 #include "duckdb/planner/operator/logical_extension_operator.hpp"
 #include "flock/functions/operator/semantic_operator_base.hpp"
+#include "flock/functions/operator/semantic_operator_common.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -47,13 +48,6 @@ protected:
     void ResolveTypes() override;
 };
 
-// One prompt-context column: where its per-row value lives in the input row, plus
-// the static metadata (name/type/detail) carried verbatim into the rendered batch.
-struct SemContextColumn {
-    duckdb::idx_t data_index = 0;  // index into RowData.values
-    nlohmann::json metadata;       // {name?, type?, detail?} -- never holds "data"
-};
-
 // Concrete async semantic filter over the dispatch engine. Renders flock-parity
 // batch prompts, parses the per-row boolean verdict, applies invert + the output
 // projection, and pre-filters residual conjuncts before the LLM round-trip.
@@ -69,6 +63,9 @@ public:
 
     std::string RenderPrompt(const std::vector<RowData>& batch) const override;
     void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const override;
+
+    // Guided schema.
+    nlohmann::json BuildResponseFormat(size_t batch_rows) const override;
 
     // Build the per-thread residual executor (the engine's pre-filter slot).
     duckdb::unique_ptr<duckdb::LocalSinkState> GetLocalSinkState(duckdb::ExecutionContext& context) const override;

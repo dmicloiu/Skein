@@ -6,6 +6,8 @@
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/planner/expression/bound_operator_expression.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
+#include "duckdb/planner/operator/logical_projection.hpp"
+#include "flock/functions/operator/semantic_extract.hpp"
 #include "flock/functions/operator/semantic_filter.hpp"
 #include "flock/runtime/semantic_settings.h"
 
@@ -156,6 +158,39 @@ void TryRewriteFilter(duckdb::unique_ptr<LogicalOperator>& node) {
     node = std::move(current);
 }
 
+// True iff the expression's ROOT is a bound llm_complete(...) call. No CAST/wrapper
+// peeling: a call nested inside another expression (CONCAT(llm_complete(...), 'x'),
+// CAST(llm_complete(...) AS ...)) has a non-llm_complete root, so it is NOT a
+// top-level call and its projection is left to the scalar (the documented fallback).
+bool ExprIsLlmComplete(const Expression& expr) {
+    return expr.expression_class == ExpressionClass::BOUND_FUNCTION &&
+           expr.Cast<duckdb::BoundFunctionExpression>().function.name == "llm_complete";
+}
+
+// If a LogicalProjection (held in `node`) has EXACTLY ONE top-level llm_complete
+// projected expression, replace it with a LogicalSemExtract that subsumes the whole
+// projection. No-op otherwise: zero (none, or an llm_complete nested inside another
+// expression) or more than one (out of scope for v1) leaves the scalar call in place.
+void TryRewriteProjection(duckdb::unique_ptr<LogicalOperator>& node) {
+    auto& projection = node->Cast<duckdb::LogicalProjection>();
+    if (projection.children.empty()) {
+        return;
+    }
+    idx_t llm_call_index = 0;
+    int llm_call_count = 0;
+    for (idx_t i = 0; i < projection.expressions.size(); ++i) {
+        if (ExprIsLlmComplete(*projection.expressions[i])) {
+            llm_call_index = i;
+            ++llm_call_count;
+        }
+    }
+    if (llm_call_count != 1) {
+        return;
+    }
+    node = duckdb::make_uniq<LogicalSemExtract>(std::move(projection.children[0]), projection.table_index,
+                                                std::move(projection.expressions), llm_call_index);
+}
+
 // POST-ORDER WALK over unique_ptr<LogicalOperator>& slots so any node (incl. the
 // root) can be replaced in place; children are rewritten before their parent.
 void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
@@ -164,6 +199,8 @@ void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
     }
     if (node->type == LogicalOperatorType::LOGICAL_FILTER) {
         TryRewriteFilter(node);
+    } else if (node->type == LogicalOperatorType::LOGICAL_PROJECTION) {
+        TryRewriteProjection(node);
     }
 }
 

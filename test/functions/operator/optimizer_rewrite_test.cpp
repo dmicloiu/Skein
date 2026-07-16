@@ -15,6 +15,7 @@
 // the scan), and residuals that must survive use two-column predicates likewise.
 
 #include "flock/core/config.hpp"
+#include "flock/functions/operator/semantic_extract.hpp"
 #include "flock/functions/operator/semantic_filter.hpp"
 #include "flock/model_manager/model.hpp"
 
@@ -108,6 +109,28 @@ std::unique_ptr<LogicalOperator> Plan(const std::string& query, bool flag_off = 
 std::vector<LogicalSemFilter*> SemFiltersIn(LogicalOperator& plan) {
     std::vector<LogicalSemFilter*> v;
     CollectSemFilters(plan, v);
+    return v;
+}
+
+// A single-column llm_complete projection expression. `prompt` distinguishes
+// otherwise-identical calls so two of them are not collapsed by CSE.
+std::string LlmComplete(const std::string& c, const std::string& prompt = "p") {
+    return "llm_complete({'model_name': 'gpt-4o'}, {'prompt': '" + prompt +
+           "', 'context_columns': [{'data': " + c + "}]})";
+}
+
+void CollectSemExtracts(LogicalOperator& op, std::vector<LogicalSemExtract*>& out) {
+    if (auto* se = dynamic_cast<LogicalSemExtract*>(&op)) {
+        out.push_back(se);
+    }
+    for (auto& child : op.children) {
+        CollectSemExtracts(*child, out);
+    }
+}
+
+std::vector<LogicalSemExtract*> SemExtractsIn(LogicalOperator& plan) {
+    std::vector<LogicalSemExtract*> v;
+    CollectSemExtracts(plan, v);
     return v;
 }
 
@@ -262,6 +285,43 @@ TEST(OptimizerRewrite, Case11_JoinCondition) {
 TEST(OptimizerRewrite, FlagOff_NoRewrite) {
     auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b"), /*flag_off=*/true);
     EXPECT_TRUE(SemFiltersIn(*plan).empty());
+}
+
+// ===========================================================================
+// sem_extract: a projected llm_complete rewrites; fallbacks + flag-off are no-ops.
+// ===========================================================================
+
+// Handled: SELECT cols..., llm_complete(...) AS alias -> one LogicalSemExtract.
+TEST(OptimizerRewrite, Extract_ProjectionRewrites) {
+    auto plan = Plan("SELECT a, " + LlmComplete("b") + " AS dx FROM docs");
+    auto se = SemExtractsIn(*plan);
+    ASSERT_EQ(se.size(), 1u);
+    EXPECT_TRUE(SemFiltersIn(*plan).empty());  // extract, not filter
+}
+
+// Fallback: llm_complete nested inside another expression (root is CONCAT, not the
+// call) is not a top-level projected call -> left to the scalar.
+TEST(OptimizerRewrite, Extract_NestedIsNoOp) {
+    auto plan = Plan("SELECT a, CONCAT(" + LlmComplete("b") + ", 'x') AS dx FROM docs");
+    EXPECT_TRUE(SemExtractsIn(*plan).empty());
+}
+
+// Fallback: more than one top-level llm_complete in the projection -> out of scope.
+TEST(OptimizerRewrite, Extract_TwoCallsNoOp) {
+    auto plan = Plan("SELECT " + LlmComplete("a", "p1") + " AS d1, " + LlmComplete("b", "p2") + " AS d2 FROM docs");
+    EXPECT_TRUE(SemExtractsIn(*plan).empty());
+}
+
+// Fallback: llm_complete outside a projection (here in WHERE) -> no extract.
+TEST(OptimizerRewrite, Extract_OutsideProjectionNoOp) {
+    auto plan = Plan("SELECT a FROM docs WHERE CAST(" + LlmComplete("b") + " AS VARCHAR) = 'yes'");
+    EXPECT_TRUE(SemExtractsIn(*plan).empty());
+}
+
+// Baseline (flag off): even the handled projection is left untouched.
+TEST(OptimizerRewrite, Extract_FlagOffNoOp) {
+    auto plan = Plan("SELECT a, " + LlmComplete("b") + " AS dx FROM docs", /*flag_off=*/true);
+    EXPECT_TRUE(SemExtractsIn(*plan).empty());
 }
 
 }  // namespace

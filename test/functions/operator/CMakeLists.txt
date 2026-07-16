@@ -121,6 +121,40 @@ target_link_libraries(flock_sem_filter_tests PRIVATE
 
 add_test(NAME flock_sem_filter_tests COMMAND flock_sem_filter_tests)
 
+# -- Semantic extract operator tests (LogicalSemExtract / CreatePlan / PhysicalSemExtract)
+#
+# Same recipe as flock_sem_filter_tests: the extract operator pulls in the prompt
+# builder, model manager and ExtensionState/ResolveSemanticParams, so it links the
+# full flock extension + duckdb_static. Not TSan-eligible (duckdb_static under a
+# sanitizer hits R_AARCH64_CALL26 on ARM64); the engine concurrency it drives is
+# TSan-covered by flock_semantic_operator_tests.
+add_executable(flock_sem_extract_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_extract_test.cpp)
+
+target_include_directories(flock_sem_extract_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_options(flock_sem_extract_tests PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_sem_extract_tests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
+add_test(NAME flock_sem_extract_tests COMMAND flock_sem_extract_tests)
+
 # -- Optimizer rewrite tests (llm_filter LogicalFilter -> LogicalSemFilter)
 #
 # Drives the registered OptimizerExtension on real post-optimizer plans
@@ -192,3 +226,39 @@ target_link_libraries(flock_sem_filter_e2e_tests PRIVATE
     Threads::Threads)
 
 add_test(NAME flock_sem_filter_e2e_tests COMMAND flock_sem_filter_e2e_tests)
+
+# -- End-to-end llm_complete -> PhysicalSemExtract test (mock-backed, A/B parity) --
+#
+# Same recipe as flock_sem_filter_e2e_tests: a real in-memory DuckDB executing
+# queries against the content-deterministic mock vLLM, linking the full extension +
+# duckdb_static. Confirms the operator and the scalar llm_complete produce the same
+# extracted column. Fully CI-able: no GPU / no vLLM.
+add_executable(flock_sem_extract_e2e_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/sem_extract_e2e_test.cpp
+    ${PROJECT_SOURCE_DIR}/test/runtime/mock_vllm_server.cpp)
+
+target_include_directories(flock_sem_extract_e2e_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/test/runtime)
+
+target_compile_options(flock_sem_extract_e2e_tests PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+
+target_link_libraries(flock_sem_extract_e2e_tests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    nlohmann_json::nlohmann_json
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
+    flock_extension
+    duckdb_generated_extension_loader
+    core_functions_extension
+    json_extension
+    parquet_extension
+    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
+    duckdb_static
+    $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
+    CURL::libcurl
+    Threads::Threads)
+
+add_test(NAME flock_sem_extract_e2e_tests COMMAND flock_sem_extract_e2e_tests)
