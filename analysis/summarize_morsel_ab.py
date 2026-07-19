@@ -15,7 +15,9 @@ the in_flight_cap.
 
 Columns (derived metrics):
   rows_s         rows scanned / elapsed (end-to-end filter throughput).
-  tok_s          total (prompt+gen) tokens / s = engine efficiency (how hard the
+  computed_tok_s (prompt - prefix_cache_hits + gen) tokens / s = tokens the GPU
+                 actually processed (prompt_tokens_total counts cache hits).
+  tok_s          total (prompt+gen) tokens / s, cache hits included (how hard the
                  system drives vLLM).
   prefill_tok_s  prompt-token throughput; decode_tok_s = gen-token throughput.
                  flock is prefill-dominated (tiny boolean output).
@@ -125,7 +127,11 @@ def parse_dir(d: Path) -> list[dict]:
                 "rows_s": rnd(j.get("rows_per_s")),                       # rows scanned / s
                 "req_s": rnd(rq / el) if (rq and el) else None,
                 "concurrency": rnd(conc),                                 # mean in-flight (Little's law)
-                "tok_s": rnd(tot / el, 0) if (tot and el) else None,      # TOTAL token throughput
+                "tok_s": rnd(tot / el, 0) if (tot and el) else None,      # TOTAL token throughput (counts cached prefill — inflated)
+                # tokens the GPU actually processed: prompt_tokens_total counts
+                # prefix-cache hits, so subtract them.
+                "computed_tok_s": rnd((pt - ch + gt) / el, 0)
+                if (pt is not None and ch is not None and gt is not None and el) else None,
                 "prefill_tok_s": rnd(pt / el, 0) if (pt and el) else None,
                 "decode_tok_s": rnd(gt / el, 0) if (gt and el) else None,
                 # --- token volume / shape ---
@@ -155,12 +161,12 @@ def parse_dir(d: Path) -> list[dict]:
 # token shape -> latency breakdown -> health -> quality.
 COLUMNS = ["config", "arm", "morsels", "datachunks", "threads", "R",
            "row_group_size", "rows", "elapsed_s",
-           "rows_s", "req_s", "concurrency", "tok_s", "prefill_tok_s", "decode_tok_s",
+           "rows_s", "req_s", "concurrency", "tok_s", "computed_tok_s", "prefill_tok_s", "decode_tok_s",
            "prompt_tok", "gen_tok", "total_tok", "tok_per_row", "gen_per_req",
            "e2e_ms", "ttft_ms", "queue_ms", "prefill_ms", "decode_ms",
            "prefix_hit_pct", "preemptions", "requests", "passes", "pass_pct"]
 # Curated subset for the console preview (the CSV holds the full column set).
-PREVIEW_COLUMNS = ["config", "arm", "morsels", "threads", "R", "rows_s", "tok_s",
+PREVIEW_COLUMNS = ["config", "arm", "morsels", "threads", "R", "rows_s", "computed_tok_s",
                    "decode_tok_s", "concurrency", "e2e_ms", "tok_per_row", "pass_pct"]
 
 

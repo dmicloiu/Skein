@@ -135,12 +135,17 @@ def analyse_R(rdir: Path, R: int, gold: dict[int, dict]) -> dict:
             pass
     pt = _delta(rdir, f"r{R}", "vllm:prompt_tokens_total")
     gt = _delta(rdir, f"r{R}", "vllm:generation_tokens_total")
+    ch = _delta(rdir, f"r{R}", "vllm:prefix_cache_hits_total")
     tok_s = round((pt + gt) / elapsed) if (pt is not None and gt is not None and elapsed) else None
+    # prompt_tokens_total counts prefix-cache hits; subtract them for the
+    # GPU-processed token throughput.
+    computed_tok_s = round((pt - ch + gt) / elapsed) \
+        if (pt is not None and ch is not None and gt is not None and elapsed) else None
 
     return {
         "R": R, "survivors": tp + fp, "tp": tp, "fp": fp, "fn": fn,
         "precision": round(p, 3), "recall": round(r, 3), "f1": round(f, 3),
-        "rows_s": rows_s, "tok_s": tok_s,
+        "rows_s": rows_s, "tok_s": tok_s, "computed_tok_s": computed_tok_s,
         "pos_tot": pos_tot, "pos_miss": pos_miss,
         "verdicts": verdicts,
     }
@@ -175,7 +180,7 @@ def main() -> int:
     res = {R: analyse_R(args.results_dir, R, gold) for R in Rs}
 
     # ---- 1. QUALITY curve --------------------------------------------------
-    qcols = ["R", "survivors", "tp", "fp", "fn", "precision", "recall", "f1", "rows_s", "tok_s"]
+    qcols = ["R", "survivors", "tp", "fp", "fn", "precision", "recall", "f1", "rows_s", "tok_s", "computed_tok_s"]
     with open(out_dir / "rsweep_quality.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=qcols)
         w.writeheader()
@@ -183,12 +188,13 @@ def main() -> int:
             w.writerow({k: res[R].get(k, "") for k in qcols})
     print(f"\ngold positives in first {args.rows} rows: {n_pos}\n")
     print("== 1. QUALITY curve (F1(R) knee) ==")
-    hdr = f"{'R':>4} {'surv':>6} {'prec':>6} {'recall':>7} {'F1':>6} {'rows/s':>8} {'tok/s':>8}"
+    hdr = (f"{'R':>4} {'surv':>6} {'prec':>6} {'recall':>7} {'F1':>6} {'rows/s':>8} "
+           f"{'tok/s':>8} {'ctok/s':>8}")
     print(hdr)
     for R in Rs:
         x = res[R]
         print(f"{R:>4} {x['survivors']:>6} {x['precision']:>6} {x['recall']:>7} {x['f1']:>6} "
-              f"{(x['rows_s'] or ''):>8} {(x['tok_s'] or ''):>8}")
+              f"{(x['rows_s'] or ''):>8} {(x['tok_s'] or ''):>8} {(x['computed_tok_s'] or ''):>8}")
 
     # ---- 2. POSITION test (mechanism C) ------------------------------------
     pcols = ["R"] + [f"missrate_b{b}" for b in range(N_POS_BUCKETS)] + ["mid_over_outer"]

@@ -22,11 +22,18 @@ Outputs:
 
 Columns (derived metrics):
   rows_s          rows scanned / execution_time (NOT the runner's survivors/s).
-  tok_s           total (prompt+gen) tokens / s = engine efficiency.
+  tok_s           total (prompt+gen) tokens / s. CAUTION: vllm:prompt_tokens_total
+                  counts prefix-cache HITS (its delta == prefix_cache_queries_total's),
+                  so this metric is inflated by re-sent-but-cached prompt bytes and
+                  rewards fat, un-amortized templates. Kept for reference only.
+  computed_tok_s  (prompt - prefix_cache_hits + gen) / s = tokens the GPU actually
+                  processed per second. The honest engine-efficiency metric;
+                  cache_hit_pct = hits / prompt tokens.
   prefill_tok_s   prompt-token throughput; decode_tok_s = gen-token throughput.
   req_s           requests / s; tok_per_row = total tokens / row.
   precision/recall/f1   vs ground truth (full-set for the no-limit Q101).
-  pareto_rows_f1 / pareto_tok_f1   `*` = on the (throughput | engine-eff) x F1 frontier.
+  pareto_rows_f1 / pareto_tok_f1   `*` = on the (throughput | engine-eff) x F1
+                  frontier; the engine-eff frontier uses computed_tok_s.
 
 Usage:
   python analysis/summarize_cross_system.py \
@@ -92,6 +99,7 @@ def parse_rep(results_dir: Path, arm: str, system: str, rep: int, query: int) ->
         return None
     pt = _delta(results_dir, arm, rep, "vllm:prompt_tokens_total")
     gt = _delta(results_dir, arm, rep, "vllm:generation_tokens_total")
+    ch = _delta(results_dir, arm, rep, "vllm:prefix_cache_hits_total")
     rq = _delta(results_dir, arm, rep, "vllm:request_success_total", 'finished_reason="stop"')
     return {
         "time": q.get("execution_time"),
@@ -101,7 +109,11 @@ def parse_rep(results_dir: Path, arm: str, system: str, rep: int, query: int) ->
         "f1": q.get("f1_score"),
         "prompt_tok": pt,
         "gen_tok": gt,
+        "cache_hit_tok": ch,
         "total_tok": (pt + gt) if (pt is not None and gt is not None) else None,
+        # Tokens the GPU actually processed (cache hits are counted in
+        # prompt_tokens_total but never computed).
+        "computed_tok": (pt - ch + gt) if (pt is not None and ch is not None and gt is not None) else None,
         "requests": rq,
     }
 
@@ -126,6 +138,9 @@ def aggregate(results_dir: Path, query: int, rows: int) -> list[dict]:
         times = [r["time"] for r in rs if r["time"] is not None]
         t = _med(times)
         tot = _med([r["total_tok"] for r in rs])
+        comp = _med([r["computed_tok"] for r in rs])
+        hits = _med([r["cache_hit_tok"] for r in rs])
+        pt_med = _med([r["prompt_tok"] for r in rs])
         survivors = _med([r["survivors"] for r in rs])
         row = {
             "arm": arm, "system": system, "n": len(rs),
@@ -142,8 +157,13 @@ def aggregate(results_dir: Path, query: int, rows: int) -> list[dict]:
             "gen_tok": int(_med([r["gen_tok"] for r in rs]))
             if _med([r["gen_tok"] for r in rs]) is not None else None,
             "total_tok": int(tot) if tot is not None else None,
+            "cache_hit_tok": int(hits) if hits is not None else None,
+            "cache_hit_pct": round(100.0 * hits / pt_med, 1)
+            if (hits is not None and pt_med) else None,
+            "computed_tok": int(comp) if comp is not None else None,
             "tok_per_row": round(tot / rows, 1) if tot is not None else None,
             "tok_s": round(tot / t, 0) if (tot is not None and t) else None,
+            "computed_tok_s": round(comp / t, 0) if (comp is not None and t) else None,
             "prefill_tok_s": round(_med([r["prompt_tok"] for r in rs]) / t, 0)
             if (t and _med([r["prompt_tok"] for r in rs])) else None,
             "decode_tok_s": round(_med([r["gen_tok"] for r in rs]) / t, 0)
@@ -155,7 +175,9 @@ def aggregate(results_dir: Path, query: int, rows: int) -> list[dict]:
         }
         out.append(row)
     _mark_pareto(out, "rows_s", "f1", "pareto_rows_f1")
-    _mark_pareto(out, "tok_s", "f1", "pareto_tok_f1")
+    # Engine-efficiency frontier on COMPUTED tokens; raw tok_s counts cached
+    # prefill, so it would crown whoever re-sends the fattest template.
+    _mark_pareto(out, "computed_tok_s", "f1", "pareto_tok_f1")
     return out
 
 
@@ -176,7 +198,8 @@ def _mark_pareto(rows: list[dict], xk: str, yk: str, flag: str) -> None:
 
 COLUMNS = [
     "arm", "system", "n", "time_s", "time_min", "time_max", "rows_s", "req_s",
-    "requests", "prompt_tok", "gen_tok", "total_tok", "tok_per_row", "tok_s",
+    "requests", "prompt_tok", "gen_tok", "total_tok", "cache_hit_tok",
+    "cache_hit_pct", "computed_tok", "tok_per_row", "tok_s", "computed_tok_s",
     "prefill_tok_s", "decode_tok_s", "survivors", "precision", "recall", "f1",
     "pareto_rows_f1", "pareto_tok_f1",
 ]
@@ -197,8 +220,8 @@ def _fmt(v) -> str:
 
 
 def print_console(rows: list[dict]) -> None:
-    cols = ["arm", "n", "time_s", "rows_s", "tok_s", "decode_tok_s", "total_tok",
-            "precision", "recall", "f1", "pareto_tok_f1"]
+    cols = ["arm", "n", "time_s", "rows_s", "computed_tok_s", "decode_tok_s",
+            "cache_hit_pct", "total_tok", "precision", "recall", "f1", "pareto_tok_f1"]
     w = {c: max(len(c), max((len(_fmt(r.get(c))) for r in rows), default=0)) for c in cols}
     print("  ".join(c.rjust(w[c]) for c in cols))
     for r in rows:
