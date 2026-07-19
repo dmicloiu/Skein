@@ -281,6 +281,104 @@ TEST(SemFilter, Prompt_ParityWithScalar) {
 }
 
 // ===========================================================================
+// 1b. Slim prompt + FLOCK_SEM_VARIANTS rendering (pure function; the env gates
+//     SemPromptSlim/SemVariantsFromEnv are read-once statics, so tests target
+//     ParseSemVariants / RenderSlimSemanticPrompt directly).
+// ===========================================================================
+
+nlohmann::json SlimTestColumns(const std::vector<std::string>& reviews) {
+    nlohmann::json col;
+    col["name"] = "review";
+    col["data"] = reviews;
+    return nlohmann::json::array({col});
+}
+
+TEST(SemFilterSlim, ParseVariants) {
+    const SemVariants none = ParseSemVariants("");
+    EXPECT_FALSE(none.Any());
+
+    const SemVariants two = ParseSemVariants("rowmajor,sandwich");
+    EXPECT_TRUE(two.rowmajor);
+    EXPECT_TRUE(two.sandwich);
+    EXPECT_FALSE(two.symmetric);
+
+    // chunk headers only make sense over row-major rows.
+    const SemVariants chunked = ParseSemVariants("chunk");
+    EXPECT_TRUE(chunked.chunk);
+    EXPECT_TRUE(chunked.rowmajor);
+
+    EXPECT_THROW(ParseSemVariants("rowmajor,typo"), std::runtime_error);
+}
+
+// Variant-free slim must stay byte-identical to the committed slim prompt, so
+// new sweeps remain comparable with the existing slim results.
+TEST(SemFilterSlim, BaselineByteParity) {
+    const std::string tmpl = "Is this review positive?";
+    const auto columns = SlimTestColumns({"Great product!", "Terrible quality"});
+    const std::string expected =
+            "For each row in the table below, decide whether it satisfies the criterion, "
+            "judging every row independently on its own merits.\n"
+            "Criterion: " + tmpl + "\n\n"
+            + PromptManager::ConstructInputTuples(columns, "XML")
+            + "\n\nReturn a JSON object {\"items\": [...]} with one boolean per row, in row order.";
+    EXPECT_EQ(RenderSlimSemanticPrompt(SlimKind::kFilter, tmpl, columns, "XML", SemVariants{},
+                                       /*state_output_shape=*/true),
+              expected);
+    // id/id_reason modes suppress the tail (they append their own output block).
+    const auto no_tail = RenderSlimSemanticPrompt(SlimKind::kFilter, tmpl, columns, "XML",
+                                                  SemVariants{}, /*state_output_shape=*/false);
+    EXPECT_EQ(no_tail.find("Return a JSON object"), std::string::npos);
+}
+
+TEST(SemFilterSlim, VariantsCompose) {
+    const std::string tmpl = "Is this review positive?";
+    const auto columns = SlimTestColumns({"Great product!", "Terrible quality", "It's okay"});
+    const auto v = ParseSemVariants("rowmajor,sandwich,symmetric,count,example,chunk");
+    const auto prompt = RenderSlimSemanticPrompt(SlimKind::kFilter, tmpl, columns, "JSON", v,
+                                                 /*state_output_shape=*/true);
+
+    // P3: symmetric head replaces the default head.
+    EXPECT_NE(prompt.find("output true if it satisfies the criterion and false if it does not"),
+              std::string::npos);
+    EXPECT_EQ(prompt.find("decide whether it satisfies"), std::string::npos);
+    // P5: worked example precedes the real rows.
+    const auto example_pos = prompt.find("Example with a different criterion");
+    const auto first_row_pos = prompt.find("{\"id\": 1, \"review\": \"Great product!\"}");
+    ASSERT_NE(example_pos, std::string::npos);
+    ASSERT_NE(first_row_pos, std::string::npos);
+    EXPECT_LT(example_pos, first_row_pos);
+    // P4: explicit count line replaces the legacy one.
+    EXPECT_NE(prompt.find("The table has 3 rows. Return exactly 3 booleans"), std::string::npos);
+    EXPECT_EQ(prompt.find("Number of Tuples to Generate"), std::string::npos);
+    // P1: row-major lines, one per row, id first (no columnar JSON dump).
+    EXPECT_NE(prompt.find("{\"id\": 3, \"review\": \"It's okay\"}"), std::string::npos);
+    // P6: chunk header (all 3 rows fit the first 8-row group).
+    EXPECT_NE(prompt.find("### Rows 1-3"), std::string::npos);
+    // P2: criterion restated after the rows.
+    const auto reminder_pos = prompt.find("Reminder of the criterion: " + tmpl);
+    ASSERT_NE(reminder_pos, std::string::npos);
+    EXPECT_GT(reminder_pos, first_row_pos);
+    // Tail still stated once.
+    EXPECT_NE(prompt.find("one boolean per row, in row order"), std::string::npos);
+}
+
+TEST(SemFilterSlim, RowMajorEscapesAndChunks) {
+    const std::string tmpl = "criterion";
+    // 9 rows -> two chunk groups; a row with quote + newline must be JSON-escaped.
+    std::vector<std::string> reviews(9, "plain");
+    reviews[1] = "say \"hi\"\nnewline";
+    const auto columns = SlimTestColumns(reviews);
+    const auto v = ParseSemVariants("chunk");
+    const auto prompt = RenderSlimSemanticPrompt(SlimKind::kFilter, tmpl, columns, "JSON", v,
+                                                 /*state_output_shape=*/true);
+    EXPECT_NE(prompt.find("### Rows 1-8"), std::string::npos);
+    EXPECT_NE(prompt.find("### Rows 9-9"), std::string::npos);
+    EXPECT_NE(prompt.find("{\"id\": 2, \"review\": \"say \\\"hi\\\"\\nnewline\"}"), std::string::npos);
+    // count variant off -> legacy count line retained.
+    EXPECT_NE(prompt.find("- The Number of Tuples to Generate Responses for: 9"), std::string::npos);
+}
+
+// ===========================================================================
 // 2. ParseAndEmit: verdict, invert, projection, free_form fallback.
 // ===========================================================================
 PhysicalSemFilter& MakeParseOp(duckdb::PhysicalPlan& plan, duckdb::vector<LogicalType> out_types, bool invert,

@@ -156,14 +156,8 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     if (SemPromptSlim()) {
         // Lean, text-only head + the SAME tuples (byte-parity on the rows),
         // dropping the META_PROMPT image/audio boilerplate.
-        prompt = "For each row in the table below, decide whether it satisfies the criterion, "
-                 "judging every row independently on its own merits.\n"
-                 "Criterion: " + prompt_template_ + "\n\n"
-                 + PromptManager::ConstructInputTuples(columns, tuple_format_);
-        if (mode == SemSchema::kBool) {
-            // full mode carries RESPONSE_FORMAT::FILTER; slim must state the shape.
-            prompt += "\n\nReturn a JSON object {\"items\": [...]} with one boolean per row, in row order.";
-        }
+        prompt = RenderSlimSemanticPrompt(SlimKind::kFilter, prompt_template_, columns, tuple_format_,
+                                          SemVariantsFromEnv(), mode == SemSchema::kBool);
     } else {
         prompt = std::get<0>(
                 PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
