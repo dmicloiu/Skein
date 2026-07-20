@@ -69,12 +69,22 @@ srun -ul --environment="$EDF" bash -c '
     echo "OUT=$OUT split=$SPLIT rows=$ROWS reps=$REPS inflight=$IN_FLIGHT"
     echo "variants=[$VARIANTS_SWEEP] R=[$R_SWEEP] (slim + bool, threads=1, cold fleet per cell)"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
+    # Preflight: a driver built before the variant code silently runs the base
+    # slim prompt for every arm (all cells byte-identical). The getenv literal
+    # only exists in binaries that parse FLOCK_SEM_VARIANTS.
+    grep -aq "FLOCK_SEM_VARIANTS" "$BIN" || {
+        echo "ERROR: $BIN predates FLOCK_SEM_VARIANTS support - rebuild it"
+        echo "       (sbatch analysis/slurm/build_setup_clariden.sh after git pull)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
     cp "$DATA" "$OUT/"   # freeze the exact split evaluated
 
     PIDS=(); ENDPOINTS=""
-    start_fleet() {
+    # One fleet-boot attempt. Returns nonzero on failure instead of exiting so
+    # the caller can retry (observed flakes: worker dies during startup;
+    # /health up before the model registers -> driver sees "Model not found",
+    # hence the /v1/models readiness check).
+    start_fleet_once() {
         PIDS=(); ENDPOINTS=""
         for i in $(seq 0 $((NGPU-1))); do
             local port=$((BASE_PORT+i))
@@ -89,13 +99,24 @@ srun -ul --environment="$EDF" bash -c '
         for i in $(seq 0 $((NGPU-1))); do
             local port=$((BASE_PORT+i)) ready=0
             for t in $(seq 1 180); do
-                curl -sf "http://127.0.0.1:$port/health" >/dev/null && { ready=1; break; }
-                kill -0 "${PIDS[$i]}" 2>/dev/null || { echo "ep$i died on startup"; exit 1; }
+                if curl -sf "http://127.0.0.1:$port/health" >/dev/null \
+                   && curl -sf "http://127.0.0.1:$port/v1/models" | grep -q "$MODEL"; then
+                    ready=1; break
+                fi
+                kill -0 "${PIDS[$i]}" 2>/dev/null || { echo "ep$i died on startup"; return 1; }
                 sleep 5
             done
-            [ "$ready" -eq 1 ] || { echo "ep$i /health timeout"; exit 1; }
+            [ "$ready" -eq 1 ] || { echo "ep$i readiness timeout"; return 1; }
         done
         echo "fleet ready -> $ENDPOINTS"
+    }
+    start_fleet() {
+        for attempt in 1 2 3; do
+            start_fleet_once && return 0
+            echo "fleet boot attempt $attempt failed; retrying"
+            stop_fleet
+        done
+        echo "fleet failed to boot after 3 attempts"; exit 1
     }
     stop_fleet() {
         for p in "${PIDS[@]:-}"; do kill "$p" 2>/dev/null || true; done
