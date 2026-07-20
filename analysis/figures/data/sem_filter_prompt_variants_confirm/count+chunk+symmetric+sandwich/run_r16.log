@@ -1,0 +1,5 @@
+Failed to attach flock_storage: IO Error: Could not set lock on file "/users/dmicloiu/.duckdb/flock_storage/flock.db": Conflicting lock is held in PID -1218. See also https://duckdb.org/docs/stable/connect/concurrency
+Failed to USE flock_storage: Catalog Error: SET schema: No catalog + schema named "flock_storage" found.
+rewrite=on threads=1 rows=1024 inflight=128 batch=16 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
+burn-in done (16 synthetic rows, untimed)
+DONE rewrite=on threads=1 rows=1024 passes=525 elapsed_s=1.836 rows_per_s=557.83
