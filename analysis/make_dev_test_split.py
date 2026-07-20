@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import os
 import sys
 from pathlib import Path
 
@@ -33,7 +34,8 @@ def main() -> int:
     args = ap.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    outs = {name: open(args.out_dir / f"Reviews_{name}.csv", "w", newline="") for name in ("dev", "test")}
+    outs = {name: open(args.out_dir / f"Reviews_{name}.csv.tmp.{os.getpid()}", "w", newline="")
+            for name in ("dev", "test")}
     counts = {"dev": 0, "test": 0}
     with open(args.csv_in, newline="") as f:
         reader = csv.DictReader(f)
@@ -49,6 +51,9 @@ def main() -> int:
             counts[name] += 1
     for fh in outs.values():
         fh.close()
+    for name in ("dev", "test"):
+        os.replace(args.out_dir / f"Reviews_{name}.csv.tmp.{os.getpid()}",
+                   args.out_dir / f"Reviews_{name}.csv")
     print(f"dev={counts['dev']} test={counts['test']} -> {args.out_dir}/Reviews_{{dev,test}}.csv")
     return 0
 
