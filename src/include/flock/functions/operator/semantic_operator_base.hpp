@@ -34,15 +34,6 @@ namespace flock {
 // Casts DuckDB's state objects and forwards here.
 // =============================================================================
 
-// FILTER output-schema mode, selected once per process by the env var
-// FLOCK_SEM_SCHEMA (default kBool).
-enum class SemSchema { kBool, kId, kIdReason };
-SemSchema SemSchemaModeFromEnv();
-
-// Per-row rationale budget for kIdReason, from FLOCK_SEM_REASON_WORDS (default
-// 12). Drives both the instruction ("<= N words") and the schema string maxLength.
-int SemReasonWords();
-
 // PROMPT SLIMMING -> default includes the original flock meta-prompt
 bool SemPromptSlim();
 

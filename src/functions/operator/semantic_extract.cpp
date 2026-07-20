@@ -155,9 +155,8 @@ std::string PhysicalSemExtract::RenderPrompt(const std::vector<RowData>& batch) 
     auto columns = BuildContextColumnsJson(context_columns_, batch);
     if (SemPromptSlim()) {
         // Lean text-only head + the SAME tuples, mirroring the filter's slim
-        // path (extract wording: task / one string per row).
-        return RenderSlimSemanticPrompt(SlimKind::kExtract, prompt_template_, columns, tuple_format_,
-                                        SemVariantsFromEnv(), /*state_output_shape=*/true);
+        // path (extract wording: task / one string per row; batch-adaptive).
+        return RenderSlimSemanticPrompt(SlimKind::kExtract, prompt_template_, columns, tuple_format_);
     }
     return std::get<0>(
             PromptManager::Render(prompt_template_, columns, ScalarFunctionType::COMPLETE, tuple_format_));

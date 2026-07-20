@@ -46,36 +46,14 @@ std::vector<SemContextColumn> ExtractContextColumns(duckdb::ClientContext& conte
 nlohmann::json BuildContextColumnsJson(const std::vector<SemContextColumn>& context_columns,
                                        const std::vector<RowData>& batch);
 
-// Slim-prompt variant flags (accuracy-tweak ablation; see
-// analysis/prompt_engineering.md Q3). Effective only with FLOCK_SEM_PROMPT=slim.
-struct SemVariants {
-    bool rowmajor = false;   // P1: row-major tuples, one {"id": k, ...} object per line
-    bool sandwich = false;   // P2: restate the criterion/task after the table
-    bool symmetric = false;  // P3: symmetric true/false framing (filter only)
-    bool count = false;      // P4: explicit "N rows, i-th answer" count line
-    bool example = false;    // P5: fixed 2-row worked example before the table
-    bool chunk = false;      // P6: "### Rows a-b" headers every 8 rows (implies rowmajor)
-    bool Any() const { return rowmajor || sandwich || symmetric || count || example || chunk; }
-};
-
-// Parse a comma-separated variant list ("rowmajor,sandwich"). Unknown tokens
-// throw (a typo silently no-oping would corrupt a sweep). chunk sets rowmajor.
-SemVariants ParseSemVariants(const std::string& csv);
-
-// Cached FLOCK_SEM_VARIANTS (read once per process, like the other env gates).
-const SemVariants& SemVariantsFromEnv();
-
 // Which semantic operator a slim prompt is rendered for; selects the wording
 // (criterion/boolean vs task/string).
 enum class SlimKind { kFilter, kExtract };
 
-// Render the lean text-only prompt: head + [example] + tuples + [reminder] +
-// output-shape tail. With all variants off and kind=kFilter this is
-// byte-identical to the committed slim prompt (baseline continuity).
-// state_output_shape: emit the trailing "one boolean/string per row" line --
-// the filter's id/id_reason schema modes append their own output block instead.
+// Render the lean text-only prompt (FLOCK_SEM_PROMPT=slim). Batch-adaptive:
+// a single-row batch renders the plain slim form; a multi-row batch adds the
+// explicit count/index contract.
 std::string RenderSlimSemanticPrompt(SlimKind kind, const std::string& user_prompt,
-                                     const nlohmann::json& columns, const std::string& tuple_format,
-                                     const SemVariants& variants, bool state_output_shape);
+                                     const nlohmann::json& columns, const std::string& tuple_format);
 
 }  // namespace flock

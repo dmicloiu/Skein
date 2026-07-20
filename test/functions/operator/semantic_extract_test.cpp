@@ -250,24 +250,24 @@ TEST(SemExtract, SlimPromptWording) {
     const std::string tmpl = "Classify the symptoms.";
     nlohmann::json col;
     col["name"] = "symptoms";
-    col["data"] = std::vector<std::string>{"fever and cough", "rash on arm"};
-    const auto columns = nlohmann::json::array({col});
+    col["data"] = std::vector<std::string>{"fever and cough"};
+    auto columns = nlohmann::json::array({col});
 
-    const auto prompt = RenderSlimSemanticPrompt(SlimKind::kExtract, tmpl, columns, "XML",
-                                                 SemVariants{}, /*state_output_shape=*/true);
-    // Extract wording: task framing + per-row strings; same tuple block as full.
+    // Single-row form: task framing + the original slim tuple block.
+    const auto prompt = RenderSlimSemanticPrompt(SlimKind::kExtract, tmpl, columns, "XML");
     EXPECT_NE(prompt.find("produce the output the task requests"), std::string::npos);
     EXPECT_NE(prompt.find("Task: " + tmpl), std::string::npos);
     EXPECT_NE(prompt.find(PromptManager::ConstructInputTuples(columns, "XML")), std::string::npos);
     EXPECT_NE(prompt.find("one string per row, in row order"), std::string::npos);
     EXPECT_EQ(prompt.find("Criterion"), std::string::npos);
 
-    // Variants compose on the extract side too (task reminder, string count line).
-    const auto v = ParseSemVariants("count,sandwich");
-    const auto vp = RenderSlimSemanticPrompt(SlimKind::kExtract, tmpl, columns, "XML", v,
-                                             /*state_output_shape=*/true);
-    EXPECT_NE(vp.find("The table has 2 rows. Return exactly 2 strings"), std::string::npos);
-    EXPECT_NE(vp.find("Reminder of the task: " + tmpl), std::string::npos);
+    // Batched form: string count/index contract + chunked row-major rows.
+    columns[0]["data"].push_back("rash on arm");
+    const auto batched = RenderSlimSemanticPrompt(SlimKind::kExtract, tmpl, columns, "XML");
+    EXPECT_NE(batched.find("The table has 2 rows. Return exactly 2 strings; the i-th string answers row i."),
+              std::string::npos);
+    EXPECT_NE(batched.find("### Rows 1-2"), std::string::npos);
+    EXPECT_NE(batched.find("{\"id\": 2, \"symptoms\": \"rash on arm\"}"), std::string::npos);
 }
 
 // ===========================================================================

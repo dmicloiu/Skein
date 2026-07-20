@@ -139,45 +139,14 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     // data = each row's value stringified), then render through the shared builder
     // so the bytes match llm_filter at the same batch_size.
     auto columns = BuildContextColumnsJson(context_columns_, batch);
-    const SemSchema mode = SemSchemaModeFromEnv();
-    if (mode != SemSchema::kBool) {
-        // Rec-1 ablation: prepend an explicit batch-local row id per row so the
-        // model can anchor each verdict; the guided schema requires it to echo id.
-        nlohmann::json id_col;
-        id_col["name"] = "row_id";
-        auto ids = nlohmann::json::array();
-        for (size_t k = 0; k < batch.size(); ++k) {
-            ids.push_back(k + 1);
-        }
-        id_col["data"] = std::move(ids);
-        columns.insert(columns.begin(), std::move(id_col));
-    }
-    std::string prompt;
     if (SemPromptSlim()) {
-        // Lean, text-only head + the SAME tuples (byte-parity on the rows),
-        // dropping the META_PROMPT image/audio boilerplate.
-        prompt = RenderSlimSemanticPrompt(SlimKind::kFilter, prompt_template_, columns, tuple_format_,
-                                          SemVariantsFromEnv(), mode == SemSchema::kBool);
-    } else {
-        prompt = std::get<0>(
-                PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+        // Lean, text-only head + the SAME tuples, dropping the META_PROMPT
+        // image/audio boilerplate. Batch-adaptive: a multi-row batch renders the
+        // count/index contract + chunked row-major form; a single-row batch keeps the plain slim form.
+        return RenderSlimSemanticPrompt(SlimKind::kFilter, prompt_template_, columns, tuple_format_);
     }
-    // The bool template says "return true/false"; override it for the object modes
-    // (the guided schema enforces shape; this makes the model use id/reason).
-    if (mode == SemSchema::kId) {
-        prompt += "\n\n## Output (structured)\n"
-                  "For EACH row return one object with that row's `row_id` and a boolean `verdict` "
-                  "(true iff the review satisfies the user prompt). One object per row, in row order, keyed "
-                  "to its row_id. Judge every row independently on its own merits.";
-    } else if (mode == SemSchema::kIdReason) {
-        prompt += "\n\n## Output (structured, reason first)\n"
-                  "For EACH row return one object with that row's `row_id`, then a brief `reason` (<="
-                  + std::to_string(SemReasonWords()) +
-                  " words) for the judgement, then a boolean `verdict` (true iff the review satisfies "
-                  "the user prompt). Write the reason BEFORE the verdict. One object per row, in row order, "
-                  "keyed to its row_id. Judge every row independently on its own merits.";
-    }
-    return prompt;
+    return std::get<0>(
+            PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
 }
 
 bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {
@@ -208,32 +177,8 @@ bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {
 }
 
 nlohmann::json PhysicalSemFilter::BuildResponseFormat(size_t batch_rows) const {
-    // FILTER output element. bool: a boolean. The ablation modes make it a
-    // per-row object so the model anchors to a row id (kId) and reasons before the
-    // verdict (kIdReason); ParseItems reduces either back to a positional verdict
-    // array. Property order id,reason,verdict is preserved so the rationale is
-    // emitted before the verdict.
-    const SemSchema mode = SemSchemaModeFromEnv();
-    nlohmann::json element;
-    if (mode == SemSchema::kBool) {
-        element = {{"type", "boolean"}};
-    } else if (mode == SemSchema::kId) {
-        element = {{"type", "object"},
-                   {"properties", {{"id", {{"type", "integer"}}}, {"verdict", {{"type", "boolean"}}}}},
-                   {"required", nlohmann::json::array({"id", "verdict"})},
-                   {"additionalProperties", false}};
-    } else {  // kIdReason: id, then reason (<= SemReasonWords() words), then verdict
-        // ~7 chars/word (incl. space) bounds the string to the word budget so guided
-        // decoding forces brevity for the cheap-reason variants.
-        const int reason_max_chars = 7 * SemReasonWords();
-        element = {{"type", "object"},
-                   {"properties", {{"id", {{"type", "integer"}}},
-                                   {"reason", {{"type", "string"}, {"maxLength", reason_max_chars}}},
-                                   {"verdict", {{"type", "boolean"}}}}},
-                   {"required", nlohmann::json::array({"id", "reason", "verdict"})},
-                   {"additionalProperties", false}};
-    }
-    return ItemsResponseFormat("filter_results", std::move(element), batch_rows);
+    // FILTER output element: one boolean per row.
+    return ItemsResponseFormat("filter_results", {{"type", "boolean"}}, batch_rows);
 }
 
 void PhysicalSemFilter::ParseAndEmit(const nlohmann::json& element, const RowData& row, DataChunk& out) const {

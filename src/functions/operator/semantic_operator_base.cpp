@@ -17,38 +17,6 @@ using duckdb::SinkFinalizeType;
 using duckdb::SinkResultType;
 using duckdb::SourceResultType;
 
-// FILTER output-schema mode from FLOCK_SEM_SCHEMA, read once. Default kBool keeps
-// the committed behaviour byte-identical.
-SemSchema SemSchemaModeFromEnv() {
-    static const SemSchema mode = [] {
-        const char* p = std::getenv("FLOCK_SEM_SCHEMA");
-        const std::string s = p ? p : "";
-        if (s == "id") {
-            return SemSchema::kId;
-        }
-        if (s == "id_reason") {
-            return SemSchema::kIdReason;
-        }
-        return SemSchema::kBool;
-    }();
-    return mode;
-}
-
-// kIdReason rationale budget from FLOCK_SEM_REASON_WORDS (default 12), read once.
-int SemReasonWords() {
-    static const int words = [] {
-        const char* p = std::getenv("FLOCK_SEM_REASON_WORDS");
-        if (p && *p) {
-            const int v = std::atoi(p);
-            if (v > 0) {
-                return v;
-            }
-        }
-        return 12;
-    }();
-    return words;
-}
-
 // Check if prompt slim-ing is on.
 bool SemPromptSlim() {
     static const bool slim = [] {
@@ -115,33 +83,7 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
         throw std::runtime_error("flock semantic operator: completion missing an 'items' array");
     }
     const size_t want = batch.row_ids.size();
-    // id / id_reason (Rec-1 ablation): each element is an object {id[,reason],
-    // verdict}. Realign to positional order BY the batch-local id (1..R) and
-    // reduce to the bare verdict, so ParseVerdict / ParseAndEmit / DumpVerdicts
-    // and the diagnostic all stay identical to the bool path. A missing id stays
-    // null -> pass (parity); extras / out-of-range ids are ignored.
-    if (SemSchemaModeFromEnv() != SemSchema::kBool) {
-        nlohmann::json verdicts = nlohmann::json::array();
-        for (size_t i = 0; i < want; ++i) {
-            verdicts.push_back(nullptr);
-        }
-        for (const auto& obj: *iit) {
-            if (!obj.is_object()) {
-                continue;
-            }
-            const auto id_it = obj.find("id");
-            const auto v_it = obj.find("verdict");
-            if (id_it == obj.end() || !id_it->is_number_integer() || v_it == obj.end()) {
-                continue;
-            }
-            const long id = id_it->get<long>();
-            if (id >= 1 && static_cast<size_t>(id) <= want) {
-                verdicts[static_cast<size_t>(id) - 1] = *v_it;
-            }
-        }
-        return verdicts;
-    }
-    // bool: pad short with null (-> pass via ParseVerdict), truncate long. Under
+    // Pad short with null (-> pass via ParseVerdict), truncate long. Under
     // guided decoding the array is already exactly batch-sized, so this only
     // matters for degraded responses.
     nlohmann::json items = std::move(*iit);
