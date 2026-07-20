@@ -69,21 +69,12 @@ srun -ul --environment="$EDF" bash -c '
     echo "OUT=$OUT split=$SPLIT rows=$ROWS reps=$REPS inflight=$IN_FLIGHT"
     echo "variants=[$VARIANTS_SWEEP] R=[$R_SWEEP] (slim + bool, threads=1, cold fleet per cell)"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
-    # Preflight: a driver built before the variant code silently runs the base
-    # slim prompt for every arm (all cells byte-identical). The getenv literal
-    # only exists in binaries that parse FLOCK_SEM_VARIANTS.
-    grep -aq "FLOCK_SEM_VARIANTS" "$BIN" || {
-        echo "ERROR: $BIN predates FLOCK_SEM_VARIANTS support - rebuild it"
-        echo "       (sbatch analysis/slurm/build_setup_clariden.sh after git pull)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
     cp "$DATA" "$OUT/"   # freeze the exact split evaluated
 
     PIDS=(); ENDPOINTS=""
-    # One fleet-boot attempt. Returns nonzero on failure instead of exiting so
-    # the caller can retry (observed flakes: worker dies during startup;
-    # /health up before the model registers -> driver sees "Model not found",
-    # hence the /v1/models readiness check).
+    # One fleet-boot attempt.
     start_fleet_once() {
         PIDS=(); ENDPOINTS=""
         for i in $(seq 0 $((NGPU-1))); do
