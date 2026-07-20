@@ -54,6 +54,12 @@ from pathlib import Path
 ARM_SYSTEM = {
     "flock_op_r32": "flockmtl",
     "flock_op_r1": "flockmtl",
+    "flock_op_slim_r1": "flockmtl",
+    "flock_op_slim_r2": "flockmtl",
+    "flock_op_slim_r4": "flockmtl",
+    "flock_op_slim_r8": "flockmtl",
+    "flock_op_slim_r16": "flockmtl",
+    "flock_op_slim_r32": "flockmtl",
     "flock_scalar": "flockmtl",
     "flock_scalar_r1": "flockmtl",
     "lotus": "lotus",
