@@ -119,10 +119,20 @@ srun -ul --environment="$EDF" bash -c '
         stop_fleet
         start_fleet_once "$1" || { echo "fleet failed twice (tp=$1)"; exit 1; }
     }
+    # TERM the vllm process subtree bottom-up, rooted at $VPID (the launcher):
+    # hits the API server + EngineCore + TP workers but never the driver, which
+    # is the PARENT of VPID, not a descendant. The old pkill -f "vllm serve"
+    # used -f (full-cmdline match) and matched the bash -c step itself, whose
+    # argv literally contains the string "vllm serve", SIGKILLing the whole job
+    # at the first stop_fleet -- right after the operator arm, before scalar ran.
+    kill_tree() {
+        local p=$1 c
+        for c in $(pgrep -P "$p" 2>/dev/null); do kill_tree "$c"; done
+        kill -TERM "$p" 2>/dev/null || true
+    }
     stop_fleet() {
-        [ -n "$VPID" ] && kill "$VPID" 2>/dev/null || true
+        [ -n "$VPID" ] && kill_tree "$VPID"
         wait 2>/dev/null || true
-        pkill -f "vllm serve" 2>/dev/null || true   # TP worker stragglers
         # Wait for HBM to actually drain or the next boot OOMs / fails the gate.
         for t in $(seq 1 24); do
             busy=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | awk "\$1>5000" | wc -l)
