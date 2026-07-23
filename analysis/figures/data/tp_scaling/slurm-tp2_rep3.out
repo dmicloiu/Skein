@@ -1,0 +1,43 @@
+0: ==================== ENV ====================
+0: OUT=/users/dmicloiu/projects/flock/analysis/results/tp_scaling/2878529 rows=2000 tp_sweep=[2] arms=[op scalar]
+0: caps: tp1=[128] tp2=[128 256] tp4=[128 256 512]; cold fleet per run
+0: index, name, memory.total [MiB]
+0: 0, NVIDIA GH200 120GB, 97871 MiB
+0: 1, NVIDIA GH200 120GB, 97871 MiB
+0: 2, NVIDIA GH200 120GB, 97871 MiB
+0: 3, NVIDIA GH200 120GB, 97871 MiB
+0: ==================== TP=2 (caps=[128 256], arms=[op scalar]) ====================
+0: fleet ready: tp=2 on GPUs [0,1] -> http://127.0.0.1:8000/v1/chat/completions
+0: ------ RUN op_tp2_c128 (rewrite=on threads=1 cap=128 rows=2000 R=1) ------
+0: rewrite=on threads=1 rows=2000 inflight=128 batch=1 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
+0: burn-in done (1 synthetic rows, untimed)
+0: DONE rewrite=on threads=1 rows=2000 passes=1322 elapsed_s=10.413 rows_per_s=192.07
+0: rewrite=on threads=1 rows=2000 inflight=128 batch=1 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
+0: DONE rewrite=on threads=1 rows=2000 passes=1319 elapsed_s=5.487 rows_per_s=364.47
+0: tp=2 verdict lines=2000 (expect 2000)
+0: fleet ready: tp=2 on GPUs [0,1] -> http://127.0.0.1:8000/v1/chat/completions
+0: ------ RUN op_tp2_c256 (rewrite=on threads=1 cap=256 rows=2000 R=1) ------
+0: rewrite=on threads=1 rows=2000 inflight=256 batch=1 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
+0: burn-in done (1 synthetic rows, untimed)
+0: DONE rewrite=on threads=1 rows=2000 passes=1322 elapsed_s=8.868 rows_per_s=225.52
+0: fleet ready: tp=2 on GPUs [0,1] -> http://127.0.0.1:8000/v1/chat/completions
+0: ------ RUN scalar_tp2 (rewrite=off threads=8 cap=128 rows=2000 R=1) ------
+0: rewrite=off threads=8 rows=2000 inflight=128 batch=1 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
+0: burn-in done (1 synthetic rows, untimed)
+0: DONE rewrite=off threads=8 rows=2000 passes=1323 elapsed_s=84.303 rows_per_s=23.72
+0: A/B gate tp=2: scalar/operator elapsed ratio = 8.1
+0: ==================== VALIDATION ====================
+0:   "rewrite": "on",
+0:   "rows_per_s": 192.074,
+0:   "inflight": 128,
+0:   "rewrite": "on",
+0:   "rows_per_s": 225.524,
+0:   "inflight": 256,
+0:   "rewrite": "off",
+0:   "rows_per_s": 23.724,
+0:   "inflight": 128,
+0: expect: operator rows/s rises with TP (pick the saturating cap per TP);
+0:         scalar ~flat (concurrency 1 gets only the per-request TP latency gain).
+0: DONE. Artefacts in: /users/dmicloiu/projects/flock/analysis/results/tp_scaling/2878529
+0: Pull home:  rsync -av <clariden>:/users/dmicloiu/projects/flock/analysis/results/tp_scaling/2878529 analysis/figures/data/tp_scaling/
+0: Summarise:  python analysis/summarize_tp.py
