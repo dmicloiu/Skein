@@ -154,7 +154,7 @@ srun -ul --environment="$EDF" bash -c '
             curl -s "http://127.0.0.1:$PORT/metrics" | awk -v ts="$(date +%s)" '\''
                 /^vllm:num_requests_running/ {r=$NF}
                 /^vllm:num_requests_waiting/ {w=$NF}
-                /^vllm:gpu_cache_usage_perc/ {k=$NF}
+                /^vllm:(gpu|kv)_cache_usage_perc/ {k=$NF}
                 END {print ts "," r "," w "," k}'\'' >> "$f"
             sleep 3
           done ) &
