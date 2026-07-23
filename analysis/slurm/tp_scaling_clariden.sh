@@ -19,6 +19,11 @@
 #
 # TUNABLE: TP_SWEEP and ARMS split the sweep into short jobs instead of one run.
 #
+# MORSEL MODE: MORSELS=128 materialises
+# Example:
+#   MORSELS=128 DATA=<big Reviews.csv> TP_SWEEP="1" \
+#       sbatch --gpus-per-node=1 --time=02:00:00 analysis/slurm/tp_scaling_clariden.sh
+#
 # Cold fleet per measurement. During each timed run a background sampler
 # records the vLLM scheduler gauges (num_requests_running/waiting,
 # gpu_cache_usage_perc) -- the saturation evidence that before/after counter
@@ -71,9 +76,29 @@ srun -ul --environment="$EDF" bash -c '
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed dump pass (operator, first cap of each TP)
 
+    # ---- morsel mode (heroic scalar; see header) ---------------------------
+    MORSELS="${MORSELS:-}"
+    ROW_GROUP_SIZE="${ROW_GROUP_SIZE:-2048}"   # must be a multiple of 2048
+    MORSEL_THREADS="${MORSEL_THREADS:-128}"
+    MORSEL_DB_DIR="${MORSEL_DB_DIR:-/tmp}"     # node-local; avoid Lustre $HOME
+    BESTCAP_TP1="${BESTCAP_TP1:-128}"; BESTCAP_TP2="${BESTCAP_TP2:-256}"; BESTCAP_TP4="${BESTCAP_TP4:-512}"
+    MSUF=""
+    if [ -n "$MORSELS" ]; then
+        ROWS=$((MORSELS * ROW_GROUP_SIZE))
+        VERDICTS=0
+        MSUF="_m${MORSELS}"
+        [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
+        AVAIL=$(($(wc -l < "$DATA") - 1))
+        [ "$AVAIL" -ge "$ROWS" ] || { echo "FATAL: morsel mode needs >= $ROWS rows, $DATA has $AVAIL -- point DATA at a larger Reviews.csv"; exit 1; }
+    fi
+
     echo "==================== ENV ===================="
-    echo "OUT=$OUT rows=$ROWS tp_sweep=[$TP_SWEEP] arms=[$ARMS]"
-    echo "caps: tp1=[$CAPS_TP1] tp2=[$CAPS_TP2] tp4=[$CAPS_TP4]; cold fleet per run"
+    echo "OUT=$OUT rows=$ROWS tp_sweep=[$TP_SWEEP] arms=[$ARMS] morsels=[${MORSELS:-1 (in-memory)}]"
+    if [ -n "$MORSELS" ]; then
+        echo "morsel mode: scalar threads=$MORSEL_THREADS, op caps tp1=$BESTCAP_TP1 tp2=$BESTCAP_TP2 tp4=$BESTCAP_TP4 (no sweep)"
+    else
+        echo "caps: tp1=[$CAPS_TP1] tp2=[$CAPS_TP2] tp4=[$CAPS_TP4]; cold fleet per run"
+    fi
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     MAXTP=0; for T in $TP_SWEEP; do [ "$T" -gt "$MAXTP" ] && MAXTP=$T; done
@@ -163,13 +188,18 @@ srun -ul --environment="$EDF" bash -c '
     stop_sampler() { [ -n "$SAMPLER_PID" ] && kill "$SAMPLER_PID" 2>/dev/null || true; SAMPLER_PID=""; }
 
     run() {  # run <on|off> <threads> <cap> <tag>: one timed measurement
+        local rgs_args=()
+        if [ -n "$MORSELS" ]; then
+            # rows/ROW_GROUP_SIZE scan morsels via a fresh node-local attached DB
+            rgs_args=(--row-group-size "$ROW_GROUP_SIZE" --attach-db "$MORSEL_DB_DIR/tp_morsel_${SLURM_JOB_ID:-x}_$4.db")
+        fi
         echo "------ RUN $4 (rewrite=$1 threads=$2 cap=$3 rows=$ROWS R=1) ------"
         snap "before_$4"
         start_sampler "$4"
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINT" --model "$MODEL" \
             --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
             --rewrite "$1" --threads "$2" --inflight "$3" --rows-per-request 1 \
-            --timeout-ms "$TIMEOUT_MS" \
+            --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
             --result-out "$OUT/result_$4.json" 2>&1 | tee "$OUT/run_$4.log"
         stop_sampler
         snap "after_$4"
@@ -178,15 +208,19 @@ srun -ul --environment="$EDF" bash -c '
     elapsed_of() { sed -n "s/.*\"elapsed_s\": *\([0-9.]*\).*/\1/p" "$1" | head -1; }
 
     for TP in $TP_SWEEP; do
-        capsvar="CAPS_TP${TP}"; CAPS="${!capsvar}"
-        echo "==================== TP=$TP (caps=[$CAPS], arms=[$ARMS]) ===================="
+        if [ -n "$MORSELS" ]; then
+            bcvar="BESTCAP_TP${TP}"; CAPS="${!bcvar}"   # settled cap only
+        else
+            capsvar="CAPS_TP${TP}"; CAPS="${!capsvar}"
+        fi
+        echo "==================== TP=$TP (caps=[$CAPS], arms=[$ARMS]${MSUF:+, morsels=$MORSELS}) ===================="
 
         for ARM in $ARMS; do
         if [ "$ARM" = "op" ]; then
             DID_VERDICT=0
             for CAP in $CAPS; do
                 start_fleet "$TP"
-                run on "$OP_THREADS" "$CAP" "op_tp${TP}_c${CAP}"
+                run on "$OP_THREADS" "$CAP" "op_tp${TP}_c${CAP}${MSUF}"
                 if [ "$DID_VERDICT" -eq 0 ] && [ "$VERDICTS" -eq 1 ]; then
                     # untimed verdict pass, same fleet (timing discarded; greedy
                     # -> deterministic, cap-invariant). F1-vs-TP computed off-cluster.
@@ -202,18 +236,29 @@ srun -ul --environment="$EDF" bash -c '
                 stop_fleet
             done
         else
+            if [ -n "$MORSELS" ]; then TH="$MORSEL_THREADS"; else TH="$SCALAR_THREADS"; fi
             start_fleet "$TP"
-            run off "$SCALAR_THREADS" 128 "scalar_tp${TP}"
+            run off "$TH" 128 "scalar_tp${TP}${MSUF}"
             stop_fleet
         fi
         done
 
-        # Behavioral A/B gate (prompt parity makes token deltas useless here):
-        # concurrency ~120 vs 1 => operator must be >=3x faster or the binary
-        # is stale / the rewrite did not engage. Needs both arms in this job.
         FIRSTCAP=$(set -- $CAPS; echo $1)
-        OPJ="$OUT/result_op_tp${TP}_c${FIRSTCAP}.json"; SCJ="$OUT/result_scalar_tp${TP}.json"
-        if [ -f "$OPJ" ] && [ -f "$SCJ" ]; then
+        OPJ="$OUT/result_op_tp${TP}_c${FIRSTCAP}${MSUF}.json"; SCJ="$OUT/result_scalar_tp${TP}${MSUF}.json"
+        if [ -n "$MORSELS" ] && [ -f "$SCJ" ]; then
+            # Heroic scalar legitimately approaches the operator (~1.15x at
+            # TP=1), so the elapsed-ratio gate cannot separate healthy from
+            # stale here. Gate instead on the scalar having PARALLELIZED:
+            # rows/s far above its serial (concurrency-1) level of ~17-29.
+            scr=$(sed -n "s/.*\"rows_per_s\": *\([0-9.]*\).*/\1/p" "$SCJ" | head -1)
+            awk -v r="$scr" -v tp="$TP" "BEGIN{ if (r==\"\") exit 2;
+                printf \"morsel gate tp=%d: scalar rows/s = %.1f (serial ~17-29)\n\", tp, r;
+                exit (r>=60.0 ? 0 : 1) }" \
+                || { echo "FATAL: heroic scalar did not parallelize at TP=$TP (min(threads,morsels) broken?)"; exit 1; }
+        elif [ -f "$OPJ" ] && [ -f "$SCJ" ]; then
+            # Behavioral A/B gate (prompt parity makes token deltas useless
+            # here): concurrency ~120 vs 1 => operator must be >=3x faster or
+            # the binary is stale / the rewrite did not engage.
             ope=$(elapsed_of "$OPJ"); sce=$(elapsed_of "$SCJ")
             awk -v o="$ope" -v s="$sce" -v tp="$TP" "BEGIN{ if (o==\"\" || s==\"\") exit 2;
                 r=s/o; printf \"A/B gate tp=%d: scalar/operator elapsed ratio = %.1f\n\", tp, r;
