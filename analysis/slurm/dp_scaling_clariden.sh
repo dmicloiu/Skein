@@ -28,11 +28,19 @@
 #                     (fixed 4-GPU budget, total cap 512; own 4xTP1 anchor so
 #                     the replicas-vs-shards comparison is in-job)
 #
+# REPS: pass REP=$i so every artefact is suffixed "_rep$i" -- reps are separate
+# jobs here, and without it each rep writes identical filenames that collide on a
+# flat import. Job dirs stay job-id-scoped either way, so this only affects the
+# import, but set it and the artefacts are self-identifying:
+#   for i in 1 2 3; do REP=$i DATA=<big Reviews.csv> \
+#       sbatch --time=00:45:00 analysis/slurm/dp_scaling_clariden.sh; done
+#
 # ROWS/DATA: timed runs default to 32000 rows -- at N=4 (~900 rows/s) 2000 rows
-# would finish in ~2-4s, too short for timing or the 3s gauge sampler. Point
-# DATA at a large Reviews.csv (same file as TP morsel mode); the row check is
-# fail-loud. Verdict (F1) passes and the scalar gate arm stay on GOLD_DATA
-# (sf_2000, 2000 gold rows).
+# would finish in ~2-4s, too short for timing or the 3s gauge sampler. DATA
+# therefore defaults to sf_300000/Reviews.csv (the same file the TP morsel mode
+# used, so the timed rows are a prefix of that set); the row check is fail-loud.
+# Verdict (F1) passes and the scalar gate arm stay on GOLD_DATA (sf_2000, 2000
+# gold rows) -- that is where the gold labels live.
 #
 # Validity gates (prompt parity => token deltas cannot catch a stale binary):
 #   - fleet engaged: after boot, exactly N*TP GPUs hold >20 GB.
@@ -73,7 +81,7 @@ srun -ul --environment="$EDF" bash -c '
     BASE_PORT=8000; FULL_UTIL=0.90; TIMEOUT_MS=120000
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-The following movie review is clearly positive.}"
-    DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
+    DATA="${DATA:-$SEMBENCH/files/movie/data/sf_300000/Reviews.csv}"
     ROWS="${ROWS:-32000}"
     GOLD_DATA="${GOLD_DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     GOLD_ROWS="${GOLD_ROWS:-2000}"
@@ -82,9 +90,16 @@ srun -ul --environment="$EDF" bash -c '
     OP_THREADS="${OP_THREADS:-1}"         # operator is thread-independent
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed F1 dump, first config per (N,TP)
+    # Rep index. Reps are separate JOBS (one fleet per job), so without a suffix
+    # every rep writes identically named artefacts and a flat import into
+    # analysis/figures/data/dp_scaling/ silently overwrites all but the last.
+    # REP=$i suffixes every artefact "_rep$i" (the tp_scaling convention). Unset
+    # => no suffix, so single-shot jobs keep the short names.
+    REP="${REP:-}"
+    RSUF="${REP:+_rep$REP}"
 
     echo "==================== ENV ===================="
-    echo "OUT=$OUT rows=$ROWS gold_rows=$GOLD_ROWS configs=[$CONFIGS] arms=[$ARMS]"
+    echo "OUT=$OUT rows=$ROWS gold_rows=$GOLD_ROWS configs=[$CONFIGS] arms=[$ARMS] rep=[${REP:-none}]"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     for f in "$DATA" "$GOLD_DATA"; do
         [ -f "$f" ] || { echo "dataset missing: $f"; exit 1; }
@@ -113,7 +128,7 @@ srun -ul --environment="$EDF" bash -c '
                 --tensor-parallel-size "$tp" \
                 --gpu-memory-utilization "$FULL_UTIL" --host 127.0.0.1 --port "$port" \
                 --structured-outputs-config '\''{"backend": "xgrammar", "disable_any_whitespace": true}'\'' \
-                > "$OUT/vllm-n${n}tp${tp}-ep$i-$(date +%s).log" 2>&1 &
+                > "$OUT/vllm-n${n}tp${tp}-ep$i${RSUF}-$(date +%s).log" 2>&1 &
             PIDS+=($!)
             ENDPOINTS="${ENDPOINTS:+$ENDPOINTS,}http://127.0.0.1:$port/v1/chat/completions"
         done
@@ -246,7 +261,7 @@ srun -ul --environment="$EDF" bash -c '
     DONE_VERDICTS=" "
     for CFG in $CONFIGS; do
         IFS=: read -r N TP CAP <<< "$CFG"
-        TAG="op_n${N}_tp${TP}_c${CAP}"
+        TAG="op_n${N}_tp${TP}_c${CAP}${RSUF}"
         echo "==================== CONFIG n=$N tp=$TP cap=$CAP ===================="
         start_fleet "$N" "$TP"
         run on "$OP_THREADS" "$CAP" "$ROWS" "$DATA" "$TAG"
@@ -262,13 +277,13 @@ srun -ul --environment="$EDF" bash -c '
         if [ "$VERDICTS" -eq 1 ] && [[ "$DONE_VERDICTS" != *" $KEY "* ]]; then
             # untimed F1 dump on the live fleet (greedy -> deterministic).
             # GOLD_DATA rows only: the gold labels are the sf_2000 set.
-            HOME="$JOB_HOME" FLOCK_VERDICT_DUMP="$OUT/verdicts_${KEY}.jsonl" \
+            HOME="$JOB_HOME" FLOCK_VERDICT_DUMP="$OUT/verdicts_${KEY}${RSUF}.jsonl" \
                 "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$GOLD_DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$GOLD_ROWS" \
                        --rewrite on --threads "$OP_THREADS" --inflight "$CAP" \
                        --rows-per-request 1 --timeout-ms "$TIMEOUT_MS" \
-                       --skip-burn-in 2>&1 | tee "$OUT/verdict_${KEY}.log"
-            LINES=$(wc -l < "$OUT/verdicts_${KEY}.jsonl" 2>/dev/null || echo 0)
+                       --skip-burn-in 2>&1 | tee "$OUT/verdict_${KEY}${RSUF}.log"
+            LINES=$(wc -l < "$OUT/verdicts_${KEY}${RSUF}.jsonl" 2>/dev/null || echo 0)
             echo "verdicts $KEY: $LINES lines (expect $GOLD_ROWS)"
             [ "$LINES" -eq "$GOLD_ROWS" ] || echo "WARN: H4 gate -- verdict row loss ($LINES != $GOLD_ROWS)"
             DONE_VERDICTS="$DONE_VERDICTS$KEY "
@@ -281,14 +296,14 @@ srun -ul --environment="$EDF" bash -c '
     case " $ARMS " in *" scalar "*)
         echo "==================== SCALAR (1x TP1, gold rows) ===================="
         start_fleet 1 1
-        run off "$SCALAR_THREADS" 128 "$GOLD_ROWS" "$GOLD_DATA" "scalar_n1_tp1_c128"
+        run off "$SCALAR_THREADS" 128 "$GOLD_ROWS" "$GOLD_DATA" "scalar_n1_tp1_c128${RSUF}"
         stop_fleet
         ;;
     esac
     trap - EXIT
 
     echo "==================== VALIDATION ===================="
-    OPJ="$OUT/result_op_n1_tp1_c128.json"; SCJ="$OUT/result_scalar_n1_tp1_c128.json"
+    OPJ="$OUT/result_op_n1_tp1_c128${RSUF}.json"; SCJ="$OUT/result_scalar_n1_tp1_c128${RSUF}.json"
     if [ -f "$OPJ" ] && [ -f "$SCJ" ]; then
         # A/B gate on rows/s (arms run different row counts here)
         opr=$(rate_of "$OPJ"); scr=$(rate_of "$SCJ")
