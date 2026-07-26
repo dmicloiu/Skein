@@ -45,12 +45,14 @@
 #                     measures it in ~2 min where 32k rows would cost ~31 min;
 #                     the per-endpoint shares must come out 100/0/0/0 (gated).)
 #
-# REPS: pass REP=$i so every artefact is suffixed "_rep$i" -- reps are separate
-# jobs here, and without it each rep writes identical filenames that collide on a
-# flat import. Job dirs stay job-id-scoped either way, so this only affects the
-# import, but set it and the artefacts are self-identifying:
-#   for i in 1 2 3; do REP=$i DATA=<big Reviews.csv> \
-#       sbatch --time=00:45:00 analysis/slurm/dp_scaling_clariden.sh; done
+# REPS: REP is a free-form label appended to every artefact name. Reps are
+# separate jobs AND presets share cells (4:1:512 is in curve, grid and unified),
+# so the label must carry BOTH the preset and the rep or those cells collide on a
+# flat import. Job dirs stay job-id-scoped either way, so this only bites at
+# import time -- set it and the artefacts are self-identifying:
+#   for i in 1 2 3; do REP="unified_rep$i" CONFIGS=... \
+#       sbatch --time=00:35:00 analysis/slurm/dp_scaling_clariden.sh; done
+#   => result_op_n4_tp1_c512_unified_rep1.json, verdicts_n1_tp4_unified_rep1.jsonl
 #
 # ROWS/DATA: timed runs default to 32000 rows -- at N=4 (~900 rows/s) 2000 rows
 # would finish in ~2-4s, too short for timing or the 3s gauge sampler. DATA
@@ -80,6 +82,10 @@ EDF="$HOME/projects/sembench/ngc-pytorch-vllm.toml"
 srun -ul --environment="$EDF" bash -c '
     set -uo pipefail
     export NO_PROXY="localhost,127.0.0.1"; export no_proxy="localhost,127.0.0.1"
+    # Serve from the local HF cache only: vllm queries the Hub file-list API on
+    # every boot, and a rep batch trips HF rate limiting (429 = fatal boot, even
+    # with weights cached). Boot-path only; the timed region is unaffected.
+    export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
     source "$CONDA_ROOT/etc/profile.d/conda.sh"; conda activate sembench
 
     FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
@@ -109,13 +115,14 @@ srun -ul --environment="$EDF" bash -c '
     OP_THREADS="${OP_THREADS:-1}"         # operator is thread-independent
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed F1 dump, first config per (N,TP)
-    # Rep index. Reps are separate JOBS (one fleet per job), so without a suffix
-    # every rep writes identically named artefacts and a flat import into
-    # analysis/figures/data/dp_scaling/ silently overwrites all but the last.
-    # REP=$i suffixes every artefact "_rep$i" (the tp_scaling convention). Unset
-    # => no suffix, so single-shot jobs keep the short names.
+    # Free-form run label, appended verbatim to every artefact name. Reps are
+    # separate JOBS, and presets SHARE cells (4:1:512 appears in curve, grid and
+    # unified), so without a label those cells write identical filenames and a
+    # flat import into analysis/figures/data/dp_scaling/ silently overwrites all
+    # but the last. Pass the preset AND the rep -- REP="unified_rep2" yields
+    # result_op_n4_tp1_c512_unified_rep2.json. Unset => no suffix (single shots).
     REP="${REP:-}"
-    RSUF="${REP:+_rep$REP}"
+    RSUF="${REP:+_$REP}"
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT rows=$ROWS gold_rows=$GOLD_ROWS configs=[$CONFIGS] rewrite=$REWRITE rep=[${REP:-none}]"
@@ -276,11 +283,17 @@ srun -ul --environment="$EDF" bash -c '
             del[$i]=$(( ${a:-0} - ${d:-0} )); tot=$((tot + del[i]))
         done
         [ "$tot" -gt 0 ] || { echo "balance $tag: no request deltas (?)"; return 0; }
+        # Expected share depends on the path: round_robin spreads 1/N, the scalar
+        # has no router and must sit entirely on ep0. Only the operator case can
+        # WARN -- a scalar cell deviating is caught hard by the single-endpoint
+        # gate below, so warning here too would just print 4 scary lines per run.
         for i in $(seq 0 $((NEP-1))); do
-            awk -v x="${del[$i]}" -v t="$tot" -v n="$NEP" -v i="$i" -v tag="$tag" "BEGIN{
-                s=100*x/t; ideal=100/n; dev=s-ideal;
+            awk -v x="${del[$i]}" -v t="$tot" -v n="$NEP" -v i="$i" -v tag="$tag" -v rw="$REWRITE" "BEGIN{
+                s=100*x/t;
+                ideal=(rw==\"on\") ? 100/n : ((i==0) ? 100 : 0);
+                dev=s-ideal;
                 printf \"balance %s: ep%d %d reqs (%.1f%%, ideal %.1f%%)\n\", tag, i, x, s, ideal;
-                if (dev>10 || dev<-10) printf \"WARN: ep%d share off by %.1f points under round_robin\n\", i, dev }"
+                if (rw==\"on\" && (dev>10 || dev<-10)) printf \"WARN: ep%d share off by %.1f points under round_robin\n\", i, dev }"
         done
     }
 
