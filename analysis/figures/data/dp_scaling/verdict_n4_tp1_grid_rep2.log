@@ -1,0 +1,2 @@
+rewrite=on threads=1 rows=2000 inflight=512 batch=1 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions,http://127.0.0.1:8001/v1/chat/completions,http://127.0.0.1:8002/v1/chat/completions,http://127.0.0.1:8003/v1/chat/completions
+DONE rewrite=on threads=1 rows=2000 passes=1337 elapsed_s=3.763 rows_per_s=531.51
