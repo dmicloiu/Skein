@@ -84,11 +84,14 @@ def _save(fig, out_dir: Path, name: str):
         print(f"wrote {path}", file=sys.stderr)
 
 
-def collect(summary: Path, col: str = "rows_s") -> dict:
-    """{(arm, tp, cap): [<col> per rep]} from the summarizer CSV."""
+def collect(summary: Path, col: str = "rows_s", morsels: int = 1) -> dict:
+    """{(arm, tp, cap): [<col> per rep]} for ONE morsel regime (1 = in-memory
+    sf_2000; 128 = the heroic-scalar attached-DB runs)."""
     out: dict = {}
     with open(summary, newline="") as f:
         for r in csv.DictReader(f):
+            if int(r.get("morsels") or 1) != morsels:
+                continue
             key = (r["arm"], int(r["tp"]), int(r["cap"]) if r["cap"] else None)
             if r[col]:
                 out.setdefault(key, []).append(float(r[col]))
@@ -108,41 +111,62 @@ def best_cap(data: dict, tp: int) -> int:
 # swept cap. Gap = blue vs best green; TP scaling = group growth; cap story =
 # the within-group green staircase.
 # ---------------------------------------------------------------------------
-def render_bars(data: dict, out_dir: Path) -> None:
+def _bars_panel(ax, data: dict, scalar_label: str, ymax: float) -> None:
+    """One grouped-bar panel: per TP a scalar bar + one operator bar per cap
+    PRESENT in `data` (the sweep on the left panel, the settled cap on the
+    right), value labels, min-max whiskers, gap ratio above the group."""
     cap_colors = {128: "#7fbf7f", 256: "#2e8b57", 512: "#1a5c1a"}
     width = 0.19
-
-    fig, ax = plt.subplots(figsize=(7.6, 4.8))
-    seen_caps = set()
+    seen = set()
     for gi, tp in enumerate(TPS):
-        bars = [("scalar", None)] + [("op", c) for c in CAPS[tp]]
+        # presentation caps only: the c1024 saturation-check cell (single rep)
+        # is reported in the write-up, not plotted.
+        caps = sorted(c for (arm, t, c) in data
+                      if arm == "op" and t == tp and c in CAPS[tp])
+        bars = [("scalar", None)] + [("op", c) for c in caps]
         x0 = gi - width * (len(bars) - 1) / 2
         for bi, (arm, cap) in enumerate(bars):
             m, a, b = stat(data[(arm, tp, cap or 128)])
             x = x0 + bi * width
             if arm == "scalar":
-                color, label = COLOR_SCALAR, ("scalar llm_filter" if gi == 0 else None)
+                color, label = COLOR_SCALAR, (scalar_label if gi == 0 else None)
             else:
                 color = cap_colors[cap]
-                label = f"operator, cap {cap}" if cap not in seen_caps else None
-                seen_caps.add(cap)
+                label = f"operator, cap {cap}" if cap not in seen else None
+                seen.add(cap)
             ax.bar(x, m, width * 0.92, yerr=[[m - a], [b - m]], capsize=3,
                    color=color, edgecolor="black", linewidth=0.6, label=label)
             ax.text(x, b + 8, f"{m:.0f}", ha="center", va="bottom",
                     fontsize=9.5, fontweight="bold")
-        # per-TP gap ratio (best-cap operator / scalar), above the group
-        best = max(median(data[("op", tp, c)]) for c in CAPS[tp])
+        best = max(median(data[("op", tp, c)]) for c in caps)
         sc = median(data[("scalar", tp, 128)])
-        ax.text(gi, best + 52, f"{best / sc:.1f}x", ha="center", va="bottom",
-                fontsize=12.5, fontweight="bold", color="0.25")
-
+        ax.text(gi, best + ymax * 0.11, f"{best / sc:.1f}x", ha="center",
+                va="bottom", fontsize=12.5, fontweight="bold", color="0.25")
     ax.set_xticks(range(len(TPS)))
     ax.set_xticklabels([f"TP={t}" for t in TPS])
     ax.set_xlabel("tensor-parallel size (GPUs per endpoint)")
-    ax.set_ylabel("throughput (rows/s)")
-    ax.set_ylim(0, 470)
+    ax.set_ylim(0, ymax)
     ax.legend(loc="upper left")
-    _suptitle(fig, "the operator's lead widens with TP; the saturating cap scales with it")
+
+
+def render_bars(data: dict, out_dir: Path, heroic: dict | None = None) -> None:
+    """Single panel on sf_2000 data alone; two shared-y panels once the
+    heroic-scalar (128-morsel) runs exist: realistic vs best-case scalar."""
+    vals = [v for d in ([data, heroic] if heroic else [data]) for vs in d.values() for v in vs]
+    ymax = max(vals) * 1.27
+    if heroic:
+        fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(12.6, 4.8), sharey=True)
+        _bars_panel(ax_l, data, "scalar llm_filter", ymax)
+        _bars_panel(ax_r, heroic, "scalar llm_filter", ymax)
+        ax_l.set_title("(a) DuckDB threads = 8, MORSELS = 1 [sembench]")
+        ax_r.set_title("(b) DuckDB threads = 128, MORSELS = 128 [best case]")
+        ax_l.set_ylabel("throughput (rows/s)")
+        _suptitle(fig, "the operator's lead widens with TP -- even against the scalar's best case")
+    else:
+        fig, ax = plt.subplots(figsize=(7.6, 4.8))
+        _bars_panel(ax, data, "scalar llm_filter", ymax)
+        ax.set_ylabel("throughput (rows/s)")
+        _suptitle(fig, "the operator's lead widens with TP; the saturating cap scales with it")
     _save(fig, out_dir, "tp_scaling_bars")
     plt.close(fig)
 
@@ -212,7 +236,8 @@ def main() -> int:
     _setup_style()
     data = collect(args.summary)
     print_summary(data)
-    render_bars(data, args.out_dir)
+    heroic = collect(args.summary, morsels=128) or None
+    render_bars(data, args.out_dir, heroic)
     render_concurrency(data, collect(args.summary, "concurrency"), args.out_dir)
     return 0
 

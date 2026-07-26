@@ -41,7 +41,7 @@ import re
 import sys
 from pathlib import Path
 
-TAG_RE = re.compile(r"result_(op|scalar)_tp(\d+)(?:_c(\d+))?(?:_rep(\d+))?\.json")
+TAG_RE = re.compile(r"result_(op|scalar)_tp(\d+)(?:_c(\d+))?(?:_m(\d+))?(?:_rep(\d+))?\.json")
 
 
 def _metric(path: Path, name: str, label: str | None = None) -> float | None:
@@ -131,11 +131,12 @@ def parse_dir(d: Path, gold: dict[int, bool] | None) -> list[dict]:
         m = TAG_RE.fullmatch(rj.name)
         if not m:
             continue
-        arm, tp_k, cap, rep = m.group(1), int(m.group(2)), m.group(3), m.group(4)
+        arm, tp_k, cap, mors, rep = (m.group(1), int(m.group(2)), m.group(3),
+                                     m.group(4), m.group(5))
         # Flat rep layout (result_..._rep<N>.json): the rep is the grouping
         # unit for the efficiency base; sibling files carry the same suffix.
         suf = f"_rep{rep}" if rep else ""
-        base = f"{arm}_tp{tp_k}" + (f"_c{cap}" if cap else "")
+        base = f"{arm}_tp{tp_k}" + (f"_c{cap}" if cap else "") + (f"_m{mors}" if mors else "")
         tag = f"{base}_ep0{suf}"   # middle of the metrics_{before,after} names
         try:
             j = json.loads(rj.read_text())
@@ -167,6 +168,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None) -> list[dict]:
             "arm": arm,
             "tp": tp_k,
             "cap": int(cap) if cap else j.get("inflight"),
+            "morsels": int(mors) if mors else 1,
             "R": j.get("batch"),
             "threads": j.get("threads"),
             "rows": rows,
@@ -218,25 +220,27 @@ def add_efficiency(recs: list[dict]) -> None:
         n = len(v)
         return (v[n // 2] + v[(n - 1) // 2]) / 2 if v else None
 
-    pooled = {arm: median([r["rows_s"] for r in recs
-                           if r["arm"] == arm and r["tp"] == 1 and r["rows_s"]])
-              for arm in ("op", "scalar")}
-    in_job = {}
+    # bases are per (arm, morsel-regime): the heroic-scalar TP=1 point (~116)
+    # must not normalise the in-memory scalar (~17) or vice versa.
+    pooled: dict = {}
+    in_job: dict = {}
     for r in recs:
         if r["tp"] == 1 and r["rows_s"]:
-            in_job.setdefault((r["job"], r["arm"]), r["rows_s"])
+            pooled.setdefault((r["arm"], r["morsels"]), []).append(r["rows_s"])
+            in_job.setdefault((r["job"], r["arm"], r["morsels"]), r["rows_s"])
+    pooled = {k: median(v) for k, v in pooled.items()}
     for r in recs:
         if not r["rows_s"]:
             continue
-        base = in_job.get((r["job"], r["arm"]))
+        base = in_job.get((r["job"], r["arm"], r["morsels"]))
         basis = "in_job"
         if base is None:
-            base, basis = pooled.get(r["arm"]), "pooled_tp1"
+            base, basis = pooled.get((r["arm"], r["morsels"])), "pooled_tp1"
         if base:
             r["eff"], r["eff_basis"] = round(r["rows_s"] / base, 2), basis
 
 
-COLUMNS = ["job", "arm", "tp", "cap", "R", "threads", "rows", "elapsed_s",
+COLUMNS = ["job", "arm", "tp", "cap", "morsels", "R", "threads", "rows", "elapsed_s",
            "rows_s", "eff", "eff_basis", "req_s", "concurrency",
            "tok_s", "computed_tok_s", "prefill_tok_s", "decode_tok_s",
            "prompt_tok", "gen_tok", "tok_per_row", "gen_per_req",
@@ -245,7 +249,7 @@ COLUMNS = ["job", "arm", "tp", "cap", "R", "threads", "rows", "elapsed_s",
            "run_mean", "run_max", "wait_mean", "wait_max", "kv_mean", "kv_max",
            "passes", "pass_pct", "precision", "recall", "f1"]
 # Curated subset for the console preview (the CSV holds the full column set).
-PREVIEW_COLUMNS = ["job", "arm", "tp", "cap", "rows_s", "eff", "computed_tok_s",
+PREVIEW_COLUMNS = ["job", "arm", "tp", "cap", "morsels", "rows_s", "eff", "computed_tok_s",
                    "concurrency", "run_mean", "wait_mean", "e2e_ms", "f1"]
 
 
@@ -254,7 +258,7 @@ def _fmt(v):
 
 
 def write_outputs(recs, out_dir: Path):
-    recs = sorted(recs, key=lambda r: (r["tp"], r["arm"], r["cap"] or 0, r["job"]))
+    recs = sorted(recs, key=lambda r: (r["morsels"], r["tp"], r["arm"], r["cap"] or 0, r["job"]))
     out_dir.mkdir(parents=True, exist_ok=True)
     with open(out_dir / "tp_scaling_summary.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS)
