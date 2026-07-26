@@ -20,13 +20,30 @@
 # H3 in_flight_cap must scale with the fleet (cap=128*N, starvation cell below);
 # H4 F1 invariant in N (drift => routing/row-loss bug).
 #
-# CONFIGS is a list of N:TP:CAP fleet configs, one cold fleet each. Two job
-# presets (submit as SEPARATE jobs; boots dominate, jobs stay ~1h):
-#   curve (default):  CONFIGS="1:1:128 2:1:256 4:1:512 4:1:128"  ARMS="op scalar"
+# CONFIGS is a list of N:TP:CAP fleet configs, one cold fleet each. N:TP with
+# N=1 and TP>1 is a TP cell, so this driver covers BOTH scale-out axes and they
+# can be measured in one job. REWRITE picks the path the cells exercise: on =
+# the async operator, off = the scalar llm_filter on the SAME workload and the
+# SAME fleet -- the scalar is a first-class configuration of the sweep, not a
+# side arm on its own dataset. Job presets (submit as SEPARATE jobs; boots
+# dominate, jobs stay ~1h):
+#   curve (default):  CONFIGS="1:1:128 2:1:256 4:1:512 4:1:128"
 #                     (last cell = H3 starvation probe: N=4 at the unscaled cap)
-#   grid:             CONFIGS="4:1:512 2:2:512 1:4:512"          ARMS="op"
+#   grid:             CONFIGS="4:1:512 2:2:512 1:4:512"
 #                     (fixed 4-GPU budget, total cap 512; own 4xTP1 anchor so
 #                     the replicas-vs-shards comparison is in-job)
+#   unified:          CONFIGS="1:1:128 1:2:256 1:4:512 2:1:256 4:1:512"
+#                     (DP and TP cells in ONE job on ONE node at the same rows:
+#                     replaces the cross-study DP-vs-TP table with an in-job one)
+#   caps:             CONFIGS="4:1:256 4:1:1024 4:1:2048" VERDICTS=0
+#                     (H3 cap sweep at N=4 -- 128/512 already measured -- plus
+#                     the client-CPU ceiling probe at 1024/2048 in flight)
+#   scalar:           REWRITE=off ROWS=2000 CONFIGS="4:1:128"
+#                     (the no-scale-out reference: the scalar path pointed at a
+#                     4-endpoint fleet, same dataset as the operator cells. Its
+#                     rate is steady-state after ~100 rows, so a 2000-row prefix
+#                     measures it in ~2 min where 32k rows would cost ~31 min;
+#                     the per-endpoint shares must come out 100/0/0/0 (gated).)
 #
 # REPS: pass REP=$i so every artefact is suffixed "_rep$i" -- reps are separate
 # jobs here, and without it each rep writes identical filenames that collide on a
@@ -39,7 +56,7 @@
 # would finish in ~2-4s, too short for timing or the 3s gauge sampler. DATA
 # therefore defaults to sf_300000/Reviews.csv (the same file the TP morsel mode
 # used, so the timed rows are a prefix of that set); the row check is fail-loud.
-# Verdict (F1) passes and the scalar gate arm stay on GOLD_DATA (sf_2000, 2000
+# Verdict (F1) passes stay on GOLD_DATA (sf_2000, 2000
 # gold rows) -- that is where the gold labels live.
 #
 # Validity gates (prompt parity => token deltas cannot catch a stale binary):
@@ -86,7 +103,9 @@ srun -ul --environment="$EDF" bash -c '
     GOLD_DATA="${GOLD_DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
     GOLD_ROWS="${GOLD_ROWS:-2000}"
     CONFIGS="${CONFIGS:-1:1:128 2:1:256 4:1:512 4:1:128}"
-    ARMS="${ARMS:-op scalar}"
+    # Which path the CONFIGS cells exercise: on = operator, off = scalar
+    # llm_filter on the same workload/fleet (the "scalar" preset above).
+    REWRITE="${REWRITE:-on}"
     OP_THREADS="${OP_THREADS:-1}"         # operator is thread-independent
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed F1 dump, first config per (N,TP)
@@ -99,7 +118,7 @@ srun -ul --environment="$EDF" bash -c '
     RSUF="${REP:+_rep$REP}"
 
     echo "==================== ENV ===================="
-    echo "OUT=$OUT rows=$ROWS gold_rows=$GOLD_ROWS configs=[$CONFIGS] arms=[$ARMS] rep=[${REP:-none}]"
+    echo "OUT=$OUT rows=$ROWS gold_rows=$GOLD_ROWS configs=[$CONFIGS] rewrite=$REWRITE rep=[${REP:-none}]"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     for f in "$DATA" "$GOLD_DATA"; do
         [ -f "$f" ] || { echo "dataset missing: $f"; exit 1; }
@@ -223,6 +242,13 @@ srun -ul --environment="$EDF" bash -c '
     run() {  # run <on|off> <threads> <cap> <rows> <data> <tag>
         local rw=$1 th=$2 cap=$3 rows=$4 data=$5 tag=$6
         echo "------ RUN $tag (rewrite=$rw threads=$th cap=$cap rows=$rows fleet=${NEP}xTP${FLEET_TP} R=1) ------"
+        # Sidecar metadata: the result JSON records neither the dataset nor the
+        # fleet shape, and a job may now mix datasets (scalar rate cell vs gold
+        # agreement cell) and later models. Without this the CSV cannot say
+        # which workload a row measured.
+        printf "data=%s\ndataset=%s\nrows=%s\nmodel=%s\nn_ep=%s\ntp=%s\ncap=%s\narm=%s\n" \
+            "$data" "$(basename "$(dirname "$(dirname "$data")")")" "$rows" \
+            "$MODEL" "$NEP" "$FLEET_TP" "$cap" "$rw" > "$OUT/meta_$tag.txt"
         snap "before_$tag"
         start_sampler "$tag"
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
@@ -261,20 +287,41 @@ srun -ul --environment="$EDF" bash -c '
     DONE_VERDICTS=" "
     for CFG in $CONFIGS; do
         IFS=: read -r N TP CAP <<< "$CFG"
-        TAG="op_n${N}_tp${TP}_c${CAP}${RSUF}"
-        echo "==================== CONFIG n=$N tp=$TP cap=$CAP ===================="
+        if [ "$REWRITE" = "on" ]; then ARM=op; TH="$OP_THREADS"; else ARM=scalar; TH="$SCALAR_THREADS"; fi
+        TAG="${ARM}_n${N}_tp${TP}_c${CAP}${RSUF}"
+        echo "==================== CONFIG n=$N tp=$TP cap=$CAP rewrite=$REWRITE ===================="
         start_fleet "$N" "$TP"
-        run on "$OP_THREADS" "$CAP" "$ROWS" "$DATA" "$TAG"
-        # rewrite-engaged gate: a stale binary degrades to the scalar path
-        # (concurrency 1, ~17-29 rows/s); works in single-arm jobs.
+        run "$REWRITE" "$TH" "$CAP" "$ROWS" "$DATA" "$TAG"
         R=$(rate_of "$OUT/result_$TAG.json")
-        awk -v r="$R" -v t="$TAG" "BEGIN{ if (r==\"\") exit 2;
-            printf \"rewrite-engaged gate %s: %.1f rows/s (serial scalar ~17-29)\n\", t, r;
-            exit (r>=60.0 ? 0 : 1) }" \
-            || { echo "FATAL: $TAG too slow -- stale binary / rewrite not engaged?"; exit 1; }
+        if [ "$REWRITE" = "on" ]; then
+            # rewrite-engaged gate: a stale binary degrades to the scalar path
+            # (concurrency 1, ~17-29 rows/s); works in single-arm jobs.
+            awk -v r="$R" -v t="$TAG" "BEGIN{ if (r==\"\") exit 2;
+                printf \"rewrite-engaged gate %s: %.1f rows/s (serial scalar ~17-29)\n\", t, r;
+                exit (r>=60.0 ? 0 : 1) }" \
+                || { echo "FATAL: $TAG too slow -- stale binary / rewrite not engaged?"; exit 1; }
+        else
+            echo "scalar cell $TAG: $R rows/s (rewrite off; no throughput gate)"
+        fi
         balance "$TAG"
+        if [ "$REWRITE" = "off" ] && [ "$N" -gt 1 ]; then
+            # The scalar path takes its base_url from CREATE MODEL (the FIRST
+            # --endpoints entry) and has no router, so on an N-endpoint fleet it
+            # must reach ep0 only. Measures the "stock flock cannot address a
+            # fleet" claim instead of asserting it from the code.
+            OTHER=0
+            for i in $(seq 1 $((N-1))); do
+                a=$(awk "/^vllm:request_success_total/ {b+=\$NF} END{printf \"%d\", b+0}" \
+                        "$OUT/metrics_after_${TAG}_ep$i.txt" 2>/dev/null)
+                b=$(awk "/^vllm:request_success_total/ {b+=\$NF} END{printf \"%d\", b+0}" \
+                        "$OUT/metrics_before_${TAG}_ep$i.txt" 2>/dev/null)
+                OTHER=$((OTHER + ${a:-0} - ${b:-0}))
+            done
+            echo "single-endpoint gate $TAG: eps 1..$((N-1)) got $OTHER requests (expect 0)"
+            [ "$OTHER" -eq 0 ] || { echo "FATAL: scalar reached $OTHER requests beyond ep0 -- NOT single-endpoint"; exit 1; }
+        fi
         KEY="n${N}_tp${TP}"
-        if [ "$VERDICTS" -eq 1 ] && [[ "$DONE_VERDICTS" != *" $KEY "* ]]; then
+        if [ "$REWRITE" = "on" ] && [ "$VERDICTS" -eq 1 ] && [[ "$DONE_VERDICTS" != *" $KEY "* ]]; then
             # untimed F1 dump on the live fleet (greedy -> deterministic).
             # GOLD_DATA rows only: the gold labels are the sf_2000 set.
             HOME="$JOB_HOME" FLOCK_VERDICT_DUMP="$OUT/verdicts_${KEY}${RSUF}.jsonl" \
@@ -291,31 +338,18 @@ srun -ul --environment="$EDF" bash -c '
         stop_fleet
     done
 
-    # scalar reference arm (curve jobs): stock path can only address ep0 --
-    # the flat no-scale-out line. GOLD_ROWS only (serial, 32000 would take ~30min).
-    case " $ARMS " in *" scalar "*)
-        echo "==================== SCALAR (1x TP1, gold rows) ===================="
-        start_fleet 1 1
-        run off "$SCALAR_THREADS" 128 "$GOLD_ROWS" "$GOLD_DATA" "scalar_n1_tp1_c128${RSUF}"
-        stop_fleet
-        ;;
-    esac
     trap - EXIT
 
+    # Arm validity is per-cell: rewrite=on cells carry the rows/s >= 60
+    # rewrite-engaged gate, rewrite=off cells the single-endpoint gate. No
+    # in-job A/B pair needed (the arms live in separate jobs by design).
     echo "==================== VALIDATION ===================="
-    OPJ="$OUT/result_op_n1_tp1_c128${RSUF}.json"; SCJ="$OUT/result_scalar_n1_tp1_c128${RSUF}.json"
-    if [ -f "$OPJ" ] && [ -f "$SCJ" ]; then
-        # A/B gate on rows/s (arms run different row counts here)
-        opr=$(rate_of "$OPJ"); scr=$(rate_of "$SCJ")
-        awk -v o="$opr" -v s="$scr" "BEGIN{ if (o==\"\" || s==\"\") exit 2;
-            r=o/s; printf \"A/B gate: operator/scalar rows-per-s ratio = %.1f\n\", r;
-            exit (r>=3.0 ? 0 : 1) }" \
-            || { echo "FATAL: arms too similar -- stale binary / rewrite not engaged?"; exit 1; }
-    else
-        echo "A/B gate SKIPPED (no scalar arm in this job; rewrite-engaged gate ran per config)"
-    fi
     grep -h "rows_per_s\|inflight" "$OUT"/result_*.json 2>/dev/null || true
-    echo "expect: operator rows/s ~linear in N at cap=128*N; starvation cell (N=4,cap=128) well below N=4,cap=512."
+    if [ "$REWRITE" = "on" ]; then
+        echo "expect: operator rows/s ~linear in N at cap=128*N; starvation cell (N=4,cap=128) below N=4,cap=512."
+    else
+        echo "expect: scalar ~flat at 15-30 rows/s regardless of fleet size; all requests on ep0."
+    fi
     echo "DONE. Artefacts in: $OUT"
     echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/dp_scaling/"
     echo "Summarise:  python analysis/summarize_dp.py   (built after results land)"
