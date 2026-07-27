@@ -1,0 +1,8 @@
+data=/users/dmicloiu/projects/sembench/files/movie/data/sf_300000/Reviews.csv
+dataset=sf_300000
+rows=32000
+model=Qwen/Qwen2.5-72B-Instruct
+n_ep=1
+tp=4
+cap=512
+arm=on
