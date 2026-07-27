@@ -100,7 +100,7 @@ srun -ul --environment="$EDF" bash -c '
     # Full prompt on both arms: no slim/variant knob may leak in.
     unset FLOCK_SEM_PROMPT FLOCK_SEM_VARIANTS
 
-    MODEL="Qwen/Qwen2.5-7B-Instruct"
+    MODEL="${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
     BASE_PORT=8000; FULL_UTIL=0.90; TIMEOUT_MS=120000
     TEXT_COL="${TEXT_COL:-reviewText}"
     PROMPT="${PROMPT:-The following movie review is clearly positive.}"
@@ -113,6 +113,7 @@ srun -ul --environment="$EDF" bash -c '
     # llm_filter on the same workload/fleet (the "scalar" preset above).
     REWRITE="${REWRITE:-on}"
     OP_THREADS="${OP_THREADS:-1}"         # operator is thread-independent
+    MIN_OP_RATE="${MIN_OP_RATE:-60}"      # rewrite-engaged gate floor (rows/s)
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed F1 dump, first config per (N,TP)
     # Free-form run label, appended verbatim to every artefact name. Reps are
@@ -254,7 +255,7 @@ srun -ul --environment="$EDF" bash -c '
         # agreement cell) and later models. Without this the CSV cannot say
         # which workload a row measured.
         printf "data=%s\ndataset=%s\nrows=%s\nmodel=%s\nn_ep=%s\ntp=%s\ncap=%s\narm=%s\n" \
-            "$data" "$(basename "$(dirname "$(dirname "$data")")")" "$rows" \
+            "$data" "$(basename "$(dirname "$data")")" "$rows" \
             "$MODEL" "$NEP" "$FLEET_TP" "$cap" "$rw" > "$OUT/meta_$tag.txt"
         snap "before_$tag"
         start_sampler "$tag"
@@ -308,10 +309,10 @@ srun -ul --environment="$EDF" bash -c '
         R=$(rate_of "$OUT/result_$TAG.json")
         if [ "$REWRITE" = "on" ]; then
             # rewrite-engaged gate: a stale binary degrades to the scalar path
-            # (concurrency 1, ~17-29 rows/s); works in single-arm jobs.
-            awk -v r="$R" -v t="$TAG" "BEGIN{ if (r==\"\") exit 2;
-                printf \"rewrite-engaged gate %s: %.1f rows/s (serial scalar ~17-29)\n\", t, r;
-                exit (r>=60.0 ? 0 : 1) }" \
+            # (concurrency 1). MIN_OP_RATE scales with the model size.
+            awk -v r="$R" -v t="$TAG" -v m="$MIN_OP_RATE" "BEGIN{ if (r==\"\") exit 2;
+                printf \"rewrite-engaged gate %s: %.1f rows/s (min %s)\n\", t, r, m;
+                exit (r>=m+0.0 ? 0 : 1) }" \
                 || { echo "FATAL: $TAG too slow -- stale binary / rewrite not engaged?"; exit 1; }
         else
             echo "scalar cell $TAG: $R rows/s (rewrite off; no throughput gate)"
