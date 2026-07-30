@@ -22,6 +22,11 @@ into the images (model / GPUs / caps / reps belong in the LaTeX caption).
   dp_model_frontier  fixed budget across model sizes: one dot-range row per
                      model ordered by F1; dot spacing = topology penalty,
                      the missing slot = the domain boundary.
+  dp_model_efficiency  per-GPU efficiency of both axes at 7B and 32B (colour
+                     = axis, linestyle = model): DP holds ~1.0 at both sizes,
+                     the TP penalty shrinks with size.
+  dp_cap_collapse    each fleet's cap sweep normalised by its own saturation
+                     point: the two models collapse onto one curve.
 
 Median over reps; whiskers = min-max. Every figure draws each cell from ONE
 job family at 3 reps (curve / grid / unified / caps / scfleet / m*) so no
@@ -555,6 +560,103 @@ def render_balance(bal: list[dict], summary_rows: list[dict], out_dir: Path) -> 
     plt.close(fig)
 
 
+# ---------------------------------------------------------------------------
+# Model-scale chapter figures. Colour follows the MODEL across this chapter
+# (7B green, 32B orange -- matching dp_cap_collapse and dp_model_quality);
+# the axis is carried by linestyle/marker (DP solid circles, TP dashed
+# squares).
+# ---------------------------------------------------------------------------
+MODEL_COLORS_SCALE = {"7B": "#2e8b57", "32B": "#c8722a"}
+
+
+def render_model_efficiency(dp7, tp7, eff32, out_dir: Path) -> None:
+    fig, ax = plt.subplots(figsize=(7.4, 4.6))
+    ax.axhline(1.0, ls="--", lw=1.6, color=COLOR_IDEAL, zorder=1,
+               label="ideal linear")
+    c7, c32 = MODEL_COLORS_SCALE["7B"], MODEL_COLORS_SCALE["32B"]
+    series = [(dp7, c7, "-", "7B DP"), (eff32["dp"], c32, "-", "32B DP"),
+              (tp7, c7, "--", "7B TP"), (eff32["tp"], c32, "--", "32B TP")]
+    for pts, color, ls, lab in series:
+        if not pts:
+            continue
+        ax.errorbar([g for g, _, _, _ in pts], [v for _, v, _, _ in pts],
+                    yerr=[[v - a for _, v, a, _ in pts],
+                          [b - v for _, v, _, b in pts]],
+                    marker="o" if ls == "-" else "s", ms=6.5, lw=1.9, ls=ls,
+                    capsize=3, color=color, zorder=3, label=lab)
+        g, m, _, _ = pts[-1]
+        # per-series offsets keep each close pair (1.05/1.02, 0.78/0.73) apart
+        off = {"7B TP": (8, -14), "32B TP": (8, 0), "7B DP": (8, 4),
+               "32B DP": (8, -13)}[lab]
+        ax.annotate(f"{m:.2f}", (g, m), textcoords="offset points",
+                    xytext=off, ha="left", fontsize=9.5, fontweight="bold",
+                    color=color)
+    ax.set_xscale("log", base=2)
+    ax.set_xticks([1, 2, 4])
+    ax.set_xticklabels(["1", "2", "4"])
+    ax.set_xlim(0.82, 4 * 1.35)
+    ax.set_ylim(0, 1.25)
+    ax.set_xlabel("GH200 GPUs")
+    ax.set_ylabel("per-GPU efficiency (x 1-GPU rows/s)")
+    ax.legend(loc="lower left", ncol=2, fontsize=10)
+    _suptitle(fig, "per-GPU efficiency of both scale-out axes at 7B and 32B")
+    _save(fig, out_dir, "dp_model_efficiency")
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# G2 -- dimensionless cap response: each fleet's cap sweep normalised by its
+# own saturation point C* (smallest cap reaching 98% of its plateau) and its
+# own plateau throughput. The two models collapse onto one curve: the cap law
+# is a shape, not a number.
+# ---------------------------------------------------------------------------
+def render_cap_collapse(summary: Path, out_dir: Path) -> None:
+    # one family per cell, matching the tables
+    plans = [("7B", "#2e8b57", {128: "curve", 256: "caps", 512: "curve",
+                                1024: "caps", 2048: "caps"}),
+             ("32B", "#c8722a", {32: "m32b_lowcap", 64: "m32b_lowcap",
+                                 128: "m32b_lowcap", 256: "m32b_c256",
+                                 512: "m32b_unified"})]
+    fig, ax = plt.subplots(figsize=(7.4, 4.6))
+    ax.axhline(100, ls=":", lw=1.5, color="0.5", zorder=1)
+    ax.axvline(1.0, ls="--", lw=1.4, color="0.5", zorder=1)
+    for model, color, fam_by_cap in plans:
+        pts = {}
+        for cap, fam in fam_by_cap.items():
+            v = [vals for (arm, n, tp, c), vals in
+                 collect_dp(summary, "rows_s", jobs=fam, model=model).items()
+                 if arm == "op" and n == 4 and tp == 1 and c == cap]
+            if v:
+                pts[cap] = median(v[0])
+        if len(pts) < 3:
+            continue
+        plateau = max(pts.values())
+        cstar = min(c for c, r in pts.items() if r >= 0.98 * plateau)
+        xs = sorted(pts)
+        ax.plot([c / cstar for c in xs], [100 * pts[c] / plateau for c in xs],
+                marker="o", ms=7, lw=2.0, color=color, zorder=3,
+                label=f"{model} (C* = {cstar // 4} per endpoint)")
+        for c in xs:
+            # nudge the labels at the C* line sideways, off the dashed marker
+            dx = -7 if c == cstar and model != "7B" else 0
+            ax.annotate(str(c // 4), (c / cstar, 100 * pts[c] / plateau),
+                        textcoords="offset points",
+                        xytext=(dx, -14) if model == "7B" else (dx, 8),
+                        ha="center", fontsize=8, color=color)
+    ax.set_xscale("log", base=2)
+    xt = [0.125, 0.25, 0.5, 1, 2, 4]
+    ax.set_xticks(xt)
+    ax.set_xticklabels(["C*/8", "C*/4", "C*/2", "C*", "2·C*", "4·C*"])
+    ax.set_xlabel("in_flight_cap relative to the fleet's saturation cap C*")
+    ax.set_ylabel("throughput (% of own plateau)")
+    ax.set_ylim(50, 108)
+    ax.legend(loc="lower left")
+    _suptitle(fig, "cap response of the 7B and 32B fleets (4 endpoints each), "
+                   "normalised by saturation cap")
+    _save(fig, out_dir, "dp_cap_collapse")
+    plt.close(fig)
+
+
 # ---- assembly --------------------------------------------------------------
 def curve_series(data: dict, base_key=("op", 1, 1, 128)):
     """(gpus, median, min, max) per DP curve point, and the 1-GPU base used
@@ -666,6 +768,20 @@ def main() -> int:
 
     print_summary(rows, effs, grid_rows or {}, tp_rows) if grid_rows else None
     render_curve(rows, effs, tp_rows, tp_effs, scalar_rows, args.out_dir)
+
+    # model-scale chapter figures: per-GPU efficiency at both model sizes, and
+    # the dimensionless cap-response collapse; skipped without the 32B jobs.
+    rows32 = collect_dp(args.summary, "rows_s", jobs="m32b_unified", model="32B")
+    if ("op", 1, 1, 128) in rows32:
+        effs32 = collect_dp(args.summary, "eff_gpu", jobs="m32b_unified", model="32B")
+        base32 = median(rows32[("op", 1, 1, 128)])
+        eff32 = {"dp": eff_series(effs32),
+                 "tp": tp_series(tp_cells_from_dp(rows32), per_gpu_base=base32)}
+        render_model_efficiency(effs["dp"], tp_effs, eff32, args.out_dir)
+        render_cap_collapse(args.summary, args.out_dir)
+    else:
+        print("  [warn] no 32B unified jobs -> skipping model-scale figures",
+              file=sys.stderr)
     if grid_rows:
         render_budget(grid_rows, grid_queue, args.out_dir)
 
