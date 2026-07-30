@@ -57,6 +57,8 @@ struct Args {
     // Per-row output-token budget multiplier: max_output_tokens = mult * R. Default
     // 16 fits the bare boolean array.
     int max_out_mult = 16;
+    // Response format override: "" keeps the session default (json_schema).
+    std::string response_format;
     // Skip the untimed burn-in query. Only used by the verdict-dump pass of the
     // R-sweep: there we discard timing, and skipping burn-in keeps the dump file
     // to the real query's rows (the burn-in would otherwise emit R synthetic rows
@@ -74,7 +76,8 @@ void Usage(const char* prog) {
                  "          [--row-group-size N (mult. of 2048; >0 => rows/N morsels)]\n"
                  "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n"
                  "          [--skip-burn-in (untimed verdict-dump pass only)]\n"
-                 "          [--max-out-mult N (max_output_tokens = N*R; default 16)]\n",
+                 "          [--max-out-mult N (max_output_tokens = N*R; default 16)]\n"
+                 "          [--response-format json_schema|free_form]\n",
                  prog);
 }
 
@@ -104,6 +107,7 @@ bool ParseArgs(int argc, char** argv, Args* a) {
         else if (!std::strcmp(k, "--attach-db")) a->attach_db = need("--attach-db");
         else if (!std::strcmp(k, "--skip-burn-in")) a->skip_burn_in = true;
         else if (!std::strcmp(k, "--max-out-mult")) a->max_out_mult = std::atoi(need("--max-out-mult"));
+        else if (!std::strcmp(k, "--response-format")) a->response_format = need("--response-format");
         else if (!std::strcmp(k, "-h") || !std::strcmp(k, "--help")) {
             Usage(argv[0]);
             return false;
@@ -197,6 +201,8 @@ void WriteResultJson(const Args& a, long long passes, long long rows_loaded, dou
     out << "  \"inflight\": " << a.inflight << ",\n";
     out << "  \"batch\": " << a.rows_per_request << ",\n";
     out << "  \"model\": \"" << a.model << "\",\n";
+    out << "  \"max_out_mult\": " << a.max_out_mult << ",\n";
+    out << "  \"response_format\": \"" << (a.response_format.empty() ? "json_schema" : a.response_format) << "\",\n";
     out << "  \"endpoints\": \"" << a.endpoints_csv << "\"\n";
     out << "}\n";
 }
@@ -221,6 +227,9 @@ int main(int argc, char** argv) {
     if (!Run(con, "SET semantic_in_flight_cap=" + std::to_string(args.inflight) + ";")) return 1;
     if (!Run(con, "SET semantic_batch_size=" + std::to_string(args.rows_per_request) + ";")) return 1;
     if (!Run(con, std::string("SET semantic_rewrite_enabled=") + (rewrite_on ? "true" : "false") + ";")) return 1;
+    if (!args.response_format.empty()) {
+        if (!Run(con, "SET semantic_response_format='" + SqlEscape(args.response_format) + "';")) return 1;
+    }
 
     // Scalar path target: the default openai secret's base_url. The operator path
     // ignores this and uses semantic_endpoints. NOTE: the operator's AsyncLLMClient

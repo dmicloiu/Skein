@@ -38,6 +38,12 @@
 #   caps:             CONFIGS="4:1:256 4:1:1024 4:1:2048" VERDICTS=0
 #                     (H3 cap sweep at N=4 -- 128/512 already measured -- plus
 #                     the client-CPU ceiling probe at 1024/2048 in flight)
+#   kvstress:         RESPONSE_FORMAT=free_form OUT_MULT=512 ROWS=4096
+#                     VERDICTS=0 MIN_OP_RATE=2 CONFIGS="4:1:512 1:4:512"
+#                     (decode-heavy KV stress: long outputs push resident KV
+#                     past the replica pool; quality out of scope. OUT_MULT
+#                     512 keeps mean e2e safely under the async client 60s
+#                     per-request timeout)
 #   scalar:           REWRITE=off ROWS=2000 CONFIGS="4:1:128"
 #                     (the no-scale-out reference: the scalar path pointed at a
 #                     4-endpoint fleet, same dataset as the operator cells. Its
@@ -114,6 +120,14 @@ srun -ul --environment="$EDF" bash -c '
     REWRITE="${REWRITE:-on}"
     OP_THREADS="${OP_THREADS:-1}"         # operator is thread-independent
     MIN_OP_RATE="${MIN_OP_RATE:-60}"      # rewrite-engaged gate floor (rows/s)
+    # Response shape: RESPONSE_FORMAT=free_form + OUT_MULT (max_output_tokens
+    # per row) turn the filter into a decode-heavy workload generator for the
+    # KV/decode stress cells; quality is out of scope there (VERDICTS=0).
+    RESPONSE_FORMAT="${RESPONSE_FORMAT:-}"
+    OUT_MULT="${OUT_MULT:-}"
+    SHAPE_ARGS=()
+    [ -n "$RESPONSE_FORMAT" ] && SHAPE_ARGS+=(--response-format "$RESPONSE_FORMAT")
+    [ -n "$OUT_MULT" ] && SHAPE_ARGS+=(--max-out-mult "$OUT_MULT")
     SCALAR_THREADS="${SCALAR_THREADS:-8}" # 1 in-memory morsel -> concurrency 1 anyway
     VERDICTS="${VERDICTS:-1}"             # untimed F1 dump, first config per (N,TP)
     # Free-form run label, appended verbatim to every artefact name. Reps are
@@ -262,7 +276,7 @@ srun -ul --environment="$EDF" bash -c '
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
             --data "$data" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$rows" \
             --rewrite "$rw" --threads "$th" --inflight "$cap" --rows-per-request 1 \
-            --timeout-ms "$TIMEOUT_MS" \
+            --timeout-ms "$TIMEOUT_MS" ${SHAPE_ARGS[@]+"${SHAPE_ARGS[@]}"} \
             --result-out "$OUT/result_$tag.json" > "$OUT/run_$tag.log" 2>&1 &
         local dpid=$!
         start_client_sampler "$dpid" "$tag"
