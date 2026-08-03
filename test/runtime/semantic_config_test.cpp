@@ -119,6 +119,13 @@ TEST(SemanticSettingsTest, ResolveRejectsOutOfRange) {
     RunSQL(con, "SET semantic_batch_size=" + std::to_string(STANDARD_VECTOR_SIZE + 1));
     EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_bsbig"), std::exception);
 
+    // free_form has no per-row envelope to split a multi-row completion by.
+    RunSQL(con, "SET semantic_batch_size=4");
+    RunSQL(con, "SET semantic_response_format='free_form'");
+    EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_ff"), std::exception);
+    RunSQL(con, "SET semantic_batch_size=1");
+    EXPECT_NO_THROW(ResolveSemanticParams(*con.context, "no_such_model_ff1"));
+
     RunSQL(con, "SET semantic_batch_size=32");  // back in range
     RunSQL(con, "SET semantic_in_flight_cap=0");
     EXPECT_THROW(ResolveSemanticParams(*con.context, "no_such_model_cap0"), std::exception);

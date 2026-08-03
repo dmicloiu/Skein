@@ -36,6 +36,7 @@ public:
         std::chrono::milliseconds jitter = std::chrono::milliseconds(0);   // uniform extra delay in [0, jitter]
         bool inject_error = false;             // synthesize ok=false (fail-loud test)
         int verdict_count_delta = 0;           // emit (rows + delta) items (fail-loud length test)
+        std::string free_form_text;            // non-empty: content = this raw prose (no items envelope)
         int num_workers = 4;
         uint32_t seed = 0xF10C5EEDu;           // deterministic jitter RNG seed
     };
@@ -160,8 +161,10 @@ private:
         nlohmann::json choice;
         choice["index"] = 0;
         // Chat shape (parity with the scalar arm): choices[0].message.content holds
-        // the JSON-encoded items object that ParseItems decodes.
-        choice["message"]["content"] = completion.dump();
+        // the JSON-encoded items object that ParseItems decodes -- or raw prose
+        // when a test drives the free_form path.
+        choice["message"]["content"] =
+                opts_.free_form_text.empty() ? completion.dump() : opts_.free_form_text;
         nlohmann::json body;
         body["choices"] = nlohmann::json::array({std::move(choice)});
         r.ok = true;

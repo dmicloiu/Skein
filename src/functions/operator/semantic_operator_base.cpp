@@ -44,7 +44,9 @@ namespace {
 //
 // Fail-loud policy: a failed HTTP request or an unparseable body/content/missing
 // choices/message/items field still throws.
-nlohmann::json ParseItems(const CompletedBatch& batch) {
+// Transport + chat-envelope validation shared by both response formats:
+// returns choices[0].message.content or throws.
+std::string ParseCompletionText(const CompletedBatch& batch) {
     if (!batch.response.ok) {
         throw std::runtime_error("flock semantic operator: LLM request failed (http " +
                                  std::to_string(batch.response.http_status) + "): " + batch.response.error);
@@ -70,7 +72,12 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     if (ctit == mit->end() || !ctit->is_string()) {
         throw std::runtime_error("flock semantic operator: chat message missing a 'content' string");
     }
-    const std::string completion_text = ctit->get<std::string>();
+    return ctit->get<std::string>();
+}
+
+// json_schema contract: the completion text is the {"items":[...]} envelope.
+nlohmann::json ParseItems(const CompletedBatch& batch) {
+    const std::string completion_text = ParseCompletionText(batch);
     nlohmann::json completion =
             nlohmann::json::parse(completion_text, /*cb=*/nullptr, /*allow_exceptions=*/false);
     if (completion.is_discarded()) {
@@ -416,7 +423,19 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     }
     // Parse + emit OUTSIDE the lock. One batch per call; batch_size is bounded
     // well under STANDARD_VECTOR_SIZE, so a batch always fits in `out`.
-    nlohmann::json items = ParseItems(batch);  // fail-loud on any anomaly
+    // Fail-loud on any anomaly. The response contract is configuration, not a
+    // guess from the payload: free_form has no items envelope -- the whole
+    // completion is the single row's element (batch_size pinned to 1 at config
+    // resolution; pad defensively regardless).
+    nlohmann::json items;
+    if (cfg.response_format == "free_form") {
+        items = nlohmann::json::array({ParseCompletionText(batch)});
+        while (items.size() < batch.row_ids.size()) {
+            items.push_back(nullptr);
+        }
+    } else {
+        items = ParseItems(batch);
+    }
     for (size_t i = 0; i < batch.rows.size(); ++i) {
         parse_fn(items[i], batch.rows[i], out);
     }

@@ -211,6 +211,13 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
                                             std::to_string(STANDARD_VECTOR_SIZE) + "], got " +
                                             std::to_string(params.batch_size));
     }
+    if (params.response_format == "free_form" && params.batch_size != 1) {
+        // Without guided decoding there is no per-row envelope to split a
+        // multi-row completion by.
+        throw duckdb::InvalidInputException(
+                "semantic_response_format='free_form' requires semantic_batch_size=1, got " +
+                std::to_string(params.batch_size));
+    }
     if (params.in_flight_cap < 1) {
         throw duckdb::InvalidInputException("semantic in_flight_cap must be >= 1, got " +
                                             std::to_string(params.in_flight_cap));

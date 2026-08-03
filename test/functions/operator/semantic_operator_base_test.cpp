@@ -465,6 +465,62 @@ TEST(SemanticOperatorBase, LengthMismatch_PadsOrTruncates) {
     EXPECT_EQ(short_res.second, static_cast<size_t>(total));
 }
 
+// free_form: no items envelope exists; the whole completion must reach the
+// parse hook as ONE string element (regression: ParseItems used to demand the
+// envelope unconditionally and threw on prose).
+TEST(SemanticOperatorBase, FreeFormProseReachesParse) {
+    const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
+    auto cfg = MakeParams(/*cap=*/1, /*batch_size=*/1);
+    cfg.response_format = "free_form";
+    FakeLLMClient::Options fopts;
+    fopts.delay = std::chrono::milliseconds(2);
+    fopts.free_form_text = "A long analysis follows... the verdict is yes.";
+    auto fake = std::make_shared<FakeLLMClient>(fopts);
+    auto router = std::make_shared<EndpointRouter>(std::vector<std::string>{"http://localhost:8000/v1"},
+                                                   EndpointRouter::Strategy::RoundRobin);
+    auto g = std::make_unique<SemGlobalSinkState>(fake, router, cfg);
+    g->render_prompt = StubRender();
+
+    auto chunks = BuildChunks(/*total=*/1, 8, types);
+    auto local = std::make_unique<SemLocalSinkState>();
+    std::atomic<size_t> blocked{0};
+    RunSinkWorker(*g, *local, {chunks[0].get()}, blocked);
+    g->MergeLocal(*local);
+    std::atomic<size_t> fin_blocked{0};
+    RunFinalize(*g, fin_blocked);
+
+    std::vector<nlohmann::json> seen;
+    auto parse = [&](const nlohmann::json& element, const RowData& row, DataChunk& out) {
+        seen.push_back(element);
+        const idx_t idx = out.size();
+        for (idx_t c = 0; c < row.values.size(); ++c) {
+            out.SetValue(c, idx, row.values[c]);
+        }
+        out.SetCardinality(idx + 1);
+    };
+    auto& alloc = duckdb::Allocator::DefaultAllocator();
+    size_t emitted = 0;
+    for (int attempt = 0; attempt < 2000; ++attempt) {
+        DataChunk out;
+        out.Initialize(alloc, types);
+        auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+        InterruptState interrupt(signal);
+        auto res = g->Drain(out, parse, interrupt);
+        if (res == SourceResultType::BLOCKED) {
+            signal->Await();
+            continue;
+        }
+        emitted += out.size();
+        if (res == SourceResultType::FINISHED) {
+            break;
+        }
+    }
+    EXPECT_EQ(emitted, 1u);
+    ASSERT_EQ(seen.size(), 1u);
+    ASSERT_TRUE(seen[0].is_string());
+    EXPECT_EQ(seen[0].get<std::string>(), fopts.free_form_text);
+}
+
 // -- Operator-level smoke test -----------------------------------
 
 // Test-only concrete operator: pass-through hooks with call counters, so the
