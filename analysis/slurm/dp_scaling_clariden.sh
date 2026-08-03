@@ -38,8 +38,9 @@
 #   caps:             CONFIGS="4:1:256 4:1:1024 4:1:2048" VERDICTS=0
 #                     (H3 cap sweep at N=4 -- 128/512 already measured -- plus
 #                     the client-CPU ceiling probe at 1024/2048 in flight)
-#   kvstress:         RESPONSE_FORMAT=free_form OUT_MULT=512 ROWS=4096
-#                     VERDICTS=0 MIN_OP_RATE=2 CONFIGS="4:1:512 1:4:512"
+#   kvstress:         RESPONSE_FORMAT=free_form OUT_MULT=512 IGNORE_EOS=1
+#                     ROWS=4096 VERDICTS=0 MIN_OP_RATE=2
+#                     CONFIGS="4:1:512 1:4:512"
 #                     (decode-heavy KV stress: long outputs push resident KV
 #                     past the replica pool; quality out of scope. OUT_MULT
 #                     512 keeps mean e2e safely under the async client 60s
@@ -125,6 +126,9 @@ srun -ul --environment="$EDF" bash -c '
     # KV/decode stress cells; quality is out of scope there (VERDICTS=0).
     RESPONSE_FORMAT="${RESPONSE_FORMAT:-}"
     OUT_MULT="${OUT_MULT:-}"
+    # IGNORE_EOS=1 forces generation to exactly max_output_tokens (vLLM
+    # ignore_eos) so resident KV per request is deterministic.
+    [ "${IGNORE_EOS:-0}" = "1" ] && export FLOCK_SEM_IGNORE_EOS=1
     SHAPE_ARGS=()
     [ -n "$RESPONSE_FORMAT" ] && SHAPE_ARGS+=(--response-format "$RESPONSE_FORMAT")
     [ -n "$OUT_MULT" ] && SHAPE_ARGS+=(--max-out-mult "$OUT_MULT")

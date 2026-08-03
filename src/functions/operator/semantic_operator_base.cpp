@@ -17,6 +17,17 @@ using duckdb::SinkFinalizeType;
 using duckdb::SinkResultType;
 using duckdb::SourceResultType;
 
+// Benchmark-only knob: force generation to run to max_tokens (vLLM
+// ignore_eos), so output length is a controlled variable for workload-shape
+// experiments. Never set in normal operation.
+static bool SemIgnoreEos() {
+    static const bool on = [] {
+        const char* p = std::getenv("FLOCK_SEM_IGNORE_EOS");
+        return p && std::string(p) == "1";
+    }();
+    return on;
+}
+
 // Check if prompt slim-ing is on.
 bool SemPromptSlim() {
     static const bool slim = [] {
@@ -166,6 +177,9 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
         body["model"] = served_model;
     }
     body["max_tokens"] = cfg.max_output_tokens;
+    if (SemIgnoreEos()) {
+        body["ignore_eos"] = true;
+    }
     // Deterministic, fair A/B: greedy decoding. Explicitly overrides the model's
     // generation_config.json default (temperature=0.7) so the operator arm is
     // reproducible and matches the scalar arm (which pins temperature via
