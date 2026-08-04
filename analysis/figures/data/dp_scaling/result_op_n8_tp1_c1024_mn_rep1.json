@@ -1,0 +1,16 @@
+{
+  "rewrite": "on",
+  "threads": 1,
+  "rows": 65536,
+  "passes": 42638,
+  "elapsed_s": 59.2918,
+  "rows_per_s": 1105.31,
+  "row_group_size": 0,
+  "morsels": 1,
+  "inflight": 1024,
+  "batch": 1,
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "max_out_mult": 16,
+  "response_format": "json_schema",
+  "endpoints": "http://127.0.0.1:8000/v1/chat/completions,http://127.0.0.1:8001/v1/chat/completions,http://127.0.0.1:8002/v1/chat/completions,http://127.0.0.1:8003/v1/chat/completions,http://nid006133:8000/v1/chat/completions,http://nid006133:8001/v1/chat/completions,http://nid006133:8002/v1/chat/completions,http://nid006133:8003/v1/chat/completions"
+}
