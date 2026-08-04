@@ -13,9 +13,9 @@
 # network. Extends the single-node study (dp_scaling_clariden.sh) past N=4 and
 # replaces its loopback caveat with measured cross-node behaviour.
 #
-# Operator cells only (no scalar arm, no verdict pass): quality is
-# fleet-invariant per the single-node study; this script measures throughput,
-# dispatch and the C* law at N=8.
+# Operator cells only (no scalar arm). VERDICTS=1 adds the untimed F1 pass on
+# the live fleet (same contract as the single-node driver), closing the H4
+# cell at N=8; default off so throughput reps stay pure.
 #
 # Presets (one cold fleet per config, remote fleet cycled via files on $OUT):
 #   harness check:  CONFIGS="4:1:512" ROWS=32000 MIN_OP_RATE=500 --time=00:15:00
@@ -35,6 +35,10 @@
 #                   it is the first real test of the two-node plumbing, and
 #                   firing all three reps at once risks burning three 2-node
 #                   allocations on one protocol bug.)
+#   verdict:        CONFIGS="8:1:1024" VERDICTS=1 REP=mn_verd --time=00:25:00
+#                   (H4 at N=8: the timed run doubles as the fleet-health gate,
+#                   then the F1 dump runs on the same fleet. The distinct REP
+#                   label keeps it out of the 3-rep throughput family.)
 #
 # Interpretation caveat: local endpoints are addressed as 127.0.0.1, remote ones
 # as $MN_NODE1, and the driver shares node0 with 4 servers. N=8 therefore
@@ -185,12 +189,18 @@ for CFG in $CONFIGS; do
         DATA="${DATA:-$SEMBENCH/files/movie/data/sf_300000/Reviews.csv}"
         ROWS="${ROWS:-65536}"
         MIN_OP_RATE="${MIN_OP_RATE:-60}"
+        # VERDICTS=1 adds the untimed F1 dump on the live fleet after the timed
+        # run, same contract as the single-node driver (gold labels = sf_2000).
+        VERDICTS="${VERDICTS:-0}"
+        GOLD_DATA="${GOLD_DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
+        GOLD_ROWS="${GOLD_ROWS:-2000}"
         REP="${REP:-}"; RSUF="${REP:+_$REP}"
         TAG="op_n${N}_tp${TP}_c${CAP}${RSUF}"
         TIMEOUT_MS=120000
 
         [ -x "$BIN" ] || { echo "driver missing: $BIN"; exit 1; }
         [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
+        [ "$VERDICTS" -eq 0 ] || [ -f "$GOLD_DATA" ] || { echo "gold dataset missing: $GOLD_DATA"; exit 1; }
         AVAIL=$(($(wc -l < "$DATA") - 1))
         [ "$AVAIL" -ge "$ROWS" ] || { echo "FATAL: need $ROWS rows, have $AVAIL"; exit 1; }
         # The 4-GPUs-per-node split in the orchestrator is an assumption, not a
@@ -361,6 +371,19 @@ for CFG in $CONFIGS; do
             done
         else
             echo "balance $TAG: no request deltas (?)"
+        fi
+
+        if [ "$VERDICTS" -eq 1 ]; then
+            KEY="n${N}_tp${TP}"
+            HOME="$JOB_HOME" FLOCK_VERDICT_DUMP="$OUT/verdicts_${KEY}${RSUF}.jsonl" \
+                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$GOLD_DATA" \
+                       --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$GOLD_ROWS" \
+                       --rewrite on --threads 1 --inflight "$CAP" \
+                       --rows-per-request 1 --timeout-ms "$TIMEOUT_MS" \
+                       --skip-burn-in 2>&1 | tee "$OUT/verdict_${KEY}${RSUF}.log"
+            LINES=$(wc -l < "$OUT/verdicts_${KEY}${RSUF}.jsonl" 2>/dev/null || echo 0)
+            echo "verdicts $KEY: $LINES lines (expect $GOLD_ROWS)"
+            [ "$LINES" -eq "$GOLD_ROWS" ] || echo "WARN: H4 gate, verdict row loss ($LINES != $GOLD_ROWS)"
         fi
 
         touch "$OUT/gen${GEN}.stop"
