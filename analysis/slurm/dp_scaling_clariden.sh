@@ -45,6 +45,11 @@
 #                     past the replica pool; quality out of scope. OUT_MULT
 #                     512 keeps mean e2e safely under the async client 60s
 #                     per-request timeout)
+#   kvdeep:           kvstress knobs but OUT_MULT=1024 REQUEST_TIMEOUT_MS=300000
+#                     (deeper decode: doubles resident KV per request to probe
+#                     whether the erased replica advantage inverts. Mean e2e
+#                     scales past 60s at this depth, hence the raised client
+#                     timeout)
 #   scalar:           REWRITE=off ROWS=2000 CONFIGS="4:1:128"
 #                     (the no-scale-out reference: the scalar path pointed at a
 #                     4-endpoint fleet, same dataset as the operator cells. Its
@@ -129,6 +134,10 @@ srun -ul --environment="$EDF" bash -c '
     # IGNORE_EOS=1 forces generation to exactly max_output_tokens (vLLM
     # ignore_eos) so resident KV per request is deterministic.
     [ "${IGNORE_EOS:-0}" = "1" ] && export FLOCK_SEM_IGNORE_EOS=1
+    # REQUEST_TIMEOUT_MS raises the async-client per-request timeout for
+    # cells whose mean service time approaches the built-in 60s (long decode
+    # at high concurrency).
+    [ -n "${REQUEST_TIMEOUT_MS:-}" ] && export FLOCK_SEM_REQUEST_TIMEOUT_MS="$REQUEST_TIMEOUT_MS"
     SHAPE_ARGS=()
     [ -n "$RESPONSE_FORMAT" ] && SHAPE_ARGS+=(--response-format "$RESPONSE_FORMAT")
     [ -n "$OUT_MULT" ] && SHAPE_ARGS+=(--max-out-mult "$OUT_MULT")
