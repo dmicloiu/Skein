@@ -2,12 +2,27 @@
 
 #include "flock/runtime/semantic_settings.h"
 
+#include <cstdlib>
 #include <memory>
 
 namespace flock {
 
+// Benchmark-only knob: override the client's per-request timeout for
+// workloads whose service time exceeds the default. Never set in normal
+// operation.
+static AsyncLLMClient::Options ClientOptionsFromEnv() {
+    AsyncLLMClient::Options opts;
+    if (const char* p = std::getenv("FLOCK_SEM_REQUEST_TIMEOUT_MS")) {
+        const int v = std::atoi(p);
+        if (v > 0) {
+            opts.request_timeout_ms = v;
+        }
+    }
+    return opts;
+}
+
 ExtensionState::ExtensionState()
-    : client(std::make_shared<AsyncLLMClient>()),
+    : client(std::make_shared<AsyncLLMClient>(ClientOptionsFromEnv())),
       router(std::make_shared<EndpointRouter>(DefaultEndpointList(),
                                               EndpointRouter::ParseStrategy(SemanticDefaults::kRouting))) {}
 

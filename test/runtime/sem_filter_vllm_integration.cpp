@@ -233,7 +233,8 @@ int main(int argc, char** argv) {
 
     // Scalar path target: the default openai secret's base_url. The operator path
     // ignores this and uses semantic_endpoints. NOTE: the operator's AsyncLLMClient
-    // uses its built-in 60s per-request timeout (no SQL knob); --timeout-ms is
+    // uses its built-in 60s per-request timeout (overridable only via the
+    // FLOCK_SEM_REQUEST_TIMEOUT_MS benchmark env knob); --timeout-ms is
     // recorded for provenance and bounds a batch comfortably at these batch sizes.
     if (!Run(con, "CREATE SECRET (TYPE OPENAI, API_KEY 'sk-noauth', BASE_URL '" +
                           SqlEscape(DeriveBaseUrl(args.endpoints_csv)) + "');"))
