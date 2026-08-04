@@ -95,6 +95,15 @@ for CFG in $CONFIGS; do
             source "$CONDA_ROOT/etc/profile.d/conda.sh"; conda activate sembench
             export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
             export NO_PROXY="localhost,127.0.0.1,$MN_NODE0,$MN_NODE1"; export no_proxy="$NO_PROXY"
+            # FlashInfer JIT-locks on $HOME/.cache (NFS), and EVERY endpoint in
+            # the fleet contends on that one lock file during engine init. NFS
+            # then either refuses the lock (ENOLCK, Errno 37) or strands another
+            # client fd (ESTALE, Errno 116) -- which killed 4 fleet boots. Lock
+            # on node-local disk instead; cp -rn keeps the cache warm so nothing
+            # JIT-rebuilds (build_and_load locks even on a cache hit).
+            FI_BASE="/tmp/flashinfer_${SLURM_JOB_ID:-local}"
+            mkdir -p "$FI_BASE/.cache" && cp -rn "$HOME/.cache/flashinfer" "$FI_BASE/.cache/" 2>/dev/null
+            export FLASHINFER_WORKSPACE_BASE="$FI_BASE"
             OUT="$MN_OUT"; GEN="$MN_GEN"; TP="'"$TP"'"
             MODEL="${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
             REP="${REP:-}"; RSUF="${REP:+_$REP}"
@@ -156,6 +165,11 @@ for CFG in $CONFIGS; do
         source "$CONDA_ROOT/etc/profile.d/conda.sh"; conda activate sembench
         export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
         export NO_PROXY="localhost,127.0.0.1,$MN_NODE0,$MN_NODE1"; export no_proxy="$NO_PROXY"
+        # See the remote step above: keep the FlashInfer JIT lock off NFS.
+        # (No apostrophes in here -- this whole block is a single-quoted bash -c.)
+        FI_BASE="/tmp/flashinfer_${SLURM_JOB_ID:-local}"
+        mkdir -p "$FI_BASE/.cache" && cp -rn "$HOME/.cache/flashinfer" "$FI_BASE/.cache/" 2>/dev/null
+        export FLASHINFER_WORKSPACE_BASE="$FI_BASE"
         unset FLOCK_SEM_PROMPT FLOCK_SEM_VARIANTS
 
         FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
