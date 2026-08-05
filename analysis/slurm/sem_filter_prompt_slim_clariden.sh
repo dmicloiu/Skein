@@ -37,7 +37,12 @@ srun -ul --environment="$EDF" bash -c '
 
     FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
     BIN="$FLOCK/build/flock_sem_filter_vllm_integration"
-    OUT="$FLOCK/analysis/results/sem_filter_prompt_slim/${SLURM_JOB_ID}"; mkdir -p "$OUT"
+    # Canonical tuple encoding for the evaluation; TUPLE_FORMAT=XML runs the
+    # controlled encoding comparison against the pre-standardisation numbers. It is
+    # part of the artefact path so json and XML results can never overwrite each other.
+    TUPLE_FORMAT="${TUPLE_FORMAT:-json}"
+    OUT="$FLOCK/analysis/results/sem_filter_prompt_slim_${TUPLE_FORMAT}/${SLURM_JOB_ID}"
+    mkdir -p "$OUT"
     mkdir -p "$HOME/.duckdb"
 
     MODEL="Qwen/Qwen2.5-7B-Instruct"
@@ -51,7 +56,8 @@ srun -ul --environment="$EDF" bash -c '
     R_SWEEP="${R_SWEEP:-1 2 4}"
 
     echo "==================== ENV ===================="
-    echo "OUT=$OUT rows=$ROWS inflight=$IN_FLIGHT prompts=[$PROMPTS] R=[$R_SWEEP] bool schema threads=1 (cold per cell)"
+    echo "OUT=$OUT rows=$ROWS inflight=$IN_FLIGHT prompts=[$PROMPTS] R=[$R_SWEEP]"
+    echo "tuple_format=$TUPLE_FORMAT bool schema threads=1 (cold per cell)"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -92,6 +98,20 @@ srun -ul --environment="$EDF" bash -c '
         done
     }
 
+    # Encoding gate on the prompt the run actually rendered (FLOCK_PROMPT_DUMP
+    # captures the burn-in prompt, same template as the timed query). Catches a
+    # stale driver or an unapplied tuple_format before the sweep spends node time.
+    # json only: slim at R>1 renders row-major id lines under either setting, so
+    # absence of <row> is not evidence that an XML switch took effect.
+    assert_tuple_encoding() {  # assert_tuple_encoding <prompt-dump>
+        [ -s "$1" ] || { echo "GATE FAIL: no rendered prompt at $1"; exit 1; }
+        if [ "$TUPLE_FORMAT" = "json" ] && grep -qE "<row>|<column>" "$1"; then
+            echo "GATE FAIL: XML tuple scaffolding in $1 -- tuple_format=json did not apply"
+            exit 1
+        fi
+        echo "gate ok: rendered prompt matches tuple_format=$TUPLE_FORMAT ($1)"
+    }
+
     for P in $PROMPTS; do
         # full = committed META_PROMPT (env unset); slim = lean head.
         if [ "$P" = "slim" ]; then PENV="slim"; else PENV=""; fi
@@ -101,21 +121,25 @@ srun -ul --environment="$EDF" bash -c '
             echo "==================== prompt=$P R=$R (cold fleet) ===================="
             start_fleet
 
-            # pass 1: TIMING (dump off, burn-in on, cold cache)
+            # pass 1: TIMING (verdict dump off, burn-in on, cold cache). The prompt
+            # dump is the burn-in one -- synthetic rows, real template -- and feeds
+            # the encoding gate below at no cost.
             snap "$PDIR" "before_$tag"
-            FLOCK_SEM_PROMPT="$PENV" \
+            FLOCK_SEM_PROMPT="$PENV" FLOCK_PROMPT_DUMP="$PDIR/prompt_$tag.txt" \
                 "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
-                       --timeout-ms "$TIMEOUT_MS" \
+                       --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" \
                        --result-out "$PDIR/result_$tag.json" 2>&1 | tee "$PDIR/run_$tag.log"
             snap "$PDIR" "after_$tag"
+            assert_tuple_encoding "$PDIR/prompt_$tag.txt"
 
             # pass 2: VERDICTS (dump on, skip burn-in, timing discarded)
             FLOCK_SEM_PROMPT="$PENV" FLOCK_VERDICT_DUMP="$PDIR/verdicts_$tag.jsonl" \
                 "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
+                       --tuple-format "$TUPLE_FORMAT" \
                        --skip-burn-in 2>&1 | tee "$PDIR/verdict_$tag.log"
             echo "prompt=$P R=$R verdict lines=$(wc -l < "$PDIR/verdicts_$tag.jsonl" 2>/dev/null || echo 0) (expect $ROWS)"
 
@@ -128,7 +152,7 @@ srun -ul --environment="$EDF" bash -c '
     for P in $PROMPTS; do
         echo "-- $P --"; grep -h "rows_per_s\|batch\|passes" "$OUT/$P"/result_*.json 2>/dev/null || true
     done
-    echo "DONE. Artefacts in: $OUT/<full|slim>/"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_prompt_slim/"
-    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_prompt_slim/${SLURM_JOB_ID}/slim --data <local Reviews.csv>"
+    echo "DONE. Artefacts in: $OUT/<full|slim>/ (tuple_format=$TUPLE_FORMAT)"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_prompt_slim_${TUPLE_FORMAT}/"
+    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_prompt_slim_${TUPLE_FORMAT}/${SLURM_JOB_ID}/slim --data <local Reviews.csv>"
 '
