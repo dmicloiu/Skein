@@ -27,6 +27,11 @@ into the images (model / GPUs / caps / reps belong in the LaTeX caption).
                      the TP penalty shrinks with size.
   dp_cap_collapse    each fleet's cap sweep normalised by its own saturation
                      point: the two models collapse onto one curve.
+  dp_multinode       fleet-size generalization: the N=8 cross-node point on
+                     the ideal line + per-endpoint latency local vs remote.
+  dp_kvstress        workload-shape generalization: replica advantage per
+                     workload depth (prefill / 512 out / 1024 out) + the KV
+                     occupancy and preemption evidence.
 
 Median over reps; whiskers = min-max. Every figure draws each cell from ONE
 job family at 3 reps (curve / grid / unified / caps / scfleet / m*) so no
@@ -611,21 +616,25 @@ def render_model_efficiency(dp7, tp7, eff32, out_dir: Path) -> None:
 # is a shape, not a number.
 # ---------------------------------------------------------------------------
 def render_cap_collapse(summary: Path, out_dir: Path) -> None:
-    # one family per cell, matching the tables
-    plans = [("7B", "#2e8b57", {128: "curve", 256: "caps", 512: "curve",
-                                1024: "caps", 2048: "caps"}),
-             ("32B", "#c8722a", {32: "m32b_lowcap", 64: "m32b_lowcap",
-                                 128: "m32b_lowcap", 256: "m32b_c256",
-                                 512: "m32b_unified"})]
+    # One family per cell, matching the tables. 7B and 32B only, both 4xTP1:
+    # the collapse isolates MODEL SIZE with topology, fleet shape, caps grid
+    # and workload held fixed (the 72B fleet cannot run 4xTP1, so including it
+    # would mix a second variable into the comparison).
+    plans = [("7B", "#2e8b57", (4, 1),
+              {128: "curve", 256: "caps", 512: "curve",
+               1024: "caps", 2048: "caps"}),
+             ("32B", "#c8722a", (4, 1),
+              {32: "m32b_lowcap", 64: "m32b_lowcap", 128: "m32b_lowcap",
+               256: "m32b_c256", 512: "m32b_unified"})]
     fig, ax = plt.subplots(figsize=(7.4, 4.6))
     ax.axhline(100, ls=":", lw=1.5, color="0.5", zorder=1)
     ax.axvline(1.0, ls="--", lw=1.4, color="0.5", zorder=1)
-    for model, color, fam_by_cap in plans:
+    for model, color, (n_ep, tp), fam_by_cap in plans:
         pts = {}
         for cap, fam in fam_by_cap.items():
-            v = [vals for (arm, n, tp, c), vals in
+            v = [vals for (arm, n, tpp, c), vals in
                  collect_dp(summary, "rows_s", jobs=fam, model=model).items()
-                 if arm == "op" and n == 4 and tp == 1 and c == cap]
+                 if arm == "op" and n == n_ep and tpp == tp and c == cap]
             if v:
                 pts[cap] = median(v[0])
         if len(pts) < 3:
@@ -635,11 +644,11 @@ def render_cap_collapse(summary: Path, out_dir: Path) -> None:
         xs = sorted(pts)
         ax.plot([c / cstar for c in xs], [100 * pts[c] / plateau for c in xs],
                 marker="o", ms=7, lw=2.0, color=color, zorder=3,
-                label=f"{model} (C* = {cstar // 4} per endpoint)")
+                label=f"{model} {n_ep}xTP{tp} (C* = {cstar // n_ep} per endpoint)")
         for c in xs:
             # nudge the labels at the C* line sideways, off the dashed marker
             dx = -7 if c == cstar and model != "7B" else 0
-            ax.annotate(str(c // 4), (c / cstar, 100 * pts[c] / plateau),
+            ax.annotate(str(c // n_ep), (c / cstar, 100 * pts[c] / plateau),
                         textcoords="offset points",
                         xytext=(dx, -14) if model == "7B" else (dx, 8),
                         ha="center", fontsize=8, color=color)
@@ -654,6 +663,181 @@ def render_cap_collapse(summary: Path, out_dir: Path) -> None:
     _suptitle(fig, "cap response of the 7B and 32B fleets (4 endpoints each), "
                    "normalised by saturation cap")
     _save(fig, out_dir, "dp_cap_collapse")
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Generalization figures.
+# dp_multinode -- fleet-size generalization: the DP curve crossing the node
+# boundary at per-GPU ~1.0, with the per-endpoint evidence that the network
+# hop is invisible (local and remote endpoints indistinguishable in latency
+# and share).
+# ---------------------------------------------------------------------------
+def render_multinode(rows_dp, base, mn_rows, bal, out_dir: Path) -> None:
+    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(12.4, 4.6))
+
+    # (a) throughput vs N with the cross-node point
+    ax = ax_l
+    xs = [g for g, _, _, _ in rows_dp] + [8]
+    ax.plot(xs, [base * g for g in xs], ls="--", lw=1.6, color=COLOR_IDEAL,
+            zorder=1, label="ideal linear")
+    ax.axvspan(5.66, 11, color="0.92", zorder=0)
+    ax.text(6.8, base * 1.5, "two nodes", fontsize=10, color="0.4",
+            ha="center", rotation=90)
+    m = [v for _, v, _, _ in rows_dp]
+    ax.errorbar([g for g, _, _, _ in rows_dp], m,
+                yerr=[[v - a for _, v, a, _ in rows_dp],
+                      [b - v for _, v, _, b in rows_dp]],
+                marker="o", ms=7, lw=2.0, capsize=3, color=COLOR_DP, zorder=3,
+                label="DP, single node")
+    v, a, b = mn_rows
+    ax.errorbar([8], [v], yerr=[[v - a], [b - v]], marker="o", ms=8, lw=0,
+                capsize=3, color=COLOR_DP, markerfacecolor="white",
+                markeredgewidth=1.8, zorder=4, label="DP, 4 + 4 over 2 nodes")
+    for g, val in list(zip([g for g, _, _, _ in rows_dp], m)) + [(8, v)]:
+        off, ha = ((7, -14), "left") if g == 1 else ((-4, 9), "right")
+        ax.annotate(f"{val:.0f}", (g, val), textcoords="offset points",
+                    xytext=off, ha=ha, fontsize=9.5, fontweight="bold",
+                    color=COLOR_DP)
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(xs)
+    ax.set_xticklabels([str(g) for g in xs])
+    ax.set_xlim(0.82, 8 * 1.35)
+    ax.set_xlabel("GH200 GPUs (TP1 endpoints)")
+    ax.set_ylabel("throughput (rows/s)")
+    ax.set_title("(a) throughput across the node boundary")
+    ax.legend(loc="upper left", fontsize=10)
+
+    # (b) per-endpoint mean e2e at N=8: local vs remote indistinguishable
+    ax = ax_r
+    per_ep = {}
+    for r in bal:
+        if (r["job"].startswith("mn_rep") and r["cap"] == "1024" and r["e2e_ms"]):
+            per_ep.setdefault(int(r["ep"]), []).append(float(r["e2e_ms"]))
+    if per_ep:
+        eps = sorted(per_ep)
+        for ep in eps:
+            v_, a_, b_ = stat(per_ep[ep])
+            ax.bar(ep, v_, 0.62, yerr=[[v_ - a_], [b_ - v_]], capsize=2,
+                   color="#2e8b57" if ep < 4 else "white",
+                   edgecolor="#2e8b57" if ep < 4 else "#1a5c1a",
+                   linewidth=0.6 if ep < 4 else 1.6, zorder=3,
+                   label=("node 0 (local)" if ep == 0 else
+                          "node 1 (remote)" if ep == 4 else None))
+        fleet = [v for vs in per_ep.values() for v in vs]
+        ax.axhline(sum(fleet) / len(fleet), ls=":", lw=1.4, color="0.4",
+                   zorder=2, label="fleet mean")
+        ax.set_xticks(eps)
+        ax.set_xticklabels([f"ep{e}" for e in eps])
+        ax.set_ylim(0, max(fleet) * 1.3)
+        ax.set_xlabel("endpoint (requests split 12.50% each)")
+        ax.set_ylabel("mean e2e per request (ms)")
+        ax.set_title("(b) per-endpoint latency at N=8")
+        ax.legend(loc="lower right", fontsize=9.5)
+    _suptitle(fig, "fleet-size generalization: N=8 across two nodes")
+    _save(fig, out_dir, "dp_multinode")
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# dp_kvstress -- workload-shape generalization: the decode-heavy KV stress
+# test. (a) the replica advantage (4xTP1 vs 1xTP4) per workload: intact on
+# prefill, erased at 32B under decode+KV pressure, control (7B) unaffected.
+# (b) the mechanism: KV peak occupancy and preemptions, replicas only.
+# ---------------------------------------------------------------------------
+def render_kvstress(summary: Path, out_dir: Path) -> None:
+    def cell(jobs, model, n, tp, col="rows_s"):
+        v = [vals for (arm, nn, tt, c), vals in
+             collect_dp(summary, col, jobs=jobs, model=model).items()
+             if arm == "op" and nn == n and tt == tp and c == 512]
+        return (median(v[0]), len(v[0])) if v else (None, 0)
+
+    fams = {("7B", "prefill"): "grid", ("32B", "prefill"): "m32b_unified",
+            ("7B", "decode"): "kvstress_rep", ("32B", "decode"): "m32b_kvstress",
+            ("7B", "deep"): "kvdeep_rep", ("32B", "deep"): "m32b_kvdeep"}
+    ratios, reps, kv, pre = {}, {}, {}, {}
+    for (model, wl), fam in fams.items():
+        (r4, n4), (r1, n1) = cell(fam, model, 4, 1), cell(fam, model, 1, 4)
+        if r4 and r1:
+            ratios[(model, wl)] = r4 / r1
+            reps[(model, wl)] = min(n4, n1)
+        if wl in ("decode", "deep"):
+            for topo, (n, tp) in (("4xTP1", (4, 1)), ("1xTP4", (1, 4))):
+                kv[(model, wl, topo)] = cell(fam, model, n, tp, "kv_max")[0]
+                pre[(model, wl, topo)] = cell(fam, model, n, tp, "preemptions")[0]
+    if len(ratios) < 4:
+        print("  [warn] kvstress cells incomplete -> skipping dp_kvstress",
+              file=sys.stderr)
+        return
+
+    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(13.2, 4.6))
+
+    # (a) replica advantage per workload; parity line = the boundary
+    ax = ax_l
+    width = 0.3
+    wls = [("prefill", "prefill-heavy\n(511 in / 9 out)"),
+           ("decode", "decode-heavy\n(511 in / 512 out)"),
+           ("deep", "deep decode\n(511 in / 1024 out)")]
+    for gi, (wl, lab) in enumerate(wls):
+        for bi, model in enumerate(("7B", "32B")):
+            if (model, wl) not in ratios:
+                continue
+            x = gi + (bi - 0.5) * width
+            v = ratios[(model, wl)]
+            ax.bar(x, v, width * 0.9, color=MODEL_COLORS_SCALE[model],
+                   edgecolor="black", linewidth=0.6, zorder=3,
+                   label=model if gi == 0 else None)
+            n_rep = reps[(model, wl)]
+            note = f"{v:.2f}x" + (f"\n({n_rep} rep)" if n_rep < 3 else "")
+            ax.text(x, v + 0.03, note, ha="center", va="bottom",
+                    fontsize=10, fontweight="bold")
+    ax.axhline(1.0, ls="--", lw=1.5, color="0.35", zorder=2)
+    ax.text(-0.42, 1.02, "parity", fontsize=9.5, color="0.35", va="bottom")
+    ax.set_xticks(range(len(wls)))
+    ax.set_xticklabels([lab for _, lab in wls])
+    ax.set_ylabel("replica advantage (4xTP1 / 1xTP4 rows/s)")
+    ax.set_ylim(0, 1.75)
+    ax.set_title("(a) the replica advantage per workload")
+    ax.legend(loc="upper right", fontsize=10)
+
+    # (b) the mechanism, depth-resolved: KV peak + preemptions per stress cell
+    ax = ax_r
+    groups = [(m, wl) for m in ("7B", "32B") for wl in ("decode", "deep")
+              if kv.get((m, wl, "4xTP1")) is not None]
+    glabels = {("7B", "decode"): "7B, 512 out\n(control)",
+               ("7B", "deep"): "7B, 1024 out\n(control)",
+               ("32B", "decode"): "32B, 512 out",
+               ("32B", "deep"): "32B, 1024 out"}
+    for gi, (model, wl) in enumerate(groups):
+        for bi, topo in enumerate(("4xTP1", "1xTP4")):
+            x = gi + (bi - 0.5) * width
+            v = 100 * (kv[(model, wl, topo)] or 0)
+            solid = topo == "4xTP1"
+            ax.bar(x, v, width * 0.9,
+                   color=MODEL_COLORS_SCALE[model] if solid else "white",
+                   edgecolor="black" if solid else MODEL_COLORS_SCALE[model],
+                   linewidth=0.6 if solid else 1.6, zorder=3)
+            n_pre = pre[(model, wl, topo)] or 0
+            note = f"{v:.0f}%" + (f"\n{n_pre:.0f} preempt." if n_pre else "")
+            ax.text(x, v + 2.5, note, ha="center", va="bottom", fontsize=9,
+                    fontweight="bold")
+    # model-neutral topology legend: fill vs outline carries the topology
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(facecolor="0.55", edgecolor="black",
+                             label="4xTP1 (replicas)"),
+                       Patch(facecolor="white", edgecolor="0.35",
+                             linewidth=1.6, label="1xTP4")],
+              loc="upper left", fontsize=9.5)
+    ax.axhline(100, ls=":", lw=1.5, color="0.4", zorder=2)
+    ax.set_xticks(range(len(groups)))
+    ax.set_xticklabels([glabels[g] for g in groups])
+    ax.set_ylabel("peak KV-cache occupancy (%)")
+    ax.set_ylim(0, 132)
+    ax.set_title("(b) KV pressure on the stress workloads")
+
+    _suptitle(fig, "workload-shape generalization: the KV/decode boundary of "
+                   "the replica advantage")
+    _save(fig, out_dir, "dp_kvstress")
     plt.close(fig)
 
 
@@ -809,6 +993,17 @@ def main() -> int:
     else:
         print(f"  [warn] balance csv missing ({args.balance}) -> skipping dp_balance",
               file=sys.stderr)
+
+    # generalization figures: fleet size (multi-node) and workload shape (KV)
+    rows_mn = collect_dp(args.summary, "rows_s", jobs="mn_rep")
+    if ("op", 8, 1, 1024) in rows_mn and args.balance.exists():
+        render_multinode(rows["dp"], rows["base"],
+                         stat(rows_mn[("op", 8, 1, 1024)]),
+                         collect_balance(args.balance), args.out_dir)
+    else:
+        print("  [warn] no multi-node cells -> skipping dp_multinode",
+              file=sys.stderr)
+    render_kvstress(args.summary, args.out_dir)
 
     # model frontier (needs >1 model among the 4-GPU cap-512 cells)
     cells = collect_frontier(summary_rows)
