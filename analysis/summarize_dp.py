@@ -51,8 +51,11 @@ HZ = 100  # kernel tick rate for /proc/<pid>/stat utime/stime
 
 
 def _metric(path: Path, name: str, label: str | None = None) -> float | None:
+    """Sum over the metric's label series (a counter may split by label, e.g.
+    request_success_total by finished_reason); label narrows to one series."""
     if not path.exists():
         return None
+    total, seen = 0.0, False
     for line in path.read_text().splitlines():
         if line.startswith("#") or not line.strip():
             continue
@@ -61,10 +64,11 @@ def _metric(path: Path, name: str, label: str | None = None) -> float | None:
         if label is not None and label not in line:
             continue
         try:
-            return float(line.rsplit(" ", 1)[1])
+            total += float(line.rsplit(" ", 1)[1])
+            seen = True
         except (ValueError, IndexError):
             continue
-    return None
+    return total if seen else None
 
 
 def _delta(d: Path, mid: str, ep: int, name: str, label: str | None = None):
@@ -208,8 +212,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
         el = j.get("elapsed_s")
         rows = j.get("rows")
 
-        rq = _fleet_delta(d, stem, eps, "vllm:request_success_total",
-                          'finished_reason="stop"')
+        rq = _fleet_delta(d, stem, eps, "vllm:request_success_total")
         pt = _fleet_delta(d, stem, eps, "vllm:prompt_tokens_total")
         gt = _fleet_delta(d, stem, eps, "vllm:generation_tokens_total")
         ch = _fleet_delta(d, stem, eps, "vllm:prefix_cache_hits_total")
@@ -241,10 +244,11 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
         meta = _meta(d / f"meta_{stem}.txt")
         ep_reqs = {}
         for ep in eps:
-            erq = _delta(d, stem, ep, "vllm:request_success_total",
-                         'finished_reason="stop"')
+            erq = _delta(d, stem, ep, "vllm:request_success_total")
             ept = _delta(d, stem, ep, "vllm:prompt_tokens_total")
             egt = _delta(d, stem, ep, "vllm:generation_tokens_total")
+            es = _delta(d, stem, ep, "vllm:e2e_request_latency_seconds_sum")
+            ec = _delta(d, stem, ep, "vllm:e2e_request_latency_seconds_count")
             ep_reqs[ep] = erq
             g = per_ep_gauges[ep]
             balance.append({
@@ -256,6 +260,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
                 "gen_tok": int(egt) if egt is not None else None,
                 "run_mean": g["run_mean"], "wait_mean": g["wait_mean"],
                 "kv_mean": g["kv_mean"],
+                "e2e_ms": round(es / ec * 1000.0) if (es and ec) else None,
             })
         shares = None
         tot_req = sum(v for v in ep_reqs.values() if v is not None)
@@ -370,7 +375,7 @@ COLUMNS = ["job", "arm", "n_ep", "tp", "gpus", "cap", "R", "threads", "rows",
            "passes", "pass_pct", "precision", "recall", "f1", "verdict_rows"]
 BALANCE_COLUMNS = ["job", "model", "arm", "n_ep", "tp", "cap", "ep", "requests",
                    "req_share_pct", "prompt_tok", "gen_tok",
-                   "run_mean", "wait_mean", "kv_mean"]
+                   "run_mean", "wait_mean", "kv_mean", "e2e_ms"]
 PREVIEW_COLUMNS = ["job", "arm", "n_ep", "tp", "cap", "rows_s", "eff", "eff_gpu",
                    "computed_tok_s", "run_mean", "wait_mean", "e2e_ms",
                    "req_share_spread", "client_cpu_cores", "f1"]
