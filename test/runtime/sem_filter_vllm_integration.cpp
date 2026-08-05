@@ -47,6 +47,11 @@ struct Args {
     int rows_per_request = 32;  // == batch_size (operator) / model batch_size (scalar)
     int timeout_ms = 120000;
     std::string result_out;
+    // Tuple encoding of the {{TUPLES}} block. flock's model default is XML; the
+    // sembench cross-system harness configures json, and json is the canonical
+    // encoding for the evaluation (fewer tokens per row, better F1), so default to
+    // it here and keep the knob for an explicit XML comparison.
+    std::string tuple_format = "json";
     // Morsel control: 0 = default (in-memory table, one row group => one morsel,
     // single-threaded scan). >0 attaches an on-disk DB with this ROW_GROUP_SIZE
     // (must be a multiple of 2048) and materialises the reviews there, so the
@@ -77,7 +82,8 @@ void Usage(const char* prog) {
                  "          [--attach-db PATH (on-disk DB backing the morsel layout)]\n"
                  "          [--skip-burn-in (untimed verdict-dump pass only)]\n"
                  "          [--max-out-mult N (max_output_tokens = N*R; default 16)]\n"
-                 "          [--response-format json_schema|free_form]\n",
+                 "          [--response-format json_schema|free_form]\n"
+                 "          [--tuple-format json|XML|Markdown (default json)]\n",
                  prog);
 }
 
@@ -108,6 +114,7 @@ bool ParseArgs(int argc, char** argv, Args* a) {
         else if (!std::strcmp(k, "--skip-burn-in")) a->skip_burn_in = true;
         else if (!std::strcmp(k, "--max-out-mult")) a->max_out_mult = std::atoi(need("--max-out-mult"));
         else if (!std::strcmp(k, "--response-format")) a->response_format = need("--response-format");
+        else if (!std::strcmp(k, "--tuple-format")) a->tuple_format = need("--tuple-format");
         else if (!std::strcmp(k, "-h") || !std::strcmp(k, "--help")) {
             Usage(argv[0]);
             return false;
@@ -203,6 +210,7 @@ void WriteResultJson(const Args& a, long long passes, long long rows_loaded, dou
     out << "  \"model\": \"" << a.model << "\",\n";
     out << "  \"max_out_mult\": " << a.max_out_mult << ",\n";
     out << "  \"response_format\": \"" << (a.response_format.empty() ? "json_schema" : a.response_format) << "\",\n";
+    out << "  \"tuple_format\": \"" << a.tuple_format << "\",\n";
     out << "  \"endpoints\": \"" << a.endpoints_csv << "\"\n";
     out << "}\n";
 }
@@ -257,10 +265,15 @@ int main(int argc, char** argv) {
     // the cap never clips a valid array while still bounding a runaway generation.
     const long long max_out_tokens = static_cast<long long>(args.max_out_mult) * args.rows_per_request;
     const std::string tok = std::to_string(max_out_tokens);
+    // tuple_format is pinned explicitly: the model default is XML, and leaving it
+    // implicit is what split this study's prompts from the sembench cross-system
+    // runs (which set json). Both arms read the same model, so the encoding stays
+    // A/B-fair whichever value is passed.
     if (!Run(con, "CREATE MODEL ('" + SqlEscape(args.model) + "', '" + SqlEscape(args.model) +
                           "', 'openai', {\"batch_size\": " + std::to_string(args.rows_per_request) +
                           ", \"max_output_tokens\": " + tok +
-                          ", \"model_parameters\": {\"max_tokens\": " + tok +
+                          ", \"tuple_format\": \"" + SqlEscape(args.tuple_format) +
+                          "\", \"model_parameters\": {\"max_tokens\": " + tok +
                           ", \"temperature\": 0}});"))
         return 1;
 
@@ -302,9 +315,11 @@ int main(int argc, char** argv) {
             "'context_columns': [{'data': r." + args.text_col + ", 'name': 'review'}]});";
 
     std::fprintf(stderr,
-                 "rewrite=%s threads=%d rows=%lld inflight=%d batch=%d model=%s endpoints=%s\n",
+                 "rewrite=%s threads=%d rows=%lld inflight=%d batch=%d tuple_format=%s model=%s "
+                 "endpoints=%s\n",
                  args.rewrite.c_str(), args.threads, rows_loaded, args.inflight,
-                 args.rows_per_request, args.model.c_str(), args.endpoints_csv.c_str());
+                 args.rows_per_request, args.tuple_format.c_str(), args.model.c_str(),
+                 args.endpoints_csv.c_str());
 
     // --- burn-in (UNTIMED): warm vLLM compute on a fresh endpoint before timing.
     // One full batch of SYNTHETIC rows through the SAME llm_filter path compiles

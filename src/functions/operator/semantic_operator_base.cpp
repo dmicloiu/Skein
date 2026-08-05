@@ -114,6 +114,25 @@ nlohmann::json ParseItems(const CompletedBatch& batch) {
     return items;
 }
 
+// Optional one-shot dump of the first rendered prompt (env FLOCK_PROMPT_DUMP=<path>),
+// so a benchmark run can be gated on the prompt it actually sent -- tuple encoding,
+// head, variants -- rather than on the flags meant to produce it. Inert unless the
+// env var is set; writes one prompt, so it cannot grow with the run.
+void DumpPrompt(const std::string& prompt) {
+    static std::FILE* out = [] {
+        const char* p = std::getenv("FLOCK_PROMPT_DUMP");
+        return (p && *p) ? std::fopen(p, "wb") : nullptr;
+    }();
+    if (!out) {
+        return;
+    }
+    static std::once_flag once;
+    std::call_once(once, [&] {
+        std::fwrite(prompt.data(), 1, prompt.size(), out);
+        std::fflush(out);
+    });
+}
+
 // Optional per-row verdict dump for prompt-degradation diagnostics
 // (env FLOCK_VERDICT_DUMP=<path>). One JSONL line per row: the query-global
 // row_id (== table scan order at threads=1), the row's 0-based position within
@@ -500,7 +519,11 @@ duckdb::unique_ptr<SemGlobalSinkState> SemanticOperatorBase::CreateGlobalSinkSta
     // Bind the engine's render + schema hooks to this operator. `this` outlives the
     // sink state (the operator owns sink_state), and both hooks are set once before
     // any Sink call, then only read.
-    state->render_prompt = [this](const std::vector<RowData>& batch) { return RenderPrompt(batch); };
+    state->render_prompt = [this](const std::vector<RowData>& batch) {
+        auto prompt = RenderPrompt(batch);
+        DumpPrompt(prompt);  // no-op unless FLOCK_PROMPT_DUMP is set (diagnostics)
+        return prompt;
+    };
     state->response_schema = [this](size_t batch_rows) { return BuildResponseFormat(batch_rows); };
     return state;
 }
