@@ -203,7 +203,7 @@ srun -ul --environment="$EDF" bash -c '
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINT" --model "$MODEL" \
             --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
             --rewrite "$1" --threads "$2" --inflight "$3" --rows-per-request 1 \
-            --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
+            --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" "${rgs_args[@]}" \
             --result-out "$OUT/result_$4.json" 2>&1 | tee "$OUT/run_$4.log"
         stop_sampler
         snap "after_$4"
@@ -233,6 +233,7 @@ srun -ul --environment="$EDF" bash -c '
                                --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                                --rewrite on --threads "$OP_THREADS" --inflight "$CAP" \
                                --rows-per-request 1 --timeout-ms "$TIMEOUT_MS" \
+                               --tuple-format "$TUPLE_FORMAT" \
                                --skip-burn-in 2>&1 | tee "$OUT/verdict_tp${TP}.log"
                     echo "tp=$TP verdict lines=$(wc -l < "$OUT/verdicts_tp${TP}.jsonl" 2>/dev/null || echo 0) (expect $ROWS)"
                     DID_VERDICT=1

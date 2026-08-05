@@ -293,7 +293,7 @@ srun -ul --environment="$EDF" bash -c '
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
             --data "$data" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$rows" \
             --rewrite "$rw" --threads "$th" --inflight "$cap" --rows-per-request 1 \
-            --timeout-ms "$TIMEOUT_MS" ${SHAPE_ARGS[@]+"${SHAPE_ARGS[@]}"} \
+            --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" ${SHAPE_ARGS[@]+"${SHAPE_ARGS[@]}"} \
             --result-out "$OUT/result_$tag.json" > "$OUT/run_$tag.log" 2>&1 &
         local dpid=$!
         start_client_sampler "$dpid" "$tag"
@@ -374,6 +374,7 @@ srun -ul --environment="$EDF" bash -c '
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$GOLD_ROWS" \
                        --rewrite on --threads "$OP_THREADS" --inflight "$CAP" \
                        --rows-per-request 1 --timeout-ms "$TIMEOUT_MS" \
+                       --tuple-format "$TUPLE_FORMAT" \
                        --skip-burn-in 2>&1 | tee "$OUT/verdict_${KEY}${RSUF}.log"
             LINES=$(wc -l < "$OUT/verdicts_${KEY}${RSUF}.jsonl" 2>/dev/null || echo 0)
             echo "verdicts $KEY: $LINES lines (expect $GOLD_ROWS)"

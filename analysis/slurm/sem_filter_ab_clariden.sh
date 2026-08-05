@@ -142,7 +142,7 @@ srun -ul --environment="$EDF" bash -c '
         "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
                --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                --rewrite "$1" --threads "$2" --inflight "$IN_FLIGHT" --rows-per-request "$BATCH" \
-               --timeout-ms "$TIMEOUT_MS" "${rgs_args[@]}" \
+               --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" "${rgs_args[@]}" \
                --result-out "$OUT/result_$3.json" 2>&1 | tee "$OUT/run_$3.log"
         snap "after_$3"
     }
