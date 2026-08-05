@@ -48,7 +48,11 @@ srun -ul --environment="$EDF" bash -c '
 
     FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
     BIN="$FLOCK/build/flock_sem_filter_vllm_integration"
-    OUT="$FLOCK/analysis/results/tp_scaling/${SLURM_JOB_ID}"; mkdir -p "$OUT"
+    # Tuple encoding is part of the artefact path: the driver renders json by
+    # default now, and the pre-standardisation results were XML, so the two must
+    # never share a directory. TUPLE_FORMAT=XML reruns the old encoding.
+    TUPLE_FORMAT="${TUPLE_FORMAT:-json}"
+    OUT="$FLOCK/analysis/results/tp_scaling_${TUPLE_FORMAT}/${SLURM_JOB_ID}"; mkdir -p "$OUT"
 
     # Job-private HOME for the driver: flock persists its model catalog at
     # $HOME/.duckdb/flock_storage and parallel rep jobs race the shared file
@@ -275,6 +279,6 @@ srun -ul --environment="$EDF" bash -c '
     echo "expect: operator rows/s rises with TP (pick the saturating cap per TP);"
     echo "        scalar ~flat (concurrency 1 gets only the per-request TP latency gain)."
     echo "DONE. Artefacts in: $OUT"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/tp_scaling/"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/tp_scaling_${TUPLE_FORMAT}/"
     echo "Summarise:  python analysis/summarize_tp.py"
 '

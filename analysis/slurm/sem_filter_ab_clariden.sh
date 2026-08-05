@@ -33,7 +33,11 @@ srun -ul --environment="$EDF" bash -c '
 
     FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
     BIN="$FLOCK/build/flock_sem_filter_vllm_integration"
-    OUT="$FLOCK/analysis/results/sem_filter_ab/${SLURM_JOB_ID}"; mkdir -p "$OUT"
+    # Tuple encoding is part of the artefact path: the driver renders json by
+    # default now, and the pre-standardisation results were XML, so the two must
+    # never share a directory. TUPLE_FORMAT=XML reruns the old encoding.
+    TUPLE_FORMAT="${TUPLE_FORMAT:-json}"
+    OUT="$FLOCK/analysis/results/sem_filter_ab_${TUPLE_FORMAT}/${SLURM_JOB_ID}"; mkdir -p "$OUT"
 
     # flock persists its model/secret catalog at ~/.duckdb/flock_storage; its
     # CreateDirectory is non-recursive (src/core/config/config.cpp:47), so the
@@ -188,5 +192,5 @@ srun -ul --environment="$EDF" bash -c '
     echo "ceiling reference: ~800 rows/s (E5, Qwen2.5-7B, N=128 R=32)."
     echo "expect: operator ~flat near ceiling across threads; scalar plateaus at its morsel-bound max."
     echo "DONE. Artefacts in: $OUT (metrics_*_ep*, result_*.json, run_*.log, vllm-*.log)"
-    echo "Pull home with e.g.:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_ab/"
+    echo "Pull home with e.g.:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_ab_${TUPLE_FORMAT}/"
 '
