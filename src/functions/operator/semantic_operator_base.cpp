@@ -137,9 +137,17 @@ void DumpPrompt(const std::string& prompt) {
 // (env FLOCK_VERDICT_DUMP=<path>). One JSONL line per row: the query-global
 // row_id (== table scan order at threads=1), the row's 0-based position within
 // its batch, and the raw model verdict element. Inert unless the env var is set;
-// buffered (no per-batch flush) and, by protocol, only ever enabled on an
-// untimed pass, so it cannot perturb a measured run. Serialises the raw element
-// generically, so it is not filter-specific.
+// by protocol only ever enabled on an untimed pass, so it cannot perturb a
+// measured run. Serialises the raw element generically, so it is not
+// filter-specific.
+//
+// Flushes per batch. It used to rely on stdio buffering with no flush and no
+// close, which silently capped every dump at ONE 64 KiB buffer -- the process
+// exits without draining the rest, so a 2000-row dump landed at exactly 65536
+// bytes (~1900 rows here) with a truncated final line. The loss scales with row
+// width, not with a fixed row count, and at high R the surviving rows are an
+// interleaved subset rather than a prefix. The flush is free: the dump is
+// untimed by protocol.
 void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
     static std::FILE* out = [] {
         const char* p = std::getenv("FLOCK_VERDICT_DUMP");
@@ -154,6 +162,7 @@ void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
         std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"v\":%s}\n",
                      static_cast<unsigned long long>(batch.row_ids[i]), i, items[i].dump().c_str());
     }
+    std::fflush(out);
 }
 
 }  // namespace
