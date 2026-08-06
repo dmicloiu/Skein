@@ -184,6 +184,48 @@ TEST(SemExtractE2E, ScalarReturnsExtractedColumn) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. Production shape: 2000 rows at batch_size=8 / cap 128.
+//
+// The 6-row cases above never leave one DataChunk and never fill the in-flight
+// window. Cross-system Q103 diverges from the model verdicts only at R>=4 (R=1/2
+// agree), so the suspect is scale: multi-batch coalescing, a full in-flight
+// window, and rows spanning DuckDB's 2048-row chunk boundary. Each row carries a
+// unique marker, so any pairing slip between a row and its completion shows up as
+// a mismatched (id, dx) pair rather than as an aggregate quality drop.
+// ---------------------------------------------------------------------------
+TEST(SemExtractE2E, ProductionShapePairingHolds) {
+    duckdb::Connection con(*g_db);
+    con.Query("SET semantic_rewrite_enabled=true;");
+    con.Query("SET semantic_batch_size=8;");
+    con.Query("SET semantic_in_flight_cap=128;");
+
+    const std::string q =
+            "SELECT id, llm_complete({'model_name': 'gpt-4o'}, "
+            "{'prompt': 'Classify the symptoms to a disease.', "
+            "'context_columns': [{'data': symptoms}]}) AS dx FROM wide_cases";
+    ASSERT_TRUE(PlanHasSemExtract(con, q));
+
+    const auto pairs = RunPairs(con, q);
+    ASSERT_EQ(pairs.size(), 2000u);
+    std::vector<std::pair<long long, std::string>> expected;
+    expected.reserve(2000);
+    for (long long i = 1; i <= 2000; ++i) {
+        expected.emplace_back(i, "D" + std::to_string(i));
+    }
+    // Report the first few slips rather than a 2000-pair diff.
+    size_t mismatches = 0;
+    for (size_t i = 0; i < pairs.size(); ++i) {
+        if (pairs[i] != expected[i]) {
+            if (++mismatches <= 5) {
+                ADD_FAILURE() << "row " << pairs[i].first << ": got dx=" << pairs[i].second << ", want "
+                              << expected[i].second;
+            }
+        }
+    }
+    EXPECT_EQ(mismatches, 0u) << mismatches << " of 2000 rows carry another row's completion";
+}
+
+// ---------------------------------------------------------------------------
 // 3. A/B parity: operator and scalar return identical columns (== expected).
 // ---------------------------------------------------------------------------
 TEST(SemExtractE2E, ABParityIdenticalResults) {
@@ -233,6 +275,12 @@ int main(int argc, char** argv) {
                 "(4, 'patient reports [[DX=MIGRAINE]] and headache'), "
                 "(5, 'patient reports [[DX=ALLERGY]] and sneezing'), "
                 "(6, 'patient reports [[DX=DENGUE]] and joint pain');");
+
+        // Production-shape table: 2000 rows, each with a unique marker, so a
+        // row->completion slip is visible per row (see ProductionShapePairingHolds).
+        setup.Query("CREATE TABLE wide_cases AS SELECT i AS id, "
+                    "'patient reports [[DX=D' || i::VARCHAR || ']] and symptoms' AS symptoms "
+                    "FROM range(1, 2001) t(i);");
 
         rc = RUN_ALL_TESTS();
         flock::g_db = nullptr;
