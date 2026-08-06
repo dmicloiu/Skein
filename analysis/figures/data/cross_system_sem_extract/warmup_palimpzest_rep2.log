@@ -17,7 +17,7 @@ Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-7B-Instruct, api_base=htt
   MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
   LLMConvertBonded (275b8f5c96)     ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
   ProjectOp (97e6eb8e58)            ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
-Total time: 1.73s
+Total time: 1.70s
 Total cost: $0.0000
 Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
 prompt token: 0.0, completion token: 2426.0
@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   palimpzest: ✅ Completed
-    Q103: ✅ 1.83s, 20 rows, 2426.0 tokens
+    Q103: ✅ 1.80s, 20 rows, 2426.0 tokens
