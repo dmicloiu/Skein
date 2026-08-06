@@ -60,6 +60,11 @@ srun -ul --environment="$EDF" bash -c '
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT  rows=$ROWS  inflight=$IN_FLIGHT  R_sweep=[$R_SWEEP]  threads=1  (cold fleet per R)"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -120,13 +125,13 @@ srun -ul --environment="$EDF" bash -c '
 
         # --- pass 1: TIMING (dump off, burn-in on, cold cache) --------------
         snap "before_$tag"
-        "$BIN" "${common_args[@]}" --rows-per-request "$R" \
+        HOME="$JOB_HOME" "$BIN" "${common_args[@]}" --rows-per-request "$R" \
                --result-out "$OUT/result_$tag.json" 2>&1 | tee "$OUT/run_$tag.log"
         snap "after_$tag"
 
         # --- pass 2: VERDICTS (dump on, skip burn-in, timing discarded) -----
         FLOCK_VERDICT_DUMP="$OUT/verdicts_$tag.jsonl" \
-            "$BIN" "${common_args[@]}" --rows-per-request "$R" \
+            HOME="$JOB_HOME" "$BIN" "${common_args[@]}" --rows-per-request "$R" \
                    --skip-burn-in 2>&1 | tee "$OUT/verdict_$tag.log"
         vlines=$(wc -l < "$OUT/verdicts_$tag.jsonl" 2>/dev/null || echo 0)
         echo "R=$R verdict lines=$vlines (expect $ROWS)"

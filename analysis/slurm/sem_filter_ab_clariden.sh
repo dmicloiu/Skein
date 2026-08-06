@@ -83,6 +83,11 @@ srun -ul --environment="$EDF" bash -c '
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT  rows=$ROWS  threads_sweep=[$THREADS_SWEEP]  (cold fleet per run)"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -144,7 +149,7 @@ srun -ul --environment="$EDF" bash -c '
         fi
         echo "------ RUN $3 (rewrite=$1 threads=$2 rows=$ROWS inflight=$IN_FLIGHT batch=$BATCH rgs=${RGS_ACTIVE:-0}) ------"
         snap "before_$3"
-        "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
+        HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
                --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                --rewrite "$1" --threads "$2" --inflight "$IN_FLIGHT" --rows-per-request "$BATCH" \
                --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" "${rgs_args[@]}" \

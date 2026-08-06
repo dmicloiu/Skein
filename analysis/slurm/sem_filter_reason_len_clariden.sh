@@ -50,6 +50,11 @@ srun -ul --environment="$EDF" bash -c '
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT rows=$ROWS inflight=$IN_FLIGHT mode=id_reason words=[$WORDS_SWEEP] R=[$R_SWEEP] mult=$MULT threads=1 (cold per cell)"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -100,7 +105,7 @@ srun -ul --environment="$EDF" bash -c '
             # pass 1: TIMING (schema+reason on, dump off, burn-in on, cold cache)
             snap "$WDIR" "before_$tag"
             FLOCK_SEM_SCHEMA=id_reason FLOCK_SEM_REASON_WORDS="$W" \
-                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                        --max-out-mult "$MULT" --timeout-ms "$TIMEOUT_MS" \
@@ -110,7 +115,7 @@ srun -ul --environment="$EDF" bash -c '
             # pass 2: VERDICTS (dump on, skip burn-in, timing discarded)
             FLOCK_SEM_SCHEMA=id_reason FLOCK_SEM_REASON_WORDS="$W" \
             FLOCK_VERDICT_DUMP="$WDIR/verdicts_$tag.jsonl" \
-                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                        --max-out-mult "$MULT" --skip-burn-in 2>&1 | tee "$WDIR/verdict_$tag.log"

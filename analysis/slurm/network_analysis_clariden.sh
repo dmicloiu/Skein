@@ -68,6 +68,11 @@ srun -ul --environment="$EDF" bash -c '
     echo "==================== ENV ===================="
     echo "OUT=$OUT"; python -c "import sys;print(\"python\",sys.version.split()[0])"
     # The async binary is expected to be pre-built; fail fast if it is not.
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ] || { echo "async binary missing: $BIN"; exit 1; }
     echo "async binary OK ($BIN)"
 
@@ -105,7 +110,7 @@ srun -ul --environment="$EDF" bash -c '
 
         run_async() {
             echo "-------------------- SEED $S : AsyncLLMClient --------------------"
-            "$BIN" \
+            HOME="$JOB_HOME" "$BIN" \
                 --endpoint "http://127.0.0.1:$PORT/v1/completions" \
                 --inflight "$INFLIGHT" --warmup "$WARMUP" --total "$TOTAL" \
                 --timeout-ms "$TIMEOUT_MS" --rows-per-request "$RPR" \

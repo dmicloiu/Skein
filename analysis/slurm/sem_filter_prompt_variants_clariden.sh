@@ -68,6 +68,11 @@ srun -ul --environment="$EDF" bash -c '
     echo "==================== ENV ===================="
     echo "OUT=$OUT split=$SPLIT rows=$ROWS reps=$REPS inflight=$IN_FLIGHT"
     echo "variants=[$VARIANTS_SWEEP] R=[$R_SWEEP] (slim + bool, threads=1, cold fleet per cell)"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -136,7 +141,7 @@ srun -ul --environment="$EDF" bash -c '
             # pass 1: TIMING (dump off, burn-in on, cold cache)
             snap "$VDIR" "before_$tag"
             FLOCK_SEM_PROMPT=slim FLOCK_SEM_VARIANTS="$VENV" \
-                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                        --timeout-ms "$TIMEOUT_MS" \
@@ -148,7 +153,7 @@ srun -ul --environment="$EDF" bash -c '
             if [ "$REP" -eq 1 ]; then
                 FLOCK_SEM_PROMPT=slim FLOCK_SEM_VARIANTS="$VENV" \
                     FLOCK_VERDICT_DUMP="$VDIR/verdicts_r$R.jsonl" \
-                    "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                    HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                            --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                            --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                            --skip-burn-in 2>&1 | tee "$VDIR/verdict_r$R.log"

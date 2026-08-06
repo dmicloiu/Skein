@@ -101,6 +101,11 @@ srun -ul --environment="$EDF" bash -c '
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT"; python -c "import sys;print(\"python\",sys.version.split()[0])"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ] || { echo "driver binary missing: $BIN (build it first)"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
 
@@ -153,7 +158,7 @@ srun -ul --environment="$EDF" bash -c '
         local keysarg=""; [ -n "$3" ] && keysarg="--keys-file $3"
         echo "-------------------- RUN $5 (strategy=$1, inflight=$4) --------------------"
         snap "before_$5"
-        "$BIN" --endpoints "$ENDPOINTS" --strategy "$1" \
+        HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --strategy "$1" \
                --payload-file "$2" $keysarg --model "$MODEL" \
                --inflight "$4" --warmup "$WARMUP" --total "$TOTAL" \
                --rows-per-request "$RPR" --timeout-ms "$TIMEOUT_MS" \

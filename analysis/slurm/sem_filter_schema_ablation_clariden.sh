@@ -53,6 +53,11 @@ srun -ul --environment="$EDF" bash -c '
 
     echo "==================== ENV ===================="
     echo "OUT=$OUT  rows=$ROWS  inflight=$IN_FLIGHT  modes=[$MODES]  R=[$R_SWEEP]  threads=1  (cold fleet per mode,R)"
+    # Job-private HOME: flock persists its model catalog at
+    # $HOME/.duckdb/flock_storage and parallel jobs race the shared file
+    # (NFS lock: "Conflicting lock is held in PID -3").
+    JOB_HOME="/tmp/flock_home_${SLURM_JOB_ID:-local}"
+    mkdir -p "$JOB_HOME/.duckdb"
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (rebuild it)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
@@ -109,7 +114,7 @@ srun -ul --environment="$EDF" bash -c '
             # pass 1: TIMING (schema on, dump off, burn-in on, cold cache)
             snap "$MDIR" "before_$tag"
             FLOCK_SEM_SCHEMA="$mode" \
-                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                        --max-out-mult "$MULT" --timeout-ms "$TIMEOUT_MS" \
@@ -118,7 +123,7 @@ srun -ul --environment="$EDF" bash -c '
 
             # pass 2: VERDICTS (schema on, dump on, skip burn-in, timing discarded)
             FLOCK_SEM_SCHEMA="$mode" FLOCK_VERDICT_DUMP="$MDIR/verdicts_$tag.jsonl" \
-                "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
+                HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" --data "$DATA" \
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
                        --rewrite on --threads 1 --inflight "$IN_FLIGHT" --rows-per-request "$R" \
                        --max-out-mult "$MULT" --skip-burn-in 2>&1 | tee "$MDIR/verdict_$tag.log"
