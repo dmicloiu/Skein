@@ -33,6 +33,11 @@ EDF="$HOME/projects/sembench/ngc-pytorch-vllm.toml"
 srun -ul --environment="$EDF" bash -c '
     set -uo pipefail
     export NO_PROXY="localhost,127.0.0.1"; export no_proxy="localhost,127.0.0.1"
+    # Serve from the local HF cache only: vllm queries the Hub file-list API on
+    # every boot, and a cold fleet per cell trips HF rate limiting (429 = fatal
+    # boot, even with weights cached). Boot-path only; the timed region is
+    # unaffected. This is what killed 3009798/3009799/3009805.
+    export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
     source "$CONDA_ROOT/etc/profile.d/conda.sh"; conda activate sembench
 
     FLOCK="$HOME/projects/flock"; SEMBENCH="$HOME/projects/sembench"
