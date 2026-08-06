@@ -1,0 +1,11 @@
+For each row in the table below, decide whether it satisfies the criterion, judging every row independently on its own merits.
+Criterion: The following movie review is clearly positive.
+
+The table has 2 rows. Return exactly 2 booleans; the i-th boolean answers row i.
+
+### Rows 1-2
+{"id": 1, "review": "warmup review 0"}
+{"id": 2, "review": "warmup review 1"}
+
+
+Return a JSON object {"items": [...]} with one boolean per row, in row order.

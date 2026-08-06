@@ -1,0 +1,26 @@
+For each row in the table below, decide whether it satisfies the criterion, judging every row independently on its own merits.
+Criterion: The following movie review is clearly positive.
+
+The table has 16 rows. Return exactly 16 booleans; the i-th boolean answers row i.
+
+### Rows 1-8
+{"id": 1, "review": "warmup review 0"}
+{"id": 2, "review": "warmup review 1"}
+{"id": 3, "review": "warmup review 2"}
+{"id": 4, "review": "warmup review 3"}
+{"id": 5, "review": "warmup review 4"}
+{"id": 6, "review": "warmup review 5"}
+{"id": 7, "review": "warmup review 6"}
+{"id": 8, "review": "warmup review 7"}
+### Rows 9-16
+{"id": 9, "review": "warmup review 8"}
+{"id": 10, "review": "warmup review 9"}
+{"id": 11, "review": "warmup review 10"}
+{"id": 12, "review": "warmup review 11"}
+{"id": 13, "review": "warmup review 12"}
+{"id": 14, "review": "warmup review 13"}
+{"id": 15, "review": "warmup review 14"}
+{"id": 16, "review": "warmup review 15"}
+
+
+Return a JSON object {"items": [...]} with one boolean per row, in row order.
