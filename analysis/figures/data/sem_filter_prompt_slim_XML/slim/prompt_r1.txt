@@ -1,0 +1,10 @@
+For each row in the table below, decide whether it satisfies the criterion, judging every row independently on its own merits.
+Criterion: The following movie review is clearly positive.
+
+- The Number of Tuples to Generate Responses for: 1
+
+<header><column>review</column></header>
+<row><column>warmup review 0</column></row>
+
+
+Return a JSON object {"items": [...]} with one boolean per row, in row order.
