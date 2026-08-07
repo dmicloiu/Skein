@@ -150,7 +150,7 @@ srun -ul --environment="$EDF" bash -c '
     # Free-form run label, appended verbatim to every artefact name. Reps are
     # separate JOBS, and presets SHARE cells (4:1:512 appears in curve, grid and
     # unified), so without a label those cells write identical filenames and a
-    # flat import into analysis/figures/data/dp_scaling/ silently overwrites all
+    # flat import into analysis/figures/data/dp_scaling_json/ silently overwrites all
     # but the last. Pass the preset AND the rep -- REP="unified_rep2" yields
     # result_op_n4_tp1_c512_unified_rep2.json. Unset => no suffix (single shots).
     REP="${REP:-}"

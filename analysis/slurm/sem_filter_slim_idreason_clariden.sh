@@ -127,6 +127,6 @@ srun -ul --environment="$EDF" bash -c '
     echo "==================== VALIDATION ===================="
     grep -h "rows_per_s\|batch\|passes" "$OUT"/result_*.json 2>/dev/null || true
     echo "DONE. Artefacts in: $OUT"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_slim_idreason/"
-    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_slim_idreason/${SLURM_JOB_ID} --data <local Reviews.csv>"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_slim_idreason_XML/"
+    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_slim_idreason_XML/${SLURM_JOB_ID} --data <local Reviews.csv>"
 '

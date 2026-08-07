@@ -39,9 +39,9 @@ cell mixes families or rep counts.
 
 Usage:
   python analysis/plot_dp_scaling.py \
-      [--summary analysis/figures/data/dp_scaling/dp_scaling_summary.csv] \
-      [--balance analysis/figures/data/dp_scaling/dp_balance.csv] \
-      [--tp-summary analysis/figures/data/tp_scaling/tp_scaling_summary.csv] \
+      [--summary analysis/figures/data/dp_scaling_json/dp_scaling_summary.csv] \
+      [--balance analysis/figures/data/dp_scaling_json/dp_balance.csv] \
+      [--tp-summary analysis/figures/data/tp_scaling_json/tp_scaling_summary.csv] \
       [--out-dir analysis/figures]
 """
 from __future__ import annotations
@@ -913,11 +913,11 @@ def print_summary(rows, effs, grid_rows, tp_rows) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary", type=Path,
-                    default=Path("analysis/figures/data/dp_scaling/dp_scaling_summary.csv"))
+                    default=Path("analysis/figures/data/dp_scaling_json/dp_scaling_summary.csv"))
     ap.add_argument("--balance", type=Path,
-                    default=Path("analysis/figures/data/dp_scaling/dp_balance.csv"))
+                    default=Path("analysis/figures/data/dp_scaling_json/dp_balance.csv"))
     ap.add_argument("--tp-summary", type=Path,
-                    default=Path("analysis/figures/data/tp_scaling/tp_scaling_summary.csv"))
+                    default=Path("analysis/figures/data/tp_scaling_json/tp_scaling_summary.csv"))
     ap.add_argument("--out-dir", type=Path, default=Path("analysis/figures"))
     args = ap.parse_args()
     if not args.summary.exists():

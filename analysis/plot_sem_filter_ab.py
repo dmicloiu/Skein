@@ -23,7 +23,7 @@ Inputs (in --results-dir):
 
 Usage:
   python analysis/plot_sem_filter_ab.py \
-      --results-dir analysis/figures/data/sem_filter_ab --out-dir analysis/figures
+      --results-dir analysis/figures/data/sem_filter_ab_json --out-dir analysis/figures
 """
 from __future__ import annotations
 
@@ -226,7 +226,7 @@ def print_summary(data: dict) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir", type=Path,
-                    default=Path("analysis/figures/data/sem_filter_ab"))
+                    default=Path("analysis/figures/data/sem_filter_ab_json"))
     ap.add_argument("--out-dir", type=Path, default=Path("analysis/figures"))
     args = ap.parse_args()
     if not args.results_dir.exists():

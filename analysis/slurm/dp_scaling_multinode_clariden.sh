@@ -63,7 +63,7 @@ mkdir -p logs
 EDF="$HOME/projects/sembench/ngc-pytorch-vllm.toml"
 
 CONFIGS="${CONFIGS:-8:1:1024}"
-# Reps are separate JOBS imported flat into figures/data/dp_scaling, so every
+# Reps are separate JOBS imported flat into figures/data/dp_scaling_json, so every
 # artefact name must carry the rep label or mn_rep1/2/3 overwrite each other.
 REP="${REP:-}"; RSUF="${REP:+_$REP}"
 

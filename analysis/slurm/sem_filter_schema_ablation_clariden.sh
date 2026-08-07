@@ -139,7 +139,7 @@ srun -ul --environment="$EDF" bash -c '
         echo "-- $mode --"; grep -h "rows_per_s\|batch\|passes" "$OUT/$mode"/result_*.json 2>/dev/null || true
     done
     echo "DONE. Artefacts in: $OUT/<mode>/ (result_r*.json, verdicts_r*.jsonl, metrics_*, *_r*.log)"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_schema_ablation/"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_schema_ablation_XML/"
     echo "Diagnose per mode, e.g.:"
-    echo "  python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_schema_ablation/${SLURM_JOB_ID}/id_reason --data <local Reviews.csv>"
+    echo "  python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_schema_ablation_XML/${SLURM_JOB_ID}/id_reason --data <local Reviews.csv>"
 '

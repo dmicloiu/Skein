@@ -18,9 +18,9 @@ comes from the summary CSV (single source of truth for cell metrics).
 
 Usage:
   python analysis/plot_model_quality.py \
-      [--summary analysis/figures/data/dp_scaling/dp_scaling_summary.csv] \
-      [--dp-dir analysis/figures/data/dp_scaling] \
-      [--frontier-dir analysis/figures/data/model_frontier] \
+      [--summary analysis/figures/data/dp_scaling_json/dp_scaling_summary.csv] \
+      [--dp-dir analysis/figures/data/dp_scaling_json] \
+      [--frontier-dir analysis/figures/data/model_frontier_json] \
       [--data ../sembench/files/movie/data/sf_2000/Reviews.csv] \
       [--out-dir analysis/figures]
 """
@@ -121,11 +121,11 @@ def collect_pr(summary: Path) -> dict[str, dict]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary", type=Path,
-                    default=Path("analysis/figures/data/dp_scaling/dp_scaling_summary.csv"))
+                    default=Path("analysis/figures/data/dp_scaling_json/dp_scaling_summary.csv"))
     ap.add_argument("--dp-dir", type=Path,
-                    default=Path("analysis/figures/data/dp_scaling"))
+                    default=Path("analysis/figures/data/dp_scaling_json"))
     ap.add_argument("--frontier-dir", type=Path,
-                    default=Path("analysis/figures/data/model_frontier"))
+                    default=Path("analysis/figures/data/model_frontier_json"))
     ap.add_argument("--data", type=Path,
                     default=Path("../sembench/files/movie/data/sf_2000/Reviews.csv"))
     ap.add_argument("--out-dir", type=Path, default=Path("analysis/figures"))

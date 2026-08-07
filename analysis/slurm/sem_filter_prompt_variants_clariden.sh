@@ -171,6 +171,6 @@ srun -ul --environment="$EDF" bash -c '
         echo "-- $V --"; grep -h "rows_per_s\|batch\|passes" "$OUT/$(echo "$V" | tr , +)"/result_*.json 2>/dev/null || true
     done
     echo "DONE. Artefacts in: $OUT/<variant>/"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_prompt_variants/"
-    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_prompt_variants/${SLURM_JOB_ID}/<variant> --data <local Reviews_${SPLIT}.csv (copied into OUT)>"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_prompt_variants_XML/"
+    echo "Diagnose:   python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_prompt_variants_XML/${SLURM_JOB_ID}/<variant> --data <local Reviews_${SPLIT}.csv (copied into OUT)>"
 '

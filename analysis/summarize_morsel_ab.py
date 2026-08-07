@@ -37,7 +37,7 @@ Columns (derived metrics):
 
 Usage:
   python analysis/summarize_morsel_ab.py DIR1 DIR2 ... [--out-dir DIR]
-  # default: every movie_* dir under analysis/figures/data/sem_filter_ab
+  # default: every movie_* dir under analysis/figures/data/sem_filter_ab_json
 """
 from __future__ import annotations
 
@@ -215,12 +215,12 @@ def write_outputs(recs, out_dir: Path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("dirs", nargs="*", type=Path,
-                    help="result dirs (default: movie_* under analysis/figures/data/sem_filter_ab)")
+                    help="result dirs (default: movie_* under analysis/figures/data/sem_filter_ab_json)")
     ap.add_argument("--out-dir", type=Path,
-                    default=Path("analysis/figures/data/sem_filter_ab"))
+                    default=Path("analysis/figures/data/sem_filter_ab_json"))
     args = ap.parse_args()
     dirs = args.dirs or [Path(p) for p in sorted(
-        glob.glob("analysis/figures/data/sem_filter_ab/movie_*")) if Path(p).is_dir()]
+        glob.glob("analysis/figures/data/sem_filter_ab_json/movie_*")) if Path(p).is_dir()]
     recs = []
     for d in dirs:
         if not d.exists():

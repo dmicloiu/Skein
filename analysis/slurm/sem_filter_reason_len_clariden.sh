@@ -131,7 +131,7 @@ srun -ul --environment="$EDF" bash -c '
         echo "-- words=$W --"; grep -h "rows_per_s\|batch\|passes" "$OUT/id_reason_w${W}"/result_*.json 2>/dev/null || true
     done
     echo "DONE. Artefacts in: $OUT/id_reason_w<words>/"
-    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_reason_len/"
+    echo "Pull home:  rsync -av <clariden>:$OUT analysis/figures/data/sem_filter_reason_len_XML/"
     echo "Diagnose per cell, e.g.:"
-    echo "  python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_reason_len/${SLURM_JOB_ID}/id_reason_w3 --data <local Reviews.csv>"
+    echo "  python analysis/diagnose_rsweep.py analysis/figures/data/sem_filter_reason_len_XML/${SLURM_JOB_ID}/id_reason_w3 --data <local Reviews.csv>"
 '

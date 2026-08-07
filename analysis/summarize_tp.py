@@ -30,7 +30,7 @@ TP-specific derived metrics:
 
 Usage:
   python analysis/summarize_tp.py DIR1 DIR2 ... [--out-dir DIR] [--data CSV]
-  # default: every dir under analysis/figures/data/tp_scaling
+  # default: every dir under analysis/figures/data/tp_scaling_json
 """
 from __future__ import annotations
 
@@ -281,9 +281,9 @@ def write_outputs(recs, out_dir: Path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("dirs", nargs="*", type=Path,
-                    help="result dirs (default: every dir under analysis/figures/data/tp_scaling)")
+                    help="result dirs (default: every dir under analysis/figures/data/tp_scaling_json)")
     ap.add_argument("--out-dir", type=Path,
-                    default=Path("analysis/figures/data/tp_scaling"))
+                    default=Path("analysis/figures/data/tp_scaling_json"))
     ap.add_argument("--data", type=Path,
                     default=Path("../sembench/files/movie/data/sf_2000/Reviews.csv"),
                     help="gold CSV for the operator F1 columns (skipped if missing)")
@@ -297,7 +297,7 @@ def main() -> int:
     else:
         print(f"  [warn] gold csv missing ({args.data}) -> F1 columns skipped", file=sys.stderr)
 
-    data_root = Path("analysis/figures/data/tp_scaling")
+    data_root = Path("analysis/figures/data/tp_scaling_json")
     dirs = args.dirs or ([p for p in sorted(data_root.iterdir()) if p.is_dir()]
                          if data_root.exists() else [])
     # One summary = one encoding (see summarize_dp.dir_encodings): a CSV

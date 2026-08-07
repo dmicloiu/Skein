@@ -34,7 +34,7 @@ DP-specific derived metrics (vs summarize_tp.py):
 
 Usage:
   python analysis/summarize_dp.py DIR1 DIR2 ... [--out-dir DIR] [--data CSV]
-  # default: analysis/figures/data/dp_scaling itself (flat import) plus every
+  # default: analysis/figures/data/dp_scaling_json itself (flat import) plus every
   # subdirectory of it
 """
 from __future__ import annotations
@@ -440,10 +440,10 @@ def write_outputs(recs, balance, out_dir: Path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("dirs", nargs="*", type=Path,
-                    help="result dirs (default: analysis/figures/data/dp_scaling"
+                    help="result dirs (default: analysis/figures/data/dp_scaling_json"
                          " itself plus its subdirectories)")
     ap.add_argument("--out-dir", type=Path,
-                    default=Path("analysis/figures/data/dp_scaling"))
+                    default=Path("analysis/figures/data/dp_scaling_json"))
     ap.add_argument("--data", type=Path,
                     default=Path("../sembench/files/movie/data/sf_2000/Reviews.csv"),
                     help="gold CSV for the operator F1 columns (skipped if missing)")
@@ -458,7 +458,7 @@ def main() -> int:
         print(f"  [warn] gold csv missing ({args.data}) -> F1 columns skipped",
               file=sys.stderr)
 
-    data_root = Path("analysis/figures/data/dp_scaling")
+    data_root = Path("analysis/figures/data/dp_scaling_json")
     dirs = args.dirs
     if not dirs and data_root.exists():
         dirs = [data_root] + [p for p in sorted(data_root.iterdir()) if p.is_dir()]
