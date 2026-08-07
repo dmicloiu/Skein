@@ -2,8 +2,8 @@
   "Q101": {
     "query_id": "101",
     "status": "success",
-    "execution_time": 7.650911569595337,
-    "token_usage": 293517,
+    "execution_time": 7.863284349441528,
+    "token_usage": 294819,
     "money_cost": 0.0,
     "extra": {},
     "row_count": 1064,
