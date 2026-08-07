@@ -475,6 +475,11 @@ def main() -> int:
               file=sys.stderr)
         for enc, ds in sorted(seen.items()):
             print(f"    {enc:5s} <- {', '.join(sorted(set(ds)))}", file=sys.stderr)
+        if "XML" in seen:
+            print("    note: 'XML' also means the result JSON has no"
+                  " tuple_format field at all. If these are new runs, the"
+                  " driver may simply not be writing it -- check before"
+                  " assuming an encoding split.", file=sys.stderr)
         print("  Summarise each encoding separately (one --out-dir each).",
               file=sys.stderr)
         return 2

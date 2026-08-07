@@ -408,26 +408,29 @@ def _model_short(m: str | None) -> str:
 # 1xTP4 cell from 389 to 200 rows/s (decode-stress cells run 4096 rows with
 # 512-1024 forced output tokens; longrun runs 262144 rows). 32B escaped only
 # because its stress cells live in a different results dir.
-# The allow-list is a WORKLOAD filter, not a one-family rule: every family here
-# runs the same 32000-row prefill at cap 512, so pooling across them is sound
-# (their medians agree to ~1%). It cannot be narrowed to one family per model --
-# the XML era names the 72B frontier `m72b*` and the JSON era `m72b_frontier`,
-# and no single name spans both. What must stay OUT is anything with a
-# different workload.
-FRONTIER_FAMILIES = {"grid", "unified", "curve", "caps",
-                     "m32b", "m32b_unified", "m32b_c256", "m32b_c1024",
-                     "m72b", "m72b_c256", "m72b_c1024", "m72b_frontier",
-                     "m7b_frontier"}
+# The filter is a WORKLOAD filter, not a one-family rule: every family admitted
+# here runs the same 32000-row prefill at cap 512, so pooling across them is
+# sound (their medians agree to ~1%). It cannot be narrowed to one family per
+# model -- the XML era names the 72B frontier `m72b*` and the JSON era
+# `m72b_frontier`, and no single name spans both. What must stay OUT is anything
+# with a different workload.
+#
+# Test the workload directly rather than naming families. An allow-list fails by
+# SILENTLY DROPPING good data whenever a REP label changes -- it had already
+# omitted `m32b_frontier`, a label in flight. Row count is the separable axis and
+# cannot fail that way: prefill 32000 / decode-stress 4096 / longrun 262144 /
+# multinode 65536, and no non-prefill family carries 32000 anywhere in the data.
+FRONTIER_ROWS = 32000
 
 
 def collect_frontier(summary_rows: list[dict]) -> dict:
     """{(model, n_ep, tp): {rows_s: [...], f1: [...]}} for 4-GPU cap-512 cells
-    of the prefill workload only (see FRONTIER_FAMILIES)."""
+    of the prefill workload only (see FRONTIER_ROWS)."""
     out: dict = {}
     for r in summary_rows:
         if (r["arm"] != "op" or r["cap"] != str(GRID_CAP)
                 or int(r["n_ep"]) * int(r["tp"]) != 4
-                or r["family"] not in FRONTIER_FAMILIES):
+                or int(r["rows"] or 0) != FRONTIER_ROWS):
             continue
         key = (_model_short(r["model"]), int(r["n_ep"]), int(r["tp"]))
         c = out.setdefault(key, {"rows_s": [], "f1": []})

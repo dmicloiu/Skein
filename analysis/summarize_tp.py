@@ -41,6 +41,9 @@ import re
 import sys
 from pathlib import Path
 
+# one definition of "which encoding is this dir" for every summariser
+from summarize_dp import dir_encodings
+
 TAG_RE = re.compile(r"result_(op|scalar)_tp(\d+)(?:_c(\d+))?(?:_m(\d+))?(?:_rep(\d+))?\.json")
 
 
@@ -165,6 +168,10 @@ def parse_dir(d: Path, gold: dict[int, bool] | None) -> list[dict]:
 
         rec = {
             "job": f"rep{rep}" if rep else d.name,
+            # rep1 artefacts carry no `_rep1` suffix (this script has no REP
+            # knob), so `job` falls back to the dir name for them. `rep` makes
+            # the number explicit and keeps the CSV self-describing.
+            "rep": int(rep) if rep else 1,
             "arm": arm,
             "tp": tp_k,
             "cap": int(cap) if cap else j.get("inflight"),
@@ -240,7 +247,7 @@ def add_efficiency(recs: list[dict]) -> None:
             r["eff"], r["eff_basis"] = round(r["rows_s"] / base, 2), basis
 
 
-COLUMNS = ["job", "arm", "tp", "cap", "morsels", "R", "threads", "rows", "elapsed_s",
+COLUMNS = ["job", "rep", "arm", "tp", "cap", "morsels", "R", "threads", "rows", "elapsed_s",
            "rows_s", "eff", "eff_basis", "req_s", "concurrency",
            "tok_s", "computed_tok_s", "prefill_tok_s", "decode_tok_s",
            "prompt_tok", "gen_tok", "tok_per_row", "gen_per_req",
@@ -249,7 +256,7 @@ COLUMNS = ["job", "arm", "tp", "cap", "morsels", "R", "threads", "rows", "elapse
            "run_mean", "run_max", "wait_mean", "wait_max", "kv_mean", "kv_max",
            "passes", "pass_pct", "precision", "recall", "f1"]
 # Curated subset for the console preview (the CSV holds the full column set).
-PREVIEW_COLUMNS = ["job", "arm", "tp", "cap", "morsels", "rows_s", "eff", "computed_tok_s",
+PREVIEW_COLUMNS = ["job", "rep", "arm", "tp", "cap", "morsels", "rows_s", "eff", "computed_tok_s",
                    "concurrency", "run_mean", "wait_mean", "e2e_ms", "f1"]
 
 
@@ -293,6 +300,26 @@ def main() -> int:
     data_root = Path("analysis/figures/data/tp_scaling")
     dirs = args.dirs or ([p for p in sorted(data_root.iterdir()) if p.is_dir()]
                          if data_root.exists() else [])
+    # One summary = one encoding (see summarize_dp.dir_encodings): a CSV
+    # spanning both eras would let a median pool XML and JSON cells for the
+    # same config, silently and unrecoverably.
+    seen = {}
+    for d in dirs:
+        if d.exists():
+            for enc in dir_encodings(d):
+                seen.setdefault(enc, []).append(d.name)
+    if len(seen) > 1:
+        print("error: inputs span more than one encoding -- refusing to mix.",
+              file=sys.stderr)
+        for enc, ds in sorted(seen.items()):
+            print(f"    {enc:5s} <- {', '.join(sorted(set(ds)))}", file=sys.stderr)
+        if "XML" in seen:
+            print("    note: 'XML' also means the result JSON has no"
+                  " tuple_format field at all. If these are new runs, the"
+                  " driver may simply not be writing it -- check before"
+                  " assuming an encoding split.", file=sys.stderr)
+        return 2
+
     recs = []
     for d in dirs:
         if not d.exists():
