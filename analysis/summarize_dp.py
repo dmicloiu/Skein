@@ -49,6 +49,34 @@ from pathlib import Path
 TAG_RE = re.compile(r"result_(op|scalar)_n(\d+)_tp(\d+)_c(\d+)((?:_.+)?)\.json")
 HZ = 100  # kernel tick rate for /proc/<pid>/stat utime/stime
 
+# `REP` is free-form at submit time, so the same experiment can carry different
+# labels in different eras: the XML-era DP curve ran as `curve_rep<N>`, the JSON
+# re-run as `confirm_rep<N>`. `family` is the canonical name the plots select
+# on; `job` keeps the label the run actually recorded, so any number stays
+# traceable back to the job that produced it. Add an alias here rather than
+# renaming committed artefacts or teaching a plot a second spelling.
+FAMILY_ALIASES = {"confirm": "curve"}
+
+
+def canon_family(job: str) -> str:
+    """Job label -> canonical family: drop the `_rep<N>` suffix, then alias.
+    Labels without a rep suffix (`mn_verd`, `mn_harness`) pass through."""
+    fam = re.sub(r"_rep\d+$", "", job)
+    return FAMILY_ALIASES.get(fam, fam)
+
+
+def dir_encodings(d: Path) -> set[str]:
+    """Encodings present among a dir's result files. Post-fix drivers write
+    `tuple_format`; XML-era results predate the field entirely, so a missing
+    field means XML (verified: 0 of 89 committed dp_scaling results carry it)."""
+    out = set()
+    for rj in d.glob("result_*.json"):
+        try:
+            out.add(json.loads(rj.read_text()).get("tuple_format") or "XML")
+        except json.JSONDecodeError:
+            continue
+    return out
+
 
 def _metric(path: Path, name: str, label: str | None = None) -> float | None:
     """Sum over the metric's label series (a counter may split by label, e.g.
@@ -200,6 +228,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
         # suf is the free rep label ("_rep1", "_grid_rep2", "" ...): the job
         # grouping unit for the efficiency base; sibling files share it.
         job = suf.lstrip("_") if suf else d.name
+        family = canon_family(job)
         stem = rj.name[len("result_"):-len(".json")]  # middle of sibling names
         try:
             j = json.loads(rj.read_text())
@@ -252,7 +281,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
             ep_reqs[ep] = erq
             g = per_ep_gauges[ep]
             balance.append({
-                "job": job, "model": meta["model"],
+                "job": job, "family": family, "model": meta["model"],
                 "arm": arm, "n_ep": n_ep, "tp": tp_k, "cap": cap, "ep": ep,
                 "requests": int(erq) if erq is not None else None,
                 "req_share_pct": None,  # filled below once the total is known
@@ -276,6 +305,7 @@ def parse_dir(d: Path, gold: dict[int, bool] | None):
 
         rec = {
             "job": job,
+            "family": family,
             "arm": arm,
             "n_ep": n_ep,
             "tp": tp_k,
@@ -364,7 +394,7 @@ def add_efficiency(recs: list[dict]) -> None:
             r["eff_gpu"] = round(r["rows_s"] / base / r["gpus"], 2)
 
 
-COLUMNS = ["job", "arm", "n_ep", "tp", "gpus", "cap", "R", "threads", "rows",
+COLUMNS = ["job", "family", "arm", "n_ep", "tp", "gpus", "cap", "R", "threads", "rows",
            "dataset", "model", "elapsed_s", "rows_s", "eff", "eff_basis", "eff_gpu", "req_s",
            "concurrency", "tok_s", "computed_tok_s", "prefill_tok_s",
            "decode_tok_s", "prompt_tok", "gen_tok", "tok_per_row", "gen_per_req",
@@ -373,7 +403,7 @@ COLUMNS = ["job", "arm", "n_ep", "tp", "gpus", "cap", "R", "threads", "rows",
            "run_mean", "run_max", "wait_mean", "wait_max", "kv_mean", "kv_max",
            "req_share_spread", "client_cpu_cores", "client_threads_max",
            "passes", "pass_pct", "precision", "recall", "f1", "verdict_rows"]
-BALANCE_COLUMNS = ["job", "model", "arm", "n_ep", "tp", "cap", "ep", "requests",
+BALANCE_COLUMNS = ["job", "family", "model", "arm", "n_ep", "tp", "cap", "ep", "requests",
                    "req_share_pct", "prompt_tok", "gen_tok",
                    "run_mean", "wait_mean", "kv_mean", "e2e_ms"]
 PREVIEW_COLUMNS = ["job", "arm", "n_ep", "tp", "cap", "rows_s", "eff", "eff_gpu",
@@ -432,6 +462,23 @@ def main() -> int:
     dirs = args.dirs
     if not dirs and data_root.exists():
         dirs = [data_root] + [p for p in sorted(data_root.iterdir()) if p.is_dir()]
+    # One summary = one encoding. A CSV spanning both eras would let a median
+    # pool XML and JSON cells for the same config, which is silent and
+    # unrecoverable downstream -- so refuse to write one at all.
+    seen = {}
+    for d in dirs:
+        if d.exists():
+            for enc in dir_encodings(d):
+                seen.setdefault(enc, []).append(d.name)
+    if len(seen) > 1:
+        print("error: inputs span more than one encoding -- refusing to mix.",
+              file=sys.stderr)
+        for enc, ds in sorted(seen.items()):
+            print(f"    {enc:5s} <- {', '.join(sorted(set(ds)))}", file=sys.stderr)
+        print("  Summarise each encoding separately (one --out-dir each).",
+              file=sys.stderr)
+        return 2
+
     recs, balance = [], []
     for d in dirs:
         if not d.exists():
