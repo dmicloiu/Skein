@@ -82,7 +82,8 @@ NODES=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
 export MN_NODE0="${NODES[0]}"
 export MN_NODE1="${NODES[1]:-${NODES[0]}}"   # unused when NEED_NODES=1
 echo "nodes: need $NEED_NODES, have ${#NODES[@]} (${NODES[*]})"
-export MN_OUT="$HOME/projects/flock/analysis/results/dp_scaling/${SLURM_JOB_ID}"
+export TUPLE_FORMAT="${TUPLE_FORMAT:-json}"
+export MN_OUT="$HOME/projects/flock/analysis/results/dp_scaling_${TUPLE_FORMAT}/${SLURM_JOB_ID}"
 mkdir -p "$MN_OUT"
 
 GEN=0
@@ -341,7 +342,7 @@ for CFG in $CONFIGS; do
         HOME="$JOB_HOME" "$BIN" --endpoints "$ENDPOINTS" --model "$MODEL" \
             --data "$DATA" --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$ROWS" \
             --rewrite on --threads 1 --inflight "$CAP" --rows-per-request 1 \
-            --timeout-ms "$TIMEOUT_MS" \
+            --timeout-ms "$TIMEOUT_MS" --tuple-format "$TUPLE_FORMAT" \
             --result-out "$OUT/result_$TAG.json" > "$OUT/run_$TAG.log" 2>&1 &
         dpid=$!
         start_client_sampler "$dpid" "$TAG"
@@ -380,6 +381,7 @@ for CFG in $CONFIGS; do
                        --text-col "$TEXT_COL" --prompt "$PROMPT" --rows "$GOLD_ROWS" \
                        --rewrite on --threads 1 --inflight "$CAP" \
                        --rows-per-request 1 --timeout-ms "$TIMEOUT_MS" \
+                       --tuple-format "$TUPLE_FORMAT" \
                        --skip-burn-in 2>&1 | tee "$OUT/verdict_${KEY}${RSUF}.log"
             LINES=$(wc -l < "$OUT/verdicts_${KEY}${RSUF}.jsonl" 2>/dev/null || echo 0)
             echo "verdicts $KEY: $LINES lines (expect $GOLD_ROWS)"
@@ -409,4 +411,4 @@ for CFG in $CONFIGS; do
 done
 
 echo "DONE. Artefacts in: $MN_OUT"
-echo "Pull home:  rsync -av <clariden>:$MN_OUT analysis/figures/data/dp_scaling/"
+echo "Pull home:  rsync -av <clariden>:$MN_OUT analysis/figures/data/dp_scaling_${TUPLE_FORMAT}/"
