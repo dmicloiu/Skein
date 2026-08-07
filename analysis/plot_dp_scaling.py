@@ -117,16 +117,18 @@ def stat(vals: list[float]) -> tuple[float, float, float]:
 
 
 # ---- loading ---------------------------------------------------------------
-def collect_dp(summary: Path, col: str, jobs: str | None = None,
+def collect_dp(summary: Path, col: str, jobs: str | tuple | None = None,
                model: str | None = "7B") -> dict:
-    """{(arm, n_ep, tp, cap): [<col> per rep]}. jobs filters on the job-label
-    prefix ('grid' keeps the in-job fixed-budget reps); model keeps one
-    model's cells (the scale-out figures are 7B -- without this the frontier
-    models' cells silently pool into the same (n_ep, tp, cap) keys)."""
+    """{(arm, n_ep, tp, cap): [<col> per rep]}. jobs selects one or more
+    canonical families by EXACT match on the `family` column -- not a prefix,
+    which used to make 'mn' silently swallow 'mn_verd' and 'mn_harness'. model
+    keeps one model's cells (the scale-out figures are 7B -- without this the
+    frontier models' cells silently pool into the same (n_ep, tp, cap) keys)."""
+    want = {jobs} if isinstance(jobs, str) else (set(jobs) if jobs else None)
     out: dict = {}
     with open(summary, newline="") as f:
         for r in csv.DictReader(f):
-            if jobs and not r["job"].startswith(jobs):
+            if want is not None and r["family"] not in want:
                 continue
             if model and _model_short(r["model"]) != model:
                 continue
@@ -400,12 +402,32 @@ def _model_short(m: str | None) -> str:
     return f"{mm.group(1)}B" if mm else "7B"  # pre-sidecar legacy rows are 7B
 
 
+# The frontier compares topologies at a fixed budget, so every cell must be the
+# SAME workload. Selecting on cap+GPU-count alone is not enough: kvstress /
+# kvdeep / longrun also run 4 GPUs at cap 512, and pooling them dragged the 7B
+# 1xTP4 cell from 389 to 200 rows/s (decode-stress cells run 4096 rows with
+# 512-1024 forced output tokens; longrun runs 262144 rows). 32B escaped only
+# because its stress cells live in a different results dir.
+# The allow-list is a WORKLOAD filter, not a one-family rule: every family here
+# runs the same 32000-row prefill at cap 512, so pooling across them is sound
+# (their medians agree to ~1%). It cannot be narrowed to one family per model --
+# the XML era names the 72B frontier `m72b*` and the JSON era `m72b_frontier`,
+# and no single name spans both. What must stay OUT is anything with a
+# different workload.
+FRONTIER_FAMILIES = {"grid", "unified", "curve", "caps",
+                     "m32b", "m32b_unified", "m32b_c256", "m32b_c1024",
+                     "m72b", "m72b_c256", "m72b_c1024", "m72b_frontier",
+                     "m7b_frontier"}
+
+
 def collect_frontier(summary_rows: list[dict]) -> dict:
-    """{(model, n_ep, tp): {rows_s: [...], f1: [...]}} for 4-GPU cap-512 cells."""
+    """{(model, n_ep, tp): {rows_s: [...], f1: [...]}} for 4-GPU cap-512 cells
+    of the prefill workload only (see FRONTIER_FAMILIES)."""
     out: dict = {}
     for r in summary_rows:
         if (r["arm"] != "op" or r["cap"] != str(GRID_CAP)
-                or int(r["n_ep"]) * int(r["tp"]) != 4):
+                or int(r["n_ep"]) * int(r["tp"]) != 4
+                or r["family"] not in FRONTIER_FAMILIES):
             continue
         key = (_model_short(r["model"]), int(r["n_ep"]), int(r["tp"]))
         c = out.setdefault(key, {"rows_s": [], "f1": []})
@@ -497,7 +519,7 @@ def render_balance(bal: list[dict], summary_rows: list[dict], out_dir: Path) -> 
         out = []
         for ep in range(n_ep):
             v = [float(r[col]) for r in bal
-                 if r["arm"] == arm and r["job"].startswith(fam)
+                 if r["arm"] == arm and r["family"] == fam
                  and (int(r["n_ep"]), int(r["tp"]),
                       int(r["cap"])) == (n_ep, tp, cap)
                  and int(r["ep"]) == ep and r[col]]
@@ -753,8 +775,8 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
         return (median(v[0]), len(v[0])) if v else (None, 0)
 
     fams = {("7B", "prefill"): "grid", ("32B", "prefill"): "m32b_unified",
-            ("7B", "decode"): "kvstress_rep", ("32B", "decode"): "m32b_kvstress",
-            ("7B", "deep"): "kvdeep_rep", ("32B", "deep"): "m32b_kvdeep"}
+            ("7B", "decode"): "kvstress", ("32B", "decode"): "m32b_kvstress",
+            ("7B", "deep"): "kvdeep", ("32B", "deep"): "m32b_kvdeep"}
     ratios, reps, kv, pre = {}, {}, {}, {}
     for (model, wl), fam in fams.items():
         (r4, n4), (r1, n1) = cell(fam, model, 4, 1), cell(fam, model, 1, 4)
@@ -995,7 +1017,7 @@ def main() -> int:
               file=sys.stderr)
 
     # generalization figures: fleet size (multi-node) and workload shape (KV)
-    rows_mn = collect_dp(args.summary, "rows_s", jobs="mn_rep")
+    rows_mn = collect_dp(args.summary, "rows_s", jobs="mn")
     if ("op", 8, 1, 1024) in rows_mn and args.balance.exists():
         render_multinode(rows["dp"], rows["base"],
                          stat(rows_mn[("op", 8, 1, 1024)]),
