@@ -15,19 +15,19 @@ Warning: vllm server returned status 401
 BEFORE ST load:
 Allocated: 0.0 GB
 Reserved: 0.0 GB
-2026-08-07 12:49:53,494 - INFO - Use pytorch device_name: cuda:0
-2026-08-07 12:49:53,494 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+2026-08-08 14:09:51,440 - INFO - Use pytorch device_name: cuda:0
+2026-08-08 14:09:51,440 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
 AFTER ST load:
 Allocated: 0.40891551971435547 GB
 Reserved: 0.4609375 GB
 
 Running 1 queries for lotus
-Filtering:   0%|           0/2000 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 2000/2000 LM calls [00:07<00:00, 260.29it/s]Filtering: 100%|██████████ 2000/2000 LM calls [00:07<00:00, 260.29it/s]
+Filtering:   0%|           0/2000 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 2000/2000 LM calls [00:09<00:00, 211.81it/s]Filtering: 100%|██████████ 2000/2000 LM calls [00:09<00:00, 211.80it/s]
 /users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
   warnings.warn(
 Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-7B-Instruct', cost calculation skipped
-prompt token: 257520, completion token: 37299
-total tokens: 294819
+prompt token: 257520, completion token: 37546
+total tokens: 295066
   LOTUS cost: $0.000000
   Calculated cost based on token consumption: $0.000000
 Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/lotus/Q101.csv
@@ -46,4 +46,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   lotus: ✅ Completed
-    Q101: ✅ 7.86s, 1064 rows, 294819 tokens
+    Q101: ✅ 9.60s, 1064 rows, 295066 tokens

@@ -16,12 +16,12 @@ Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-7B-Instruct, api_base=htt
 
   MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 2000… 0:00… 0:00… Cost: $0.0000 
   LLMFilter (593d1e5d22)            ━━━━━ 100% 2000… 0:00… 0:00… Cost: $0.0000 
-  ProjectOp (081c6fbdd7)            ━━━━━ 100% 1186… 0:00… 0:00… Cost: $0.0000 
-Total time: 14.37s
+  ProjectOp (081c6fbdd7)            ━━━━━ 100% 1174… 0:00… 0:00… Cost: $0.0000 
+Total time: 15.34s
 Total cost: $0.0000
 Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
-prompt token: 0.0, completion token: 130368.0
-  Token usage: 130368.0 tokens, Cost: $0.0000
+prompt token: 0.0, completion token: 130420.0
+  Token usage: 130420.0 tokens, Cost: $0.0000
 Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q101.csv
 Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
 ✓ palimpzest completed successfully
@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   palimpzest: ✅ Completed
-    Q101: ✅ 14.43s, 1186 rows, 130368.0 tokens
+    Q101: ✅ 15.40s, 1174 rows, 130420.0 tokens
