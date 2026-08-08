@@ -2,15 +2,15 @@
   "Q103": {
     "query_id": "103",
     "status": "success",
-    "execution_time": 23.721609354019165,
-    "token_usage": 245886.0,
+    "execution_time": 23.838741540908813,
+    "token_usage": 245006.0,
     "money_cost": 0.0,
     "extra": {},
     "row_count": 2000,
     "model_name": "vllm/Qwen/Qwen2.5-7B-Instruct",
     "concurrent_llm_worker": 128,
-    "precision": 0.8557999533202951,
-    "recall": 0.8786429622209201,
-    "f1_score": 0.8641420794222496
+    "precision": 0.8611711145077716,
+    "recall": 0.8882628964375464,
+    "f1_score": 0.8714833759590792
   }
 }
