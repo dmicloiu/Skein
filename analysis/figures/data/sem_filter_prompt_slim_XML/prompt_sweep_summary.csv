@@ -1,0 +1,3 @@
+prompt,tuple_format,R,n_reps,rows_s,rows_s_min,rows_s_max,f1,f1_min,f1_max,precision,recall,set_f1,passes,computed_tok_s,raw_tok_s,prompt_tok_row,gen_tok_row,cache_hit_pct
+full,XML,1,1,140.2,140.2,140.2,0.9083,0.9083,0.9083,0.9589,0.8628,0.9111,1338,33814,72147,505.7,8.99,54.1
+slim,XML,1,1,356.2,356.2,356.2,0.8872,0.8872,0.8872,0.9852,0.807,0.8923,1218,25111,55385,148.5,7.0,57.2

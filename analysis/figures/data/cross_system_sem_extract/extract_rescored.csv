@@ -1,0 +1,9 @@
+arm,R,rows_scored,malformed_lines,off_vocab_rows,n_classes_seen,precision,recall,f1,f1_unrestricted_macro
+flock_op_r1,1,1904,1,0,2,0.7936,0.8745,0.8059,0.8059
+flock_op_r32,32,1867,1,3,4,0.6358,0.6768,0.6192,0.3096
+flock_op_slim_r1,1,1904,1,0,2,0.8098,0.8876,0.8269,0.8269
+flock_op_slim_r2,2,1904,1,0,2,0.8028,0.8779,0.819,0.819
+flock_op_slim_r4,4,1904,1,1,3,0.807,0.8824,0.8234,0.5489
+flock_op_slim_r8,8,1904,1,7,4,0.8171,0.886,0.8344,0.4172
+flock_op_slim_r16,16,1884,1,8,3,0.7672,0.8296,0.7794,0.5196
+flock_op_slim_r32,32,1867,1,3,3,0.6467,0.6893,0.6396,0.4264
