@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import re
 import sys
 from pathlib import Path
@@ -640,6 +641,39 @@ def render_model_efficiency(dp7, tp7, eff32, out_dir: Path) -> None:
 # own plateau throughput. The two models collapse onto one curve: the cap law
 # is a shape, not a number.
 # ---------------------------------------------------------------------------
+def saturation_cap(pts: dict[int, float], plateau: float, frac: float = 0.98,
+                   snap: bool = False) -> float:
+    """Smallest cap reaching `frac` of plateau, interpolated on the log-cap axis.
+
+    The old rule -- smallest MEASURED cap over the threshold -- sat one grid step
+    from a knife edge: 32B's c256 cell reads 98.5% in one run and 97.8% in
+    another, flipping C* between 256 and 512 and sliding the curve an octave.
+    Interpolating between the bracketing caps is stable to sub-percent noise
+    (241 vs 291 across those two runs).
+
+    `snap` rounds to the nearest power-of-two cap, which is what the plot
+    normalises by. Not cosmetic: the cap grid doubles, so a power-of-two C* puts
+    both models on the SAME normalised x positions and the curves overlay
+    point-for-point, which is the figure's whole point. Snapping the
+    interpolated value keeps that and stays robust -- 32B's log2 C* is ~8.15, a
+    third of an octave clear of the 8.5 boundary, so it takes a 25% shift to
+    flip where the old rule took 0.7 of a percentage point.
+    """
+    xs = sorted(pts)
+    thr = frac * plateau
+    for i, c in enumerate(xs):
+        if pts[c] < thr:
+            continue
+        if i == 0:
+            return float(c)
+        lo, hi = xs[i - 1], c
+        span = pts[hi] - pts[lo]
+        t = (thr - pts[lo]) / span if span else 0.0
+        cstar = 2 ** (math.log2(lo) + t * (math.log2(hi) - math.log2(lo)))
+        return float(2 ** round(math.log2(cstar))) if snap else float(cstar)
+    return float(xs[-1])
+
+
 def render_cap_collapse(summary: Path, out_dir: Path) -> None:
     # One family per cell, matching the tables. 7B and 32B only, both 4xTP1:
     # the collapse isolates MODEL SIZE with topology, fleet shape, caps grid
@@ -665,14 +699,14 @@ def render_cap_collapse(summary: Path, out_dir: Path) -> None:
         if len(pts) < 3:
             continue
         plateau = max(pts.values())
-        cstar = min(c for c, r in pts.items() if r >= 0.98 * plateau)
+        cstar = saturation_cap(pts, plateau, snap=True)
         xs = sorted(pts)
         ax.plot([c / cstar for c in xs], [100 * pts[c] / plateau for c in xs],
                 marker="o", ms=7, lw=2.0, color=color, zorder=3,
-                label=f"{model} {n_ep}xTP{tp} (C* = {cstar // n_ep} per endpoint)")
+                label=f"{model} {n_ep}xTP{tp} (C* = {round(cstar / n_ep)} per endpoint)")
         for c in xs:
             # nudge the labels at the C* line sideways, off the dashed marker
-            dx = -7 if c == cstar and model != "7B" else 0
+            dx = -7 if abs(c - cstar) < 1 and model != "7B" else 0
             ax.annotate(str(c // n_ep), (c / cstar, 100 * pts[c] / plateau),
                         textcoords="offset points",
                         xytext=(dx, -14) if model == "7B" else (dx, 8),

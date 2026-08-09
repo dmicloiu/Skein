@@ -110,6 +110,8 @@ def parse_rep(results_dir: Path, arm: str, system: str, rep: int, query: int) ->
     return {
         "time": q.get("execution_time"),
         "survivors": q.get("row_count"),
+        # Provenance: reps of one arm must come from one session and one scorer.
+        "ran_ns": (q.get("extra") or {}).get("t_bind_start_ns"),
         "precision": q.get("precision"),
         "recall": q.get("recall"),
         "f1": q.get("f1_score"),
@@ -137,10 +139,27 @@ def aggregate(results_dir: Path, query: int, rows: int) -> list[dict]:
     out = []
     for arm in ARM_ORDER:
         system = ARM_SYSTEM[arm]
-        rs = [parse_rep(results_dir, arm, system, r, query) for r in reps]
-        rs = [r for r in rs if r]
+        rs_all = [parse_rep(results_dir, arm, system, r, query) for r in reps]
+        rs = [r for r in rs_all if r]
         if not rs:
             continue
+        # Provenance guards. Reps of one arm must be interchangeable: same session,
+        # same scorer. Neither shows up as a failed status, and medianing across a
+        # mixed set silently returns whichever version happens to be in the middle
+        # (this is exactly how a re-scored rep1 got outvoted by two stale reps).
+        missing = len(rs_all) - len(rs)
+        if missing:
+            print(f"  WARN {arm}: {missing} rep(s) excluded (status != success) -> n={len(rs)}",
+                  file=sys.stderr)
+        f1s = [r["f1"] for r in rs if r["f1"] is not None]
+        if f1s and max(f1s) - min(f1s) > 0.01:
+            print(f"  WARN {arm}: F1 spread {min(f1s):.3f}-{max(f1s):.3f} across reps. Decoding is "
+                  f"greedy, so reps should agree to ~0.003; this usually means the reps were "
+                  f"scored by different evaluator versions.", file=sys.stderr)
+        days = {int(r["ran_ns"] // 86_400_000_000_000) for r in rs if r.get("ran_ns")}
+        if len(days) > 1:
+            print(f"  WARN {arm}: reps span {len(days)} different days -- mixed sessions carry "
+                  f"cross-node variance and possibly different builds.", file=sys.stderr)
         times = [r["time"] for r in rs if r["time"] is not None]
         t = _med(times)
         tot = _med([r["total_tok"] for r in rs])

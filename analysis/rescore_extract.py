@@ -17,7 +17,7 @@ import json
 import re
 from pathlib import Path
 
-DUMP_RE = re.compile(r"verdicts_.*_r(\d+)(?:_[a-z0-9]+)?\.jsonl$")
+DUMP_RE = re.compile(r"verdicts_(?P<arm>.+?_r(?P<R>\d+))(?:_[a-z0-9]+)?\.jsonl$")
 
 
 def load_gold(csv_path: Path, gold_col: str) -> list[str]:
@@ -69,7 +69,8 @@ def main() -> int:
 
     rows = []
     for path in dumps:
-        R = int(DUMP_RE.search(path.name).group(1))
+        m = DUMP_RE.search(path.name)
+        arm, R = m.group("arm"), int(m.group("R"))
         pred, malformed = {}, 0
         with path.open() as fh:
             for line in fh:
@@ -86,18 +87,18 @@ def main() -> int:
         all_classes = sorted({g for g, _ in pairs} | {p for _, p in pairs})
         _, _, f_old = macro(pairs, all_classes)
         rows.append({
-            "R": R, "rows_scored": len(ids), "malformed_lines": malformed,
+            "arm": arm, "R": R, "rows_scored": len(ids), "malformed_lines": malformed,
             "off_vocab_rows": off, "n_classes_seen": len(all_classes),
             "precision": round(p_fix, 4), "recall": round(r_fix, 4),
             "f1": round(f_fix, 4), "f1_unrestricted_macro": round(f_old, 4),
         })
-    rows.sort(key=lambda r: r["R"])
+    rows.sort(key=lambda r: (r["arm"].rsplit("_r", 1)[0], r["R"]))
 
     print(f"gold labels: {gold_labels}   rows: {len(gold)}")
-    print(f"{'R':>3} {'scored':>7} {'off-vocab':>10} {'classes':>8} "
+    print(f"{'arm':>22} {'scored':>7} {'off-vocab':>10} {'classes':>8} "
           f"{'F1 (fixed)':>11} {'F1 (as reported)':>17} {'precision':>10} {'recall':>8}")
     for r in rows:
-        print(f"{r['R']:>3} {r['rows_scored']:>7} {r['off_vocab_rows']:>10} {r['n_classes_seen']:>8} "
+        print(f"{r['arm']:>22} {r['rows_scored']:>7} {r['off_vocab_rows']:>10} {r['n_classes_seen']:>8} "
               f"{r['f1']:>11.3f} {r['f1_unrestricted_macro']:>17.3f} "
               f"{r['precision']:>10.3f} {r['recall']:>8.3f}")
 
