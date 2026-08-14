@@ -69,7 +69,7 @@ srun -ul --environment="$EDF" bash -c '
     # Full prompt on both arms: make sure no slim/variant knob leaks in.
     unset FLOCK_SEM_PROMPT FLOCK_SEM_VARIANTS
 
-    MODEL="Qwen/Qwen2.5-7B-Instruct"
+    MODEL="${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
     PORT=8000; FULL_UTIL=0.90; TIMEOUT_MS=120000
     ENDPOINT="http://127.0.0.1:$PORT/v1/chat/completions"
     DATA="${DATA:-$SEMBENCH/files/movie/data/sf_2000/Reviews.csv}"
