@@ -1,9 +1,9 @@
 # DP input provenance — Llama arms do NOT share Qwen's sf_300000 sample
 
 The Llama-3.1-8B DP/TP arms in this directory (`llama_unified_rep*`,
-`llama_grid_rep*`, `llama_caps_rep*`) were measured on a **regenerated**
-`sf_300000`, not on the file the Qwen arms used. Read this before comparing any
-absolute `rows_s` / `tok_s` figure across the two families.
+`llama_grid_rep*`, `llama_caps_rep*`, `llama_caps128_rep*`) were measured on a
+**regenerated** `sf_300000`, not on the file the Qwen arms used. Read this
+before comparing any absolute `rows_s` / `tok_s` figure across the two families.
 
 ## What happened
 
@@ -37,6 +37,11 @@ after `dropna(subset=['reviewText'])`).
 Reviews.csv  sha256 5d64fdfaa2071975bd5370d56b41671c50bf5c73ae100a2700819f53e7823ca4  300000 rows
 Movies.csv   sha256 0d2aa6ad5c744b1ef699dbc362a64ab6d314e49430dacf19472294298a396fb8    1236 rows
 ```
+
+`llama_caps128_rep{1,2,3}` (jobs `3088915/6/7`, the N=4 cap=128 below-knee cell)
+ran a day after the other 33 arms, so the input was re-checked at submit time:
+`Reviews.csv` still hashes to `5d64fdfa…3ca4` with an unchanged mtime, so all 36
+arms in this directory share one input file and are mutually comparable.
 
 The measured slice is the first `ROWS=32000` rows: mean `reviewText` length
 139.7 chars (min 1, max 317). The corresponding statistic for the deleted file is
