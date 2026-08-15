@@ -1,0 +1,41 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: movie
+Model: meta-llama/Llama-3.1-8B-Instruct
+Queries: 103
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+-- EXPERIMENT extraction-throughput query (cross-system sem_extract comparison).
+-- A projected llm_complete over reviewText (sentiment classification), rewritable
+-- to the async PhysicalSemExtract operator. Evaluated as macro precision/recall/f1
+-- of the predicted label against gold_sql/Q103.sql (scoreSentiment).
+SELECT r.reviewId, llm_complete(
+      {'model_name': 'meta-llama/Llama-3.1-8B-Instruct'},
+      {'prompt': 'Classify the sentiment of this movie review as exactly one of POSITIVE or NEGATIVE. Answer with only the single word POSITIVE or NEGATIVE.',
+       'context_columns': [{'data': r.reviewText, 'name': 'review'}]}
+  ) AS predicted_sentiment
+FROM reviews_2000 AS r;
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q103.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for movie ---
+Evaluating flockmtl...
+Evaluating Q103 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  flockmtl: ✅ Completed
+    Q103: ✅ 0.97s, 20 rows

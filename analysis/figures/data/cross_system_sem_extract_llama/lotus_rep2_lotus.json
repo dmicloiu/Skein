@@ -1,0 +1,16 @@
+{
+  "Q103": {
+    "query_id": "103",
+    "status": "success",
+    "execution_time": 15.859640836715698,
+    "token_usage": 447615,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 2000,
+    "model_name": "vllm/meta-llama/Llama-3.1-8B-Instruct",
+    "concurrent_llm_worker": 128,
+    "precision": 0.7940029653286468,
+    "recall": 0.8558649194531243,
+    "f1_score": 0.7933015251270938
+  }
+}

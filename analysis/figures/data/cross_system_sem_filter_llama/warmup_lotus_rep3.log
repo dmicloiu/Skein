@@ -1,0 +1,49 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: movie
+Model: vllm/meta-llama/Llama-3.1-8B-Instruct
+Queries: 101
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running lotus ---
+Using vLLM with custom configuration: model=hosted_vllm/meta-llama/Llama-3.1-8B-Instruct, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+BEFORE ST load:
+Allocated: 0.0 GB
+Reserved: 0.0 GB
+2026-08-14 18:25:19,529 - INFO - Use pytorch device_name: cuda:0
+2026-08-14 18:25:19,529 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+AFTER ST load:
+Allocated: 0.40891551971435547 GB
+Reserved: 0.4609375 GB
+
+Running 1 queries for lotus
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:00<00:00, 25.85it/s]Filtering: 100%|██████████ 20/20 LM calls [00:00<00:00, 25.85it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/meta-llama/Llama-3.1-8B-Instruct', cost calculation skipped
+prompt token: 3127, completion token: 842
+total tokens: 3969
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/lotus/Q101.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for movie ---
+Evaluating lotus...
+Evaluating Q101 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  lotus: ✅ Completed
+    Q101: ✅ 0.78s, 4 rows, 3969 tokens

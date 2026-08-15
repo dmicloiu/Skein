@@ -1,0 +1,25 @@
+{
+  "Q101": {
+    "query_id": "101",
+    "status": "success",
+    "execution_time": 5.702132861,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1786720863364943886,
+      "t_submit_ns": 1786720863364944270,
+      "t_done_ns": 1786720869067077131,
+      "row_count": 1167,
+      "throughput_rows_per_s": 204.66026107208938,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl/flock_op_slim_r1_rep2/Q101",
+      "run_label": "flock_op_slim_r1_rep2",
+      "duckdb_threads": 1
+    },
+    "row_count": 1167,
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "concurrent_llm_worker": 128,
+    "precision": 0.9866548042704626,
+    "recall": 0.7826393789696542,
+    "f1_score": 0.8728846910665092
+  }
+}

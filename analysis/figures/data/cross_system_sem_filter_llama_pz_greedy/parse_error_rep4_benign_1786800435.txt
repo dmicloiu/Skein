@@ -1,0 +1,13 @@
+hosted_vllm/meta-llama/Llama-3.1-8B-Instruct
+#####
+PromptStrategy.FILTER
+#####
+The review contains the phrase "This thing sucks!", which is a negative statement. However, it also mentions that Liam Neeson "still has a glare that means badass", which is a positive comment. The reviewer's overall tone seems to be negative, but they do acknowledge one positive aspect of the movie. 
+
+Despite this, the reviewer's negative comments seem to outweigh their positive comment, and the overall tone of the review is still negative. However, the reviewer does not clearly state that the movie is bad, they state that the movie "sucks" but also that "the only thing getting taken is the audience" which implies that the movie is bad but the audience is the one being taken advantage of, not the movie itself.
+#####
+{'passed_operator': FieldInfo(annotation=bool, required=True, description='Whether the record passed the filter operation')}
+#####
+Could not parse answer from completion text: The review contains the phrase "This thing sucks!", which is a negative statement. However, it also mentions that Liam Neeson "still has a glare that means badass", which is a positive comment. The reviewer's overall tone seems to be negative, but they do acknowledge one positive aspect of the movie. 
+
+Despite this, the reviewer's negative comments seem to outweigh their positive comment, and the overall tone of the review is still negative. However, the reviewer does not clearly state that the movie is bad, they state that the movie "sucks" but also that "the only thing getting taken is the audience" which implies that the movie is bad but the audience is the one being taken advantage of, not the movie itself.

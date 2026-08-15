@@ -1,0 +1,53 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: movie
+Model: vllm/meta-llama/Llama-3.1-8B-Instruct
+Queries: 103
+Scale factor: 2000
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running lotus ---
+Using vLLM with custom configuration: model=hosted_vllm/meta-llama/Llama-3.1-8B-Instruct, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+BEFORE ST load:
+Allocated: 0.0 GB
+Reserved: 0.0 GB
+2026-08-14 23:59:19,338 - INFO - Use pytorch device_name: cuda:0
+2026-08-14 23:59:19,338 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+AFTER ST load:
+Allocated: 0.40891551971435547 GB
+Reserved: 0.4609375 GB
+
+Running 1 queries for lotus
+Extracting:   0%|           0/2000 LM calls [00:00<?, ?it/s]Extracting: 100%|██████████ 2000/2000 LM calls [00:16<00:00, 119.93it/s]Extracting: 100%|██████████ 2000/2000 LM calls [00:16<00:00, 119.93it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+2026-08-14 23:59:36,694 - INFO - 	 Failed to parse: {"predicted_sentiment": "NEGATIVE", "predicted_sentiment_quote": "Too much going on, and not in a positive way. The barrier between the live actors and “I wonder how much digital tech it took to create the world” is very thin, and the STAR WARS wannabe plot and atmosphere was formulaic and uninspiring. I’m shrinking.”}
+2026-08-14 23:59:36,696 - INFO - 	 Failed to parse: {"predicted_sentiment": "NEGATIVE", "predicted_sentiment_quote": "\"Avengers: Infinity War\" isn't just a gussied-up mediocrity being widely mistaken for a good movie. It's also, at least arguably, a dangerous movie for anyone who cares about the future of American cinema.\"}
+2026-08-14 23:59:36,697 - INFO - 	 Failed to parse: {"predicted_sentiment": "NEGATIVE", "predicted_sentiment_quote": "Too much going on, and not in a positive way. The barrier between the live actors and “I wonder how much digital tech it took to create the world” is very thin, and the STAR WARS wannabe plot and atmosphere was formulaic and uninspiring. I’m shrinking.”}
+2026-08-14 23:59:36,697 - INFO - 	 Failed to parse: {"predicted_sentiment": "POSITIVE", "predicted_sentiment_quote": "\"Joker\" achieves two contradictory goals simultaneously, delivering a blockbuster that highlights what is eternally captivating about the character, while at the same time offering a sobering critique of the nihilism that has long been the Joker's M.O.\"}
+Warning: No pricing found for model 'vllm/meta-llama/Llama-3.1-8B-Instruct', cost calculation skipped
+prompt token: 376540, completion token: 71070
+total tokens: 447610
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/lotus/Q103.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for movie ---
+Evaluating lotus...
+Evaluating Q103 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  lotus: ✅ Completed
+    Q103: ✅ 17.00s, 2000 rows, 447610 tokens
