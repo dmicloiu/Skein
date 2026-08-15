@@ -2,8 +2,9 @@
 """Diagnose the sem_filter R=1 -> R=32 recall collapse from an R-sweep produced
 by analysis/slurm/sem_filter_rsweep_clariden.sh.
 
-For each R it joins the per-row verdict dump (verdicts_r<R>.jsonl: {id,pos,v};
-id == query-global row_id == source-CSV row index at threads=1) to the source
+For each R it joins the per-row verdict dump (verdicts_r<R>[_rep<N>].jsonl:
+{id,pos,v}; one rep per R, selected with --rep -- see main() for why reps are
+never pooled) (id == query-global row_id == source-CSV row index at threads=1) to the source
 Reviews CSV (gold scoreSentiment + review length) and reports:
 
   1. QUALITY curve      precision / recall / F1 / survivors per R (+ throughput
@@ -85,9 +86,9 @@ def _metric(path: Path, name: str) -> float | None:
     return None
 
 
-def _delta(d: Path, tag: str, name: str) -> float | None:
-    a = _metric(d / f"metrics_after_{tag}_ep0.txt", name)
-    b = _metric(d / f"metrics_before_{tag}_ep0.txt", name)
+def _delta(d: Path, tag: str, name: str, sfx: str = "") -> float | None:
+    a = _metric(d / f"metrics_after_{tag}_ep0{sfx}.txt", name)
+    b = _metric(d / f"metrics_before_{tag}_ep0{sfx}.txt", name)
     return (a - b) if (a is not None and b is not None) else None
 
 
@@ -98,8 +99,8 @@ def prf1(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
     return p, r, f
 
 
-def analyse_R(rdir: Path, R: int, gold: dict[int, dict]) -> dict:
-    verdicts = load_verdicts(rdir / f"verdicts_r{R}.jsonl")
+def analyse_R(rdir: Path, R: int, gold: dict[int, dict], sfx: str = "") -> dict:
+    verdicts = load_verdicts(rdir / f"verdicts_r{R}{sfx}.jsonl")
     tp = fp = fn = 0
     # miss-rate of gold-positives by normalised in-batch position
     pos_tot = [0] * N_POS_BUCKETS
@@ -124,7 +125,7 @@ def analyse_R(rdir: Path, R: int, gold: dict[int, dict]) -> dict:
     p, r, f = prf1(tp, fp, fn)
 
     # throughput / engine efficiency from the (separate, untimed-free) timing pass
-    rj = rdir / f"result_r{R}.json"
+    rj = rdir / f"result_r{R}{sfx}.json"
     rows_s = elapsed = None
     if rj.exists():
         try:
@@ -133,9 +134,9 @@ def analyse_R(rdir: Path, R: int, gold: dict[int, dict]) -> dict:
             elapsed = j.get("elapsed_s")
         except json.JSONDecodeError:
             pass
-    pt = _delta(rdir, f"r{R}", "vllm:prompt_tokens_total")
-    gt = _delta(rdir, f"r{R}", "vllm:generation_tokens_total")
-    ch = _delta(rdir, f"r{R}", "vllm:prefix_cache_hits_total")
+    pt = _delta(rdir, f"r{R}", "vllm:prompt_tokens_total", sfx)
+    gt = _delta(rdir, f"r{R}", "vllm:generation_tokens_total", sfx)
+    ch = _delta(rdir, f"r{R}", "vllm:prefix_cache_hits_total", sfx)
     tok_s = round((pt + gt) / elapsed) if (pt is not None and gt is not None and elapsed) else None
     # prompt_tokens_total counts prefix-cache hits; subtract them for the
     # GPU-processed token throughput.
@@ -160,6 +161,9 @@ def main() -> int:
     ap.add_argument("--gold-positive", default="POSITIVE")
     ap.add_argument("--text-col", default="reviewText")
     ap.add_argument("--out-dir", type=Path, default=None)
+    ap.add_argument("--rep", type=int, default=None,
+                    help="which rep to analyse when dumps carry _rep<N> "
+                         "(default: lowest present). Reps are never pooled.")
     args = ap.parse_args()
     if not args.results_dir.exists():
         print(f"results dir not found: {args.results_dir}", file=sys.stderr)
@@ -172,12 +176,37 @@ def main() -> int:
 
     gold = load_gold(args.data, args.rows, args.gold_col, args.gold_positive, args.text_col)
     n_pos = sum(1 for g in gold.values() if g["gold"])
-    Rs = sorted(int(m.group(1)) for p in args.results_dir.glob("verdicts_r*.jsonl")
-                for m in [re.search(r"verdicts_r(\d+)\.jsonl", p.name)] if m)
-    if not Rs:
-        print(f"no verdicts_r*.jsonl in {args.results_dir}", file=sys.stderr)
+    # Dumps come in two layouts: `verdicts_r<R>.jsonl` (single-rep jobs) and
+    # `verdicts_r<R>_rep<N>.jsonl` (the 3-rep prompt sweeps). Discover both and
+    # analyse ONE rep per R -- reps are not pooled, because the same row_id
+    # recurs across reps at a different in-batch position, so pooling would
+    # average the very positional signal this script exists to measure.
+    found: dict[int, dict[int, str]] = {}   # R -> {rep: suffix}; rep 0 = no suffix
+    for p in args.results_dir.glob("verdicts_r*.jsonl"):
+        m = re.fullmatch(r"verdicts_r(\d+)(?:_rep(\d+))?\.jsonl", p.name)
+        if m:
+            rep = int(m.group(2)) if m.group(2) else 0
+            found.setdefault(int(m.group(1)), {})[rep] = f"_rep{rep}" if m.group(2) else ""
+    if not found:
+        print(f"no verdicts_r<R>[_rep<N>].jsonl in {args.results_dir}", file=sys.stderr)
         return 1
-    res = {R: analyse_R(args.results_dir, R, gold) for R in Rs}
+    chosen: dict[int, str] = {}
+    for R, reps in sorted(found.items()):
+        if args.rep is not None:
+            if args.rep not in reps:
+                print(f"R={R}: no rep {args.rep} (have {sorted(reps)}) -- skipped",
+                      file=sys.stderr)
+                continue
+            chosen[R] = reps[args.rep]
+        else:
+            chosen[R] = reps[min(reps)]
+    if not chosen:
+        print(f"no R survived rep selection in {args.results_dir}", file=sys.stderr)
+        return 1
+    Rs = sorted(chosen)
+    for R in Rs:
+        print(f"  R={R:<3} <- verdicts_r{R}{chosen[R]}.jsonl", file=sys.stderr)
+    res = {R: analyse_R(args.results_dir, R, gold, chosen[R]) for R in Rs}
 
     # ---- 1. QUALITY curve --------------------------------------------------
     qcols = ["R", "survivors", "tp", "fp", "fn", "precision", "recall", "f1", "rows_s", "tok_s", "computed_tok_s"]
