@@ -1,0 +1,17 @@
+{
+  "rewrite": "on",
+  "threads": 1,
+  "rows": 32000,
+  "passes": 31932,
+  "elapsed_s": 169.374,
+  "rows_per_s": 188.931,
+  "row_group_size": 0,
+  "morsels": 1,
+  "inflight": 256,
+  "batch": 1,
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "max_out_mult": 16,
+  "response_format": "json_schema",
+  "tuple_format": "json",
+  "endpoints": "http://127.0.0.1:8000/v1/chat/completions"
+}
