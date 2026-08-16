@@ -1,0 +1,15 @@
+{
+  "rewrite": "on",
+  "threads": 8,
+  "rows": 16384,
+  "passes": 16384,
+  "elapsed_s": 137.703,
+  "rows_per_s": 118.981,
+  "row_group_size": 2048,
+  "morsels": 8,
+  "inflight": 128,
+  "batch": 1,
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "tuple_format": "json",
+  "endpoints": "http://127.0.0.1:8000/v1/chat/completions"
+}
