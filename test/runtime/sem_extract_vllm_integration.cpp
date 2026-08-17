@@ -205,6 +205,7 @@ void WriteResultJson(const Args& a, long long emitted, long long rows_loaded, do
     out << "  \"inflight\": " << a.inflight << ",\n";
     out << "  \"batch\": " << a.rows_per_request << ",\n";
     out << "  \"model\": \"" << a.model << "\",\n";
+    out << "  \"max_out_mult\": " << a.max_out_mult << ",\n";
     out << "  \"tuple_format\": \"" << a.tuple_format << "\",\n";
     out << "  \"endpoints\": \"" << a.endpoints_csv << "\"\n";
     out << "}\n";
