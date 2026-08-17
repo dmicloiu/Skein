@@ -647,6 +647,33 @@ TEST(SemExtract, CreatePlan_ResolvesConfig) {
     con.Query("DROP TABLE patients;");
 }
 
+// ===========================================================================
+// 7. Response schema carries no length bound on the per-row string.
+//
+// A maxLength turns the element into a length-counting grammar, which costs
+// xgrammar 15-25x more mask work per decoded token than an open string and is
+// flat in the bound's value. It once cost the operator ~15% of its rows/s. The
+// ceiling is the request-level max_tokens instead; minItems/maxItems pin the
+// answer count. Guards against reintroducing the bound.
+// ===========================================================================
+TEST(SemExtract, ResponseFormat_PerRowStringIsUnbounded) {
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = MakeExtractOp(plan, {LogicalType::JSON()}, /*llm_call_index=*/0, {});
+
+    for (size_t batch_rows : {size_t{1}, size_t{8}, size_t{32}}) {
+        const auto rf = op.BuildResponseFormat(batch_rows);
+        const auto& items = rf.at("json_schema").at("schema").at("properties").at("items");
+        const auto& element = items.at("items");
+
+        EXPECT_EQ(element.at("type"), "string") << "batch_rows=" << batch_rows;
+        EXPECT_FALSE(element.contains("maxLength")) << "batch_rows=" << batch_rows;
+        EXPECT_FALSE(element.contains("minLength")) << "batch_rows=" << batch_rows;
+        // The answer count stays pinned: that is what keeps items[i] <-> rows[i].
+        EXPECT_EQ(items.at("minItems"), batch_rows);
+        EXPECT_EQ(items.at("maxItems"), batch_rows);
+    }
+}
+
 }  // namespace
 }  // namespace flock
 

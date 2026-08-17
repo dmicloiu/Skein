@@ -101,6 +101,11 @@ srun -ul --environment="$EDF" bash -c '
     [ -x "$BIN" ]  || { echo "driver missing: $BIN (build it first)"; exit 1; }
     [ -f "$DATA" ] || { echo "dataset missing: $DATA"; exit 1; }
     nvidia-smi --query-gpu=index,name,memory.total --format=csv
+    # xgrammar version: the extract response schema is guided-JSON, and mask cost
+    # per decoded token is a property of this library. Record it so a future
+    # throughput shift can be attributed or ruled out.
+    python -c "import importlib.metadata as m; print(\"xgrammar==\" + m.version(\"xgrammar\"))" 2>/dev/null \
+        || echo "xgrammar version: unavailable"
 
     # ---- fleet helpers (mirror router_analysis_clariden.sh) ----------------
     PIDS=(); ENDPOINTS=""
