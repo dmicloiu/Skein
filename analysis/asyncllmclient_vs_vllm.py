@@ -27,37 +27,16 @@ import re
 import sys
 from pathlib import Path
 
+import thesis_style as ts
 
-COLOR_REFERENCE = "blue"   # red — vLLM performance reference
-COLOR_CLIENT    = "green"  # green — AsyncLLMClient results
+
+COLOR_REFERENCE = ts.BLUE    # blue  — vLLM performance reference (baseline)
+COLOR_CLIENT    = ts.GREEN   # green — AsyncLLMClient results (under test)
 
 
 def _setup_style():
-    """Apply consistent styling to all plots."""
-    import matplotlib.pyplot as plt
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 10,
-        "axes.titlesize": 10,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 10,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 9,
-        "legend.loc": "best",
-    })
-
-
-def _label(name: str, unit: str | None = None) -> str:
-    return f"{name} ({unit})" if unit else name
+    """Apply the shared house rcParams (10 pt dense scale)."""
+    ts.setup_style(base_font=14)
 
 
 def parse_integration_log(path: Path) -> dict:
@@ -104,10 +83,6 @@ def main() -> int:
     ap.add_argument("--out", required=True, type=Path,
                     help="Output path. The script writes both <out>.png and "
                          "<out>.pdf next to it.")
-    ap.add_argument("--suptitle",
-                    default="[Network Layer]  AsyncLLMClient vs vLLM "
-                            "Performance Reference  (N=128, R=32, "
-                            "Qwen2.5-7B on DGX Spark)")
     args = ap.parse_args()
 
     _setup_style()
@@ -117,7 +92,6 @@ def main() -> int:
     refs = [load_vllm_analysis_summary(p) for p in args.vllm_analysis_summary]
     clis = [parse_integration_log(p) for p in args.asyncllmclient_log]
     n_ref, n_cli = len(refs), len(clis)
-    n_pairs = min(n_ref, n_cli)
 
     # Throughput across runs.
     ref_rows_all = [float(r["throughput_rows_per_s"]) for r in refs]
@@ -137,7 +111,7 @@ def main() -> int:
 
     have_errorbars = n_ref >= 2 and n_cli >= 2
 
-    fig, (axL, axR) = plt.subplots(1, 2, figsize=(11, 4.5))
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(12, 5))
 
     # ---- left: throughput bar ----
     tools = ["vLLM performance\nanalysis", "AsyncLLMClient"]
@@ -151,8 +125,9 @@ def main() -> int:
         bar_kwargs["ecolor"] = "black"
         bar_kwargs["error_kw"] = dict(elinewidth=1.2)
     bars = axL.bar(tools, rows_mean, **bar_kwargs)
-    axL.set_ylabel(_label("throughput", "rows/s"))
-    axL.set_title("Throughput on vLLM workload")
+    axL.set_ylabel(ts.axis_label("throughput", "rows/s"))
+    axL.set_title("Throughput")
+    ts.set_panel_marker(axL, 0)
     axL.set_ylim(0, (max(rows_mean) + max(rows_sd)) * 1.30)
     for b, v, sd in zip(bars, rows_mean, rows_sd):
         if have_errorbars:
@@ -162,12 +137,12 @@ def main() -> int:
             label = f"{v:.1f}"
             y = v
         axL.text(b.get_x() + b.get_width() / 2, y, label,
-                 ha="center", va="bottom", fontsize=10, fontweight="bold")
+                 ha="center", va="bottom", fontsize=12, fontweight="bold")
     delta_pct = (cli_rows_mean - ref_rows_mean) / ref_rows_mean * 100.0
     sign = "+" if delta_pct >= 0 else ""
     axL.text(0.5, 0.94, f"{sign}{delta_pct:.1f}% vs reference",
-             transform=axL.transAxes, ha="center", fontsize=10,
-             color=COLOR_CLIENT if delta_pct >= 0 else "#d62728",
+             transform=axL.transAxes, ha="center", fontsize=14,
+             color=COLOR_CLIENT if delta_pct >= 0 else ts.GRAY_DARKER,
              fontweight="bold")
 
     # ---- right: latency quantiles grouped bar ----
@@ -188,23 +163,20 @@ def main() -> int:
     axR.bar(x + width / 2, cli_p_mean, width=width, **cli_kw)
     axR.set_xticks(x)
     axR.set_xticklabels(labels)
-    axR.set_ylabel(_label("end-to-end latency", "ms"))
+    axR.set_ylabel(ts.axis_label("end-to-end latency", "ms"))
     axR.set_title("Per-request latency distribution")
+    ts.set_panel_marker(axR, 1)
     axR.legend()
 
     for xi in range(len(labels)):
         rv = ref_p_mean[xi]; rs = ref_p_sd[xi]
         cv = cli_p_mean[xi]; cs = cli_p_sd[xi]
         axR.text(xi - width / 2, rv + rs, f"{rv / 1000:.1f}s",
-                 ha="center", va="bottom", fontsize=9, fontweight="bold")
+                 ha="center", va="bottom", fontsize=12, fontweight="bold")
         axR.text(xi + width / 2, cv + cs, f"{cv / 1000:.1f}s",
-                 ha="center", va="bottom", fontsize=9, fontweight="bold")
+                 ha="center", va="bottom", fontsize=12, fontweight="bold")
 
-    suptitle = args.suptitle
-    if have_errorbars:
-        suptitle += f"   ·   N = {n_pairs} pairs, mean ± stdev"
-    fig.suptitle(suptitle, fontweight="bold", fontsize=11,
-                 x=0.02, y=1.02, ha="left")
+    ts.no_suptitle(fig)
     fig.tight_layout()
 
     out = Path(args.out)
