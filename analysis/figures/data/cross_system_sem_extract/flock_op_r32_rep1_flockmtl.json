@@ -2,15 +2,15 @@
   "Q103": {
     "query_id": "103",
     "status": "success",
-    "execution_time": 6.723623703,
+    "execution_time": 3.671783621,
     "token_usage": 0,
     "money_cost": 0.0,
     "extra": {
-      "t_bind_start_ns": 1786121346308878346,
-      "t_submit_ns": 1786121346308878634,
-      "t_done_ns": 1786121353032502337,
+      "t_bind_start_ns": 1787019172462445829,
+      "t_submit_ns": 1787019172462446501,
+      "t_done_ns": 1787019176134230122,
       "row_count": 2000,
-      "throughput_rows_per_s": 297.45864556751206,
+      "throughput_rows_per_s": 544.6944064354494,
       "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl/flock_op_r32_rep1/Q103",
       "run_label": "flock_op_r32_rep1",
       "duckdb_threads": 1

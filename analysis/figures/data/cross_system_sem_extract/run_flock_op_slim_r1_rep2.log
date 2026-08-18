@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   flockmtl: ✅ Completed
-    Q103: ✅ 9.19s, 2000 rows
+    Q103: ✅ 5.59s, 2000 rows
