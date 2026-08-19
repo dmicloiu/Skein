@@ -17,7 +17,7 @@ Creating vLLM model: model_id=hosted_vllm/meta-llama/Llama-3.1-8B-Instruct, api_
   MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
   LLMConvertBonded (a620c6153c)     ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
   ProjectOp (97e6eb8e58)            ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
-Total time: 0.43s
+Total time: 0.37s
 Total cost: $0.0000
 Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
 prompt token: 0.0, completion token: 280.0
@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   palimpzest: ✅ Completed
-    Q103: ✅ 0.72s, 20 rows, 280.0 tokens
+    Q103: ✅ 0.50s, 20 rows, 280.0 tokens

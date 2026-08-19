@@ -1,8 +1,8 @@
 # HELP python_gc_objects_collected_total Objects collected during gc
 # TYPE python_gc_objects_collected_total counter
-python_gc_objects_collected_total{generation="0"} 5.013508e+06
-python_gc_objects_collected_total{generation="1"} 467758.0
-python_gc_objects_collected_total{generation="2"} 39074.0
+python_gc_objects_collected_total{generation="0"} 5.002896e+06
+python_gc_objects_collected_total{generation="1"} 471543.0
+python_gc_objects_collected_total{generation="2"} 45854.0
 # HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
 # TYPE python_gc_objects_uncollectable_total counter
 python_gc_objects_uncollectable_total{generation="0"} 0.0
@@ -10,9 +10,9 @@ python_gc_objects_uncollectable_total{generation="1"} 0.0
 python_gc_objects_uncollectable_total{generation="2"} 0.0
 # HELP python_gc_collections_total Number of times this generation was collected
 # TYPE python_gc_collections_total counter
-python_gc_collections_total{generation="0"} 69448.0
-python_gc_collections_total{generation="1"} 6313.0
-python_gc_collections_total{generation="2"} 569.0
+python_gc_collections_total{generation="0"} 73417.0
+python_gc_collections_total{generation="1"} 6674.0
+python_gc_collections_total{generation="2"} 602.0
 # HELP python_info Python platform information
 # TYPE python_info gauge
 python_info{implementation="CPython",major="3",minor="11",patchlevel="15",version="3.11.15"} 1.0
@@ -21,13 +21,13 @@ python_info{implementation="CPython",major="3",minor="11",patchlevel="15",versio
 process_virtual_memory_bytes 3.7416009728e+010
 # HELP process_resident_memory_bytes Resident memory size in bytes.
 # TYPE process_resident_memory_bytes gauge
-process_resident_memory_bytes 1.207959552e+09
+process_resident_memory_bytes 1.170210816e+09
 # HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
 # TYPE process_start_time_seconds gauge
-process_start_time_seconds 1.78690024629e+09
+process_start_time_seconds 1.78705349781e+09
 # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
 # TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 718.9599999999999
+process_cpu_seconds_total 702.3900000000001
 # HELP process_open_fds Number of open file descriptors.
 # TYPE process_open_fds gauge
 process_open_fds 54.0
@@ -39,19 +39,19 @@ process_max_fds 1e+06
 vllm:estimated_flops_per_gpu_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:estimated_flops_per_gpu_created Estimated number of floating point operations per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_flops_per_gpu_created gauge
-vllm:estimated_flops_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858013797e+09
+vllm:estimated_flops_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433663902e+09
 # HELP vllm:estimated_read_bytes_per_gpu_total Estimated number of bytes read from memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_read_bytes_per_gpu_total counter
 vllm:estimated_read_bytes_per_gpu_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:estimated_read_bytes_per_gpu_created Estimated number of bytes read from memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_read_bytes_per_gpu_created gauge
-vllm:estimated_read_bytes_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858015358e+09
+vllm:estimated_read_bytes_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433665445e+09
 # HELP vllm:estimated_write_bytes_per_gpu_total Estimated number of bytes written to memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_write_bytes_per_gpu_total counter
 vllm:estimated_write_bytes_per_gpu_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:estimated_write_bytes_per_gpu_created Estimated number of bytes written to memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_write_bytes_per_gpu_created gauge
-vllm:estimated_write_bytes_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801561e+09
+vllm:estimated_write_bytes_per_gpu_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433665667e+09
 # HELP vllm:num_requests_running Number of requests in model execution batches.
 # TYPE vllm:num_requests_running gauge
 vllm:num_requests_running{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
@@ -75,71 +75,71 @@ vllm:kv_cache_usage_perc{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/
 vllm:prefix_cache_queries_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.32093947e+08
 # HELP vllm:prefix_cache_queries_created Prefix cache queries, in terms of number of queried tokens.
 # TYPE vllm:prefix_cache_queries_created gauge
-vllm:prefix_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017251e+09
+vllm:prefix_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433667123e+09
 # HELP vllm:prefix_cache_hits_total Prefix cache hits, in terms of number of cached tokens.
 # TYPE vllm:prefix_cache_hits_total counter
-vllm:prefix_cache_hits_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.7204768e+07
+vllm:prefix_cache_hits_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.7205136e+07
 # HELP vllm:prefix_cache_hits_created Prefix cache hits, in terms of number of cached tokens.
 # TYPE vllm:prefix_cache_hits_created gauge
-vllm:prefix_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017359e+09
+vllm:prefix_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433667235e+09
 # HELP vllm:external_prefix_cache_queries_total External prefix cache queries from KV connector cross-instance cache sharing, in terms of number of queried tokens.
 # TYPE vllm:external_prefix_cache_queries_total counter
 vllm:external_prefix_cache_queries_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:external_prefix_cache_queries_created External prefix cache queries from KV connector cross-instance cache sharing, in terms of number of queried tokens.
 # TYPE vllm:external_prefix_cache_queries_created gauge
-vllm:external_prefix_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017464e+09
+vllm:external_prefix_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366734e+09
 # HELP vllm:external_prefix_cache_hits_total External prefix cache hits from KV connector cross-instance cache sharing, in terms of number of cached tokens.
 # TYPE vllm:external_prefix_cache_hits_total counter
 vllm:external_prefix_cache_hits_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:external_prefix_cache_hits_created External prefix cache hits from KV connector cross-instance cache sharing, in terms of number of cached tokens.
 # TYPE vllm:external_prefix_cache_hits_created gauge
-vllm:external_prefix_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017578e+09
+vllm:external_prefix_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366745e+09
 # HELP vllm:mm_cache_queries_total Multi-modal cache queries, in terms of number of queried items.
 # TYPE vllm:mm_cache_queries_total counter
 vllm:mm_cache_queries_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:mm_cache_queries_created Multi-modal cache queries, in terms of number of queried items.
 # TYPE vllm:mm_cache_queries_created gauge
-vllm:mm_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017693e+09
+vllm:mm_cache_queries_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433667576e+09
 # HELP vllm:mm_cache_hits_total Multi-modal cache hits, in terms of number of cached items.
 # TYPE vllm:mm_cache_hits_total counter
 vllm:mm_cache_hits_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:mm_cache_hits_created Multi-modal cache hits, in terms of number of cached items.
 # TYPE vllm:mm_cache_hits_created gauge
-vllm:mm_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858017886e+09
+vllm:mm_cache_hits_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433667681e+09
 # HELP vllm:num_preemptions_total Cumulative number of preemption from the engine.
 # TYPE vllm:num_preemptions_total counter
 vllm:num_preemptions_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:num_preemptions_created Cumulative number of preemption from the engine.
 # TYPE vllm:num_preemptions_created gauge
-vllm:num_preemptions_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801799e+09
+vllm:num_preemptions_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366778e+09
 # HELP vllm:prompt_tokens_total Number of prefill tokens processed.
 # TYPE vllm:prompt_tokens_total counter
 vllm:prompt_tokens_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.32093947e+08
 # HELP vllm:prompt_tokens_created Number of prefill tokens processed.
 # TYPE vllm:prompt_tokens_created gauge
-vllm:prompt_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801809e+09
+vllm:prompt_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433667998e+09
 # HELP vllm:prompt_tokens_by_source_total Number of prompt tokens by source.
 # TYPE vllm:prompt_tokens_by_source_total counter
-vllm:prompt_tokens_by_source_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_compute"} 6.4889179e+07
-vllm:prompt_tokens_by_source_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_cache_hit"} 6.7204768e+07
+vllm:prompt_tokens_by_source_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_compute"} 6.4888811e+07
+vllm:prompt_tokens_by_source_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_cache_hit"} 6.7205136e+07
 vllm:prompt_tokens_by_source_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="external_kv_transfer"} 0.0
 # HELP vllm:prompt_tokens_by_source_created Number of prompt tokens by source.
 # TYPE vllm:prompt_tokens_by_source_created gauge
-vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_compute"} 1.7869003858018274e+09
-vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_cache_hit"} 1.7869003858018315e+09
-vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="external_kv_transfer"} 1.7869003858018394e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_compute"} 1.7870536433668163e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="local_cache_hit"} 1.7870536433668206e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28",source="external_kv_transfer"} 1.7870536433668282e+09
 # HELP vllm:prompt_tokens_cached_total Number of cached prompt tokens (local + external).
 # TYPE vllm:prompt_tokens_cached_total counter
-vllm:prompt_tokens_cached_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.7204768e+07
+vllm:prompt_tokens_cached_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.7205136e+07
 # HELP vllm:prompt_tokens_cached_created Number of cached prompt tokens (local + external).
 # TYPE vllm:prompt_tokens_cached_created gauge
-vllm:prompt_tokens_cached_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801849e+09
+vllm:prompt_tokens_cached_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433668382e+09
 # HELP vllm:generation_tokens_total Number of generation tokens processed.
 # TYPE vllm:generation_tokens_total counter
-vllm:generation_tokens_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621985e+06
+vllm:generation_tokens_total{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621994e+06
 # HELP vllm:generation_tokens_created Number of generation tokens processed.
 # TYPE vllm:generation_tokens_created gauge
-vllm:generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801859e+09
+vllm:generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366849e+09
 # HELP vllm:request_success_total Count of successfully processed requests.
 # TYPE vllm:request_success_total counter
 vllm:request_success_total{engine="0",finished_reason="stop",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -149,11 +149,11 @@ vllm:request_success_total{engine="0",finished_reason="error",model_name="/iopss
 vllm:request_success_total{engine="0",finished_reason="repetition",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 # HELP vllm:request_success_created Count of successfully processed requests.
 # TYPE vllm:request_success_created gauge
-vllm:request_success_created{engine="0",finished_reason="stop",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858018858e+09
-vllm:request_success_created{engine="0",finished_reason="length",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858018935e+09
-vllm:request_success_created{engine="0",finished_reason="abort",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858018997e+09
-vllm:request_success_created{engine="0",finished_reason="error",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858019054e+09
-vllm:request_success_created{engine="0",finished_reason="repetition",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.786900385801912e+09
+vllm:request_success_created{engine="0",finished_reason="stop",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433668735e+09
+vllm:request_success_created{engine="0",finished_reason="length",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433668792e+09
+vllm:request_success_created{engine="0",finished_reason="abort",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366885e+09
+vllm:request_success_created{engine="0",finished_reason="error",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433668907e+09
+vllm:request_success_created{engine="0",finished_reason="repetition",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433668969e+09
 # HELP vllm:request_prompt_tokens Number of prefill tokens processed.
 # TYPE vllm:request_prompt_tokens histogram
 vllm:request_prompt_tokens_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
@@ -174,14 +174,14 @@ vllm:request_prompt_tokens_count{engine="0",model_name="/iopsstor/scratch/cscs/d
 vllm:request_prompt_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.32093947e+08
 # HELP vllm:request_prompt_tokens_created Number of prefill tokens processed.
 # TYPE vllm:request_prompt_tokens_created gauge
-vllm:request_prompt_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858019593e+09
+vllm:request_prompt_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366935e+09
 # HELP vllm:request_generation_tokens Number of generation tokens processed.
 # TYPE vllm:request_generation_tokens histogram
 vllm:request_generation_tokens_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_generation_tokens_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_generation_tokens_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_generation_tokens_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262093.0
-vllm:request_generation_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262124.0
+vllm:request_generation_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262123.0
 vllm:request_generation_tokens_bucket{engine="0",le="50.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_generation_tokens_bucket{engine="0",le="100.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_generation_tokens_bucket{engine="0",le="200.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -192,38 +192,38 @@ vllm:request_generation_tokens_bucket{engine="0",le="5000.0",model_name="/iopsst
 vllm:request_generation_tokens_bucket{engine="0",le="10000.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_generation_tokens_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_generation_tokens_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_generation_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621985e+06
+vllm:request_generation_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621994e+06
 # HELP vllm:request_generation_tokens_created Number of generation tokens processed.
 # TYPE vllm:request_generation_tokens_created gauge
-vllm:request_generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858020039e+09
+vllm:request_generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643366977e+09
 # HELP vllm:iteration_tokens_total Histogram of number of tokens per engine_step.
 # TYPE vllm:iteration_tokens_total histogram
-vllm:iteration_tokens_total_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 269.0
-vllm:iteration_tokens_total_bucket{engine="0",le="8.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1117.0
-vllm:iteration_tokens_total_bucket{engine="0",le="16.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1918.0
-vllm:iteration_tokens_total_bucket{engine="0",le="32.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 3047.0
-vllm:iteration_tokens_total_bucket{engine="0",le="64.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 4008.0
-vllm:iteration_tokens_total_bucket{engine="0",le="128.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 15532.0
-vllm:iteration_tokens_total_bucket{engine="0",le="256.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 15532.0
-vllm:iteration_tokens_total_bucket{engine="0",le="512.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 15594.0
-vllm:iteration_tokens_total_bucket{engine="0",le="1024.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 16002.0
-vllm:iteration_tokens_total_bucket{engine="0",le="2048.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 16846.0
-vllm:iteration_tokens_total_bucket{engine="0",le="4096.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 19345.0
-vllm:iteration_tokens_total_bucket{engine="0",le="8192.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 22829.0
-vllm:iteration_tokens_total_bucket{engine="0",le="16384.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 28132.0
-vllm:iteration_tokens_total_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 30018.0
-vllm:iteration_tokens_total_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 30018.0
-vllm:iteration_tokens_total_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.34715932e+08
+vllm:iteration_tokens_total_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 843.0
+vllm:iteration_tokens_total_bucket{engine="0",le="8.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 3197.0
+vllm:iteration_tokens_total_bucket{engine="0",le="16.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 4084.0
+vllm:iteration_tokens_total_bucket{engine="0",le="32.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 5061.0
+vllm:iteration_tokens_total_bucket{engine="0",le="64.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6307.0
+vllm:iteration_tokens_total_bucket{engine="0",le="128.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 19625.0
+vllm:iteration_tokens_total_bucket{engine="0",le="256.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 19625.0
+vllm:iteration_tokens_total_bucket{engine="0",le="512.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 19929.0
+vllm:iteration_tokens_total_bucket{engine="0",le="1024.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 21126.0
+vllm:iteration_tokens_total_bucket{engine="0",le="2048.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 22707.0
+vllm:iteration_tokens_total_bucket{engine="0",le="4096.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 24384.0
+vllm:iteration_tokens_total_bucket{engine="0",le="8192.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 26557.0
+vllm:iteration_tokens_total_bucket{engine="0",le="16384.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 31316.0
+vllm:iteration_tokens_total_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 33990.0
+vllm:iteration_tokens_total_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 33990.0
+vllm:iteration_tokens_total_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.34715941e+08
 # HELP vllm:iteration_tokens_total_created Histogram of number of tokens per engine_step.
 # TYPE vllm:iteration_tokens_total_created gauge
-vllm:iteration_tokens_total_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.78690038580203e+09
+vllm:iteration_tokens_total_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433670037e+09
 # HELP vllm:request_max_num_generation_tokens Histogram of maximum number of requested generation tokens.
 # TYPE vllm:request_max_num_generation_tokens histogram
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262093.0
-vllm:request_max_num_generation_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262124.0
+vllm:request_max_num_generation_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262123.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="50.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="100.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="200.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -234,10 +234,10 @@ vllm:request_max_num_generation_tokens_bucket{engine="0",le="5000.0",model_name=
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="10000.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_max_num_generation_tokens_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_max_num_generation_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621985e+06
+vllm:request_max_num_generation_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.621994e+06
 # HELP vllm:request_max_num_generation_tokens_created Histogram of maximum number of requested generation tokens.
 # TYPE vllm:request_max_num_generation_tokens_created gauge
-vllm:request_max_num_generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858020616e+09
+vllm:request_max_num_generation_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643367033e+09
 # HELP vllm:request_params_n Histogram of the n request parameter.
 # TYPE vllm:request_params_n histogram
 vllm:request_params_n_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -250,7 +250,7 @@ vllm:request_params_n_count{engine="0",model_name="/iopsstor/scratch/cscs/dmiclo
 vllm:request_params_n_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 # HELP vllm:request_params_n_created Histogram of the n request parameter.
 # TYPE vllm:request_params_n_created gauge
-vllm:request_params_n_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858020868e+09
+vllm:request_params_n_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433670576e+09
 # HELP vllm:request_params_max_tokens Histogram of the max_tokens request parameter.
 # TYPE vllm:request_params_max_tokens histogram
 vllm:request_params_max_tokens_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
@@ -271,21 +271,21 @@ vllm:request_params_max_tokens_count{engine="0",model_name="/iopsstor/scratch/cs
 vllm:request_params_max_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.710912e+07
 # HELP vllm:request_params_max_tokens_created Histogram of the max_tokens request parameter.
 # TYPE vllm:request_params_max_tokens_created gauge
-vllm:request_params_max_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858021088e+09
+vllm:request_params_max_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643367079e+09
 # HELP vllm:time_to_first_token_seconds Histogram of time to first token in seconds.
 # TYPE vllm:time_to_first_token_seconds histogram
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.001",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.005",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.01",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.02",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 0.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.04",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 33.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.06",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 447.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.08",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1345.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2438.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.25",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 38763.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 135690.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 258633.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262144.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.04",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 179.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.06",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1591.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.08",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 3292.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 5036.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.25",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 20781.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 76178.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 253944.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262084.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="7.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -298,44 +298,44 @@ vllm:time_to_first_token_seconds_bucket{engine="0",le="640.0",model_name="/iopss
 vllm:time_to_first_token_seconds_bucket{engine="0",le="2560.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:time_to_first_token_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:time_to_first_token_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 122570.6507666111
+vllm:time_to_first_token_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 147781.067340374
 # HELP vllm:time_to_first_token_seconds_created Histogram of time to first token in seconds.
 # TYPE vllm:time_to_first_token_seconds_created gauge
-vllm:time_to_first_token_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858021345e+09
+vllm:time_to_first_token_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433671055e+09
 # HELP vllm:inter_token_latency_seconds Histogram of inter-token latency in seconds.
 # TYPE vllm:inter_token_latency_seconds histogram
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 57774.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 688409.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.318229e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.846361e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.934697e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.044697e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.127647e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359728e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359786e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.75",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="7.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="40.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="80.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.35984e+06
-vllm:inter_token_latency_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 150456.74413876678
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 90381.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.690527e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.874985e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.921501e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.967892e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.030495e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.092002e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359803e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359803e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.75",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="7.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="40.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="80.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2.359849e+06
+vllm:inter_token_latency_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 108290.35594074288
 # HELP vllm:inter_token_latency_seconds_created Histogram of inter-token latency in seconds.
 # TYPE vllm:inter_token_latency_seconds_created gauge
-vllm:inter_token_latency_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858021696e+09
+vllm:inter_token_latency_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433671427e+09
 # HELP vllm:request_time_per_output_token_seconds Histogram of time_per_output_token_seconds per request.
 # TYPE vllm:request_time_per_output_token_seconds histogram
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.01",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 321.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.025",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 2787.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.05",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 74450.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.075",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 177234.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 261640.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.01",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 707.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.025",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 71606.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.05",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 149895.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.075",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 220450.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.1",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262139.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.15",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.2",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -352,19 +352,19 @@ vllm:request_time_per_output_token_seconds_bucket{engine="0",le="40.0",model_nam
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="80.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_time_per_output_token_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_time_per_output_token_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 16713.22047217706
+vllm:request_time_per_output_token_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 12028.882437701439
 # HELP vllm:request_time_per_output_token_seconds_created Histogram of time_per_output_token_seconds per request.
 # TYPE vllm:request_time_per_output_token_seconds_created gauge
-vllm:request_time_per_output_token_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858022015e+09
+vllm:request_time_per_output_token_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433671756e+09
 # HELP vllm:e2e_request_latency_seconds Histogram of e2e request latency in seconds.
 # TYPE vllm:e2e_request_latency_seconds histogram
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 781.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 5029.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 15938.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 141404.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262104.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262128.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262135.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1428.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 3143.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 41788.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 253717.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262120.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262138.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262139.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="15.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -381,14 +381,14 @@ vllm:e2e_request_latency_seconds_bucket{engine="0",le="1920.0",model_name="/iops
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="7680.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:e2e_request_latency_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:e2e_request_latency_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 255250.0514280796
+vllm:e2e_request_latency_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 226090.25297951698
 # HELP vllm:e2e_request_latency_seconds_created Histogram of e2e request latency in seconds.
 # TYPE vllm:e2e_request_latency_seconds_created gauge
-vllm:e2e_request_latency_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858022404e+09
+vllm:e2e_request_latency_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.787053643367216e+09
 # HELP vllm:request_queue_time_seconds Histogram of time spent in WAITING phase for request.
 # TYPE vllm:request_queue_time_seconds histogram
-vllm:request_queue_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 258751.0
-vllm:request_queue_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262144.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 249416.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262118.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -410,19 +410,19 @@ vllm:request_queue_time_seconds_bucket{engine="0",le="1920.0",model_name="/iopss
 vllm:request_queue_time_seconds_bucket{engine="0",le="7680.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_queue_time_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_queue_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 12723.9032424998
+vllm:request_queue_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 22172.991643629037
 # HELP vllm:request_queue_time_seconds_created Histogram of time spent in WAITING phase for request.
 # TYPE vllm:request_queue_time_seconds_created gauge
-vllm:request_queue_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858023074e+09
+vllm:request_queue_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433672843e+09
 # HELP vllm:request_inference_time_seconds Histogram of time spent in RUNNING phase for request.
 # TYPE vllm:request_inference_time_seconds histogram
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1986.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 18987.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 133894.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 260929.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262126.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262133.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262138.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 19752.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 82081.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 193455.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262084.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262130.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262138.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262141.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="15.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -439,14 +439,14 @@ vllm:request_inference_time_seconds_bucket{engine="0",le="1920.0",model_name="/i
 vllm:request_inference_time_seconds_bucket{engine="0",le="7680.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_inference_time_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_inference_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 198894.5050652721
+vllm:request_inference_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 161688.50146980258
 # HELP vllm:request_inference_time_seconds_created Histogram of time spent in RUNNING phase for request.
 # TYPE vllm:request_inference_time_seconds_created gauge
-vllm:request_inference_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.78690038580234e+09
+vllm:request_inference_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433673167e+09
 # HELP vllm:request_prefill_time_seconds Histogram of time spent in PREFILL phase for request.
 # TYPE vllm:request_prefill_time_seconds histogram
-vllm:request_prefill_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 259310.0
-vllm:request_prefill_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262144.0
+vllm:request_prefill_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 258267.0
+vllm:request_prefill_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262078.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -468,19 +468,19 @@ vllm:request_prefill_time_seconds_bucket{engine="0",le="1920.0",model_name="/iop
 vllm:request_prefill_time_seconds_bucket{engine="0",le="7680.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_time_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_prefill_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 48437.76092650532
+vllm:request_prefill_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 53398.14552905969
 # HELP vllm:request_prefill_time_seconds_created Histogram of time spent in PREFILL phase for request.
 # TYPE vllm:request_prefill_time_seconds_created gauge
-vllm:request_prefill_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858023748e+09
+vllm:request_prefill_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.78705364336735e+09
 # HELP vllm:request_decode_time_seconds Histogram of time spent in DECODE phase for request.
 # TYPE vllm:request_decode_time_seconds histogram
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 13142.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 99183.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 229939.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262113.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262130.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262135.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262139.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.3",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 98881.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 167101.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.8",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 248505.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262122.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="1.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262135.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262139.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="2.5",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262143.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="15.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -497,20 +497,20 @@ vllm:request_decode_time_seconds_bucket{engine="0",le="1920.0",model_name="/iops
 vllm:request_decode_time_seconds_bucket{engine="0",le="7680.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_decode_time_seconds_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_decode_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 150456.74413876678
+vllm:request_decode_time_seconds_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 108290.35594074288
 # HELP vllm:request_decode_time_seconds_created Histogram of time spent in DECODE phase for request.
 # TYPE vllm:request_decode_time_seconds_created gauge
-vllm:request_decode_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858024094e+09
+vllm:request_decode_time_seconds_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433673832e+09
 # HELP vllm:request_prefill_kv_computed_tokens Histogram of new KV tokens computed during prefill (excluding cached tokens).
 # TYPE vllm:request_prefill_kv_computed_tokens histogram
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="1.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 9.0
-vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 48.0
+vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="2.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 49.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="5.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 77.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="10.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 129.0
-vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 236.0
-vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="50.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 236.0
-vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="100.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 236.0
-vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="200.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 236.0
+vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="20.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 238.0
+vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="50.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 238.0
+vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="100.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 238.0
+vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="200.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 238.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="500.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="1000.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="2000.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
@@ -518,10 +518,10 @@ vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="5000.0",model_name
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="10000.0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="+Inf",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
 vllm:request_prefill_kv_computed_tokens_count{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 262145.0
-vllm:request_prefill_kv_computed_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.4889179e+07
+vllm:request_prefill_kv_computed_tokens_sum{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 6.4888811e+07
 # HELP vllm:request_prefill_kv_computed_tokens_created Histogram of new KV tokens computed during prefill (excluding cached tokens).
 # TYPE vllm:request_prefill_kv_computed_tokens_created gauge
-vllm:request_prefill_kv_computed_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7869003858024452e+09
+vllm:request_prefill_kv_computed_tokens_created{engine="0",model_name="/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"} 1.7870536433674173e+09
 # HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
 # TYPE vllm:cache_config_info gauge
 vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="auto",calculate_kv_scales="False",enable_prefix_caching="True",engine="0",gpu_memory_utilization="0.9",hash_block_size="None",is_attention_free="False",kv_cache_dtype_skip_layers="[]",kv_cache_memory_bytes="None",kv_offloading_backend="native",kv_offloading_size="None",kv_sharing_fast_prefill="False",mamba_block_size="None",mamba_cache_dtype="auto",mamba_cache_mode="none",mamba_page_size_padded="None",mamba_ssm_cache_dtype="auto",num_cpu_blocks="None",num_gpu_blocks="79877",num_gpu_blocks_override="None",prefix_caching_hash_algo="sha256",sliding_window="None",user_specified_block_size="False",user_specified_mamba_block_size="False"} 1.0
@@ -530,38 +530,38 @@ vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="
 http_requests_total{handler="/v1/chat/completions",method="POST",status="2xx"} 262145.0
 # HELP http_requests_created Total number of requests by method, status and handler.
 # TYPE http_requests_created gauge
-http_requests_created{handler="/v1/chat/completions",method="POST",status="2xx"} 1.7869003948453145e+09
+http_requests_created{handler="/v1/chat/completions",method="POST",status="2xx"} 1.7870536504767165e+09
 # HELP http_request_size_bytes Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_request_size_bytes summary
 http_request_size_bytes_count{handler="/v1/chat/completions"} 262145.0
-http_request_size_bytes_sum{handler="/v1/chat/completions"} 7.12845687e+08
+http_request_size_bytes_sum{handler="/v1/chat/completions"} 7.08389222e+08
 # HELP http_request_size_bytes_created Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_request_size_bytes_created gauge
-http_request_size_bytes_created{handler="/v1/chat/completions"} 1.7869003948453388e+09
+http_request_size_bytes_created{handler="/v1/chat/completions"} 1.787053650476736e+09
 # HELP http_response_size_bytes Content length of outgoing responses by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_response_size_bytes summary
 http_response_size_bytes_count{handler="/v1/chat/completions"} 262145.0
-http_response_size_bytes_sum{handler="/v1/chat/completions"} 1.74742046e+08
+http_response_size_bytes_sum{handler="/v1/chat/completions"} 1.74742067e+08
 # HELP http_response_size_bytes_created Content length of outgoing responses by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_response_size_bytes_created gauge
-http_response_size_bytes_created{handler="/v1/chat/completions"} 1.7869003948453617e+09
+http_response_size_bytes_created{handler="/v1/chat/completions"} 1.7870536504767573e+09
 # HELP http_request_duration_highr_seconds Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
 # TYPE http_request_duration_highr_seconds histogram
 http_request_duration_highr_seconds_bucket{le="0.01"} 0.0
 http_request_duration_highr_seconds_bucket{le="0.025"} 0.0
 http_request_duration_highr_seconds_bucket{le="0.05"} 0.0
-http_request_duration_highr_seconds_bucket{le="0.075"} 0.0
-http_request_duration_highr_seconds_bucket{le="0.1"} 31.0
-http_request_duration_highr_seconds_bucket{le="0.25"} 467.0
-http_request_duration_highr_seconds_bucket{le="0.5"} 4839.0
-http_request_duration_highr_seconds_bucket{le="0.75"} 12342.0
-http_request_duration_highr_seconds_bucket{le="1.0"} 126063.0
-http_request_duration_highr_seconds_bucket{le="1.5"} 262099.0
-http_request_duration_highr_seconds_bucket{le="2.0"} 262128.0
-http_request_duration_highr_seconds_bucket{le="2.5"} 262135.0
-http_request_duration_highr_seconds_bucket{le="3.0"} 262140.0
-http_request_duration_highr_seconds_bucket{le="3.5"} 262143.0
-http_request_duration_highr_seconds_bucket{le="4.0"} 262144.0
+http_request_duration_highr_seconds_bucket{le="0.075"} 1.0
+http_request_duration_highr_seconds_bucket{le="0.1"} 38.0
+http_request_duration_highr_seconds_bucket{le="0.25"} 871.0
+http_request_duration_highr_seconds_bucket{le="0.5"} 3012.0
+http_request_duration_highr_seconds_bucket{le="0.75"} 10141.0
+http_request_duration_highr_seconds_bucket{le="1.0"} 250903.0
+http_request_duration_highr_seconds_bucket{le="1.5"} 262120.0
+http_request_duration_highr_seconds_bucket{le="2.0"} 262138.0
+http_request_duration_highr_seconds_bucket{le="2.5"} 262139.0
+http_request_duration_highr_seconds_bucket{le="3.0"} 262143.0
+http_request_duration_highr_seconds_bucket{le="3.5"} 262144.0
+http_request_duration_highr_seconds_bucket{le="4.0"} 262145.0
 http_request_duration_highr_seconds_bucket{le="4.5"} 262145.0
 http_request_duration_highr_seconds_bucket{le="5.0"} 262145.0
 http_request_duration_highr_seconds_bucket{le="7.5"} 262145.0
@@ -570,18 +570,18 @@ http_request_duration_highr_seconds_bucket{le="30.0"} 262145.0
 http_request_duration_highr_seconds_bucket{le="60.0"} 262145.0
 http_request_duration_highr_seconds_bucket{le="+Inf"} 262145.0
 http_request_duration_highr_seconds_count 262145.0
-http_request_duration_highr_seconds_sum 257757.04412062513
+http_request_duration_highr_seconds_sum 229044.8806110546
 # HELP http_request_duration_highr_seconds_created Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
 # TYPE http_request_duration_highr_seconds_created gauge
-http_request_duration_highr_seconds_created 1.7869003863528514e+09
+http_request_duration_highr_seconds_created 1.7870536439355538e+09
 # HELP http_request_duration_seconds Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
 # TYPE http_request_duration_seconds histogram
-http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.1",method="POST"} 31.0
-http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.5",method="POST"} 4839.0
-http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="1.0",method="POST"} 126063.0
+http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.1",method="POST"} 38.0
+http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.5",method="POST"} 3012.0
+http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="1.0",method="POST"} 250903.0
 http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="+Inf",method="POST"} 262145.0
 http_request_duration_seconds_count{handler="/v1/chat/completions",method="POST"} 262145.0
-http_request_duration_seconds_sum{handler="/v1/chat/completions",method="POST"} 257757.04412062513
+http_request_duration_seconds_sum{handler="/v1/chat/completions",method="POST"} 229044.8806110546
 # HELP http_request_duration_seconds_created Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
 # TYPE http_request_duration_seconds_created gauge
-http_request_duration_seconds_created{handler="/v1/chat/completions",method="POST"} 1.7869003948453975e+09
+http_request_duration_seconds_created{handler="/v1/chat/completions",method="POST"} 1.7870536504767828e+09

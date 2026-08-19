@@ -187,14 +187,14 @@ void PhysicalSemExtract::ParseAndEmit(const nlohmann::json& element, const RowDa
 }
 
 nlohmann::json PhysicalSemExtract::BuildResponseFormat(size_t batch_rows) const {
-    // One string completion per row (mirrors the scalar's OutputType::STRING schema),
-    // but bound each string to its share of the output-token budget (~4 chars/token).
-    // The bound scales with the configured budget and R, so it never
-    // clips a completion the budget could actually fit.
-    const uint64_t per_row_tokens = batch_rows > 0 ? cfg.max_output_tokens / batch_rows : cfg.max_output_tokens;
-    const int max_chars = static_cast<int>((per_row_tokens > 0 ? per_row_tokens : 1) * 4);
-    nlohmann::json element = {{"type", "string"}, {"maxLength", max_chars}};
-    return ItemsResponseFormat("extract_results", std::move(element), batch_rows);
+    // One string completion per row (mirrors the scalar's OutputType::STRING schema).
+    // Deliberately UNBOUNDED: a maxLength makes the element a length-counting
+    // grammar, which costs xgrammar 15-25x more mask work per decoded token than an
+    // open string (flat in the bound's value, so shrinking it does not help). At
+    // ~120 in-flight requests that lands on the critical path and cost the operator
+    // ~15% of its rows/s. The output ceiling is the request-level max_tokens, and
+    // minItems/maxItems below still pin the response to exactly batch_rows answers.
+    return ItemsResponseFormat("extract_results", {{"type", "string"}}, batch_rows);
 }
 
 SinkResultType PhysicalSemExtract::Sink(duckdb::ExecutionContext& /*context*/, DataChunk& chunk,

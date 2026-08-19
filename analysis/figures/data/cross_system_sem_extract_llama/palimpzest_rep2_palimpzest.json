@@ -2,8 +2,8 @@
   "Q103": {
     "query_id": "103",
     "status": "success",
-    "execution_time": 9.699279308319092,
-    "token_usage": 29916.0,
+    "execution_time": 9.373164653778076,
+    "token_usage": 30179.0,
     "money_cost": 0.0,
     "extra": {},
     "row_count": 2000,

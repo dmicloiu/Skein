@@ -22,7 +22,6 @@ SELECT r.reviewId, llm_complete(
        'context_columns': [{'data': r.reviewText, 'name': 'review'}]}
   ) AS predicted_sentiment
 FROM reviews_2000 AS r;
-  warn: vllm /metrics scrape failed: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=0.5)
 Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q103.csv
 Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
 ✓ flockmtl completed successfully
@@ -39,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   flockmtl: ✅ Completed
-    Q103: ✅ 1.86s, 20 rows
+    Q103: ✅ 0.81s, 20 rows

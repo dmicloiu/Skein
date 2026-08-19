@@ -47,56 +47,25 @@ import re
 import sys
 from pathlib import Path
 
+import thesis_style as ts
 
-# Per-strategy colours, used consistently across every figure. Mirrors the
-# reference convention (blue = baseline, green = the behaviour under test).
-COLOR_SINGLE = "#d62728"   # red    — degenerate one-GPU baseline
-COLOR_RR     = "blue"      # blue   — round_robin, the comparison baseline
-COLOR_STICKY = "green"     # green  — sticky_by_prefix
-COLOR_LL     = "#ff7f0e"   # orange — least_loaded
+
+# Per-strategy colours, used consistently across every figure (blue = baseline,
+# green = behaviour under test; second-shade blue/green for the extra series).
+COLOR_SINGLE = ts.BLUE_ALT   # dark blue  — degenerate one-GPU baseline
+COLOR_RR     = ts.BLUE       # blue       — round_robin, the comparison baseline
+COLOR_STICKY = ts.GREEN      # green      — sticky_by_prefix
+COLOR_LL     = ts.GREEN_ALT  # teal green — least_loaded
 
 TAG_SINGLE = "single"
 TAG_RR = "round_robin"
 TAG_LL = "least_loaded"
 TAG_RR_HETERO = "round_robin_hetero"
 
-SUPTITLE_CTX = "Qwen2.5-7B on Clariden (4x GH200 vLLM pool)"
-
 
 def _setup_style():
-    """Apply consistent styling to all plots (matches asyncllmclient_vs_vllm.py)."""
-    import matplotlib.pyplot as plt
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 12,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 11,
-        "ytick.labelsize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 11,
-        "legend.loc": "best",
-        "hatch.linewidth": 1.1,   # crisper bar-fill patterns
-    })
-
-
-def _label(name: str, unit: str | None = None) -> str:
-    return f"{name} ({unit})" if unit else name
-
-
-def _suptitle(fig, text: str):
-    fig.suptitle(f"[EndpointRouter]  {text}   ·   {SUPTITLE_CTX}",
-                 fontweight="bold", fontsize=12.5, x=0.02, y=1.02, ha="left")
+    """Apply the shared house rcParams (12 pt scale)."""
+    ts.setup_style(base_font=16)
 
 
 def _save(fig, out_dir: Path, name: str):
@@ -194,12 +163,12 @@ def fig_throughput(out_dir, single, rr, n):
     if not (single and rr):
         return
     fig, ax = plt.subplots(figsize=(6, 4.8))
+    ax.set_title("Throughput: 1 GPU vs pool")
     tools = ["single\n(1 GPU)", f"round_robin\n({n} GPUs)"]
     vals = [single["throughput_rows_per_s"], rr["throughput_rows_per_s"]]
     bars = ax.bar(tools, vals, width=0.5, color=[COLOR_SINGLE, COLOR_RR],
                   edgecolor="black", linewidth=0.6)
-    ax.set_ylabel(_label("throughput", "rows/s"))
-    ax.set_title("Throughput scaling: 1 GPU vs pool")
+    ax.set_ylabel(ts.axis_label("throughput", "rows/s"))
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v, f"{v:,.0f}",
                 ha="center", va="bottom", fontsize=11, fontweight="bold")
@@ -219,7 +188,7 @@ def fig_throughput(out_dir, single, rr, n):
                 color=COLOR_RR, fontweight="bold")
     else:
         ax.set_ylim(0, max(vals) * 1.30)
-    _suptitle(fig, "round_robin spreads load across the pool")
+    ts.no_suptitle(fig)
     _save(fig, out_dir, "router_throughput")
     plt.close(fig)
 
@@ -261,25 +230,24 @@ def fig_prefix_cache_sweep(out_dir, results_dir, n):
         ax.annotate("", xy=(kbest, sm[kbest]), xytext=(kbest, rm[kbest]),
                     arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
         ax.text(kbest * 1.12, (sm[kbest] + rm[kbest]) / 2, f"+{gap*100:.0f} pts",
-                ha="left", va="center", fontsize=9, fontweight="bold",
+                ha="left", va="center", fontsize=14, fontweight="bold",
                 color=COLOR_STICKY)
 
     ax.set_xscale("log", base=2)
     ax.set_xticks(Ks)
     ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
     ax.yaxis.set_major_formatter(plt.matplotlib.ticker.PercentFormatter(xmax=1.0, decimals=0))
-    ax.set_xlabel("distinct recurring prefixes  K")
+    ax.set_xlabel(ts.axis_label("K", "distinct recurring prefixes", log=True))
     ax.set_ylabel("pool prefix-cache hit rate")
     ax.set_ylim(0, 0.45)
-    ax.set_title("Prefix-cache reuse vs prefix diversity")
     for K, v, *_ in s:
         ax.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
-                    xytext=(0, 8), ha="center", fontsize=7.5, color=COLOR_STICKY)
+                    xytext=(0, 8), ha="center", fontsize=14, color=COLOR_STICKY)
     for K, v, *_ in r:
         ax.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
-                    xytext=(0, -13), ha="center", fontsize=7.5, color=COLOR_RR)
+                    xytext=(0, -13), ha="center", fontsize=14, color=COLOR_RR)
     ax.legend(loc="upper right")
-    _suptitle(fig, "sticky_by_prefix sustains reuse as prefix diversity grows")
+    ts.no_suptitle(fig)
     _save(fig, out_dir, "router_prefix_cache")
     plt.close(fig)
     return True
@@ -360,20 +328,19 @@ def fig_prefix_cache_throughput(out_dir, results_dir):
         ax.annotate("", xy=(kbest, sm[kbest]), xytext=(kbest, rm[kbest]),
                     arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
         ax.text(kbest * 1.10, (sm[kbest] + rm[kbest]) / 2, f"+{upl*100:.0f}%",
-                ha="left", va="center", fontsize=10, fontweight="bold",
+                ha="left", va="center", fontsize=14, fontweight="bold",
                 color=COLOR_STICKY)
 
     ax.set_xscale("log", base=2)
     ax.set_xticks(Ks)
     ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
-    ax.set_xlabel("distinct recurring prefixes  K")
-    ax.set_ylabel(_label("pool throughput", "rows/s"))
+    ax.set_xlabel(ts.axis_label("K", "distinct recurring prefixes", log=True))
+    ax.set_ylabel(ts.axis_label("pool throughput", "rows/s"))
     allv = [v for _, v in s] + [v for _, v in r]
     pad = (max(allv) - min(allv)) * 0.30
     ax.set_ylim(min(allv) - pad, max(allv) + pad)
-    ax.set_title("Throughput vs prefix diversity")
     ax.legend(loc="upper right")
-    _suptitle(fig, "sticky_by_prefix's cache reuse lifts pool throughput")
+    ts.no_suptitle(fig)
     _save(fig, out_dir, "router_prefix_cache_throughput")
     plt.close(fig)
 
@@ -410,22 +377,23 @@ def fig_prefix_cache_combined(out_dir, results_dir, n):
         axA.annotate("", xy=(kbest, sm[kbest]), xytext=(kbest, rm[kbest]),
                      arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
         axA.text(kbest * 1.12, (sm[kbest] + rm[kbest]) / 2, f"+{gap*100:.0f} pts",
-                 ha="left", va="center", fontsize=9, fontweight="bold",
+                 ha="left", va="center", fontsize=14, fontweight="bold",
                  color=COLOR_STICKY)
     axA.set_xscale("log", base=2)
     axA.set_xticks(Ks)
     axA.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
     axA.yaxis.set_major_formatter(plt.matplotlib.ticker.PercentFormatter(xmax=1.0, decimals=0))
-    axA.set_xlabel("distinct recurring prefixes  K")
+    axA.set_xlabel(ts.axis_label("K", "distinct recurring prefixes", log=True))
     axA.set_ylabel("pool prefix-cache hit rate")
     axA.set_ylim(0, 0.45)
     axA.set_title("Prefix-cache reuse")
+    ts.set_panel_marker(axA, 0)
     for K, v, *_ in s_hit:
         axA.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
-                     xytext=(0, 8), ha="center", fontsize=7.5, color=COLOR_STICKY)
+                     xytext=(0, 8), ha="center", fontsize=14, color=COLOR_STICKY)
     for K, v, *_ in r_hit:
         axA.annotate(f"{v:.0%}", (K, v), textcoords="offset points",
-                     xytext=(0, -13), ha="center", fontsize=7.5, color=COLOR_RR)
+                     xytext=(0, -13), ha="center", fontsize=14, color=COLOR_RR)
     axA.legend(loc="upper right")
 
     # ---- (right) throughput: the consequence ----
@@ -442,20 +410,21 @@ def fig_prefix_cache_combined(out_dir, results_dir, n):
         axB.annotate("", xy=(kbest2, sm2[kbest2]), xytext=(kbest2, rm2[kbest2]),
                      arrowprops=dict(arrowstyle="<->", lw=1.3, color=COLOR_STICKY))
         axB.text(kbest2 * 1.10, (sm2[kbest2] + rm2[kbest2]) / 2, f"+{upl*100:.0f}%",
-                 ha="left", va="center", fontsize=10, fontweight="bold",
+                 ha="left", va="center", fontsize=14, fontweight="bold",
                  color=COLOR_STICKY)
     axB.set_xscale("log", base=2)
     axB.set_xticks(Ks)
     axB.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
-    axB.set_xlabel("distinct recurring prefixes  K")
-    axB.set_ylabel(_label("pool throughput", "rows/s"))
+    axB.set_xlabel(ts.axis_label("K", "distinct recurring prefixes", log=True))
+    axB.set_ylabel(ts.axis_label("pool throughput", "rows/s"))
     allv = [v for _, v in s_tp] + [v for _, v in r_tp]
     pad = (max(allv) - min(allv)) * 0.30
     axB.set_ylim(min(allv) - pad, max(allv) + pad)
     axB.set_title("Throughput payoff")
+    ts.set_panel_marker(axB, 1)
     axB.legend(loc="upper right")
 
-    _suptitle(fig, "sticky_by_prefix: reuse (left) lifts pool throughput (right)")
+    ts.no_suptitle(fig)
     _save(fig, out_dir, "router_prefix_cache_combined")
     plt.close(fig)
 
@@ -488,34 +457,36 @@ def fig_load_aware(out_dir, ll, rr_hetero, n, throttled_ep=0):
             throttled = (e == throttled_ep)
             axA.bar(x[e] + off, counts[e], width, color=c,
                     edgecolor="red" if throttled else "black",
-                    linewidth=2.0 if throttled else 0.6)
+                    linewidth=2.4 if throttled else 0.6)
             axA.annotate(f"{counts[e]}", (x[e] + off, counts[e]),
                          textcoords="offset points", xytext=(0, 4),
-                         ha="center", va="bottom", fontsize=11, fontweight="bold")
+                         ha="center", va="bottom", fontsize=14, fontweight="bold")
     # Reference: round_robin's load-blind even split.
     rr_counts = (list(rr_hetero.get("per_endpoint_count", [])) + [0] * n)[:n]
     blind = sum(rr_counts) / n
     axA.axhline(blind, ls=(0, (6, 3)), lw=2.0, color="0.35", zorder=0)
     axA.set_xticks(x)
     axA.set_xticklabels([str(i) for i in range(n)])
-    axA.set_xlabel("endpoint")
+    axA.set_xlabel(ts.axis_label("endpoint"))
     axA.set_ylabel("#requests routed per endpoint")
     axA.set_ylim(0, bar_max * 1.9)   # headroom so the legend clears the bars/labels
     axA.set_title("Per-endpoint placement")
+    ts.set_panel_marker(axA, 0)
     axA.legend(handles=[
         Patch(facecolor=COLOR_LL, edgecolor="black", label="least_loaded"),
         Patch(facecolor=COLOR_RR, edgecolor="black", label="round_robin"),
-        Patch(facecolor="white", edgecolor="red", linewidth=2.0,
+        Patch(facecolor="white", edgecolor="red", linewidth=2.4,
               label="throttled endpoint"),
         Line2D([0], [0], ls=(0, (6, 3)), lw=2.0, color="0.35",
                label=f"even spread ({int(blind)})"),
-    ], loc="upper center", ncol=2, columnspacing=1.2, fontsize=11.5)
+    ], loc="upper center", ncol=2, columnspacing=1.2, fontsize=14)
 
     # ---- (b) tail latency: consequence of the placement ----
     _grouped_latency(axB, series)
     axB.set_title("Tail latency")
+    ts.set_panel_marker(axB, 1)
 
-    _suptitle(fig, "least_loaded routes around the slow node")
+    ts.no_suptitle(fig)
     _save(fig, out_dir, "router_load_aware")
     plt.close(fig)
 
@@ -537,10 +508,10 @@ def _grouped_latency(ax, series):
         for xi, v in zip(x, vals):
             ax.annotate(f"{v:.1f}s", (xi + off, v), textcoords="offset points",
                         xytext=(0, 4), ha="center", va="bottom",
-                        fontsize=11, fontweight="bold")
+                        fontsize=14, fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels(metrics)
-    ax.set_ylabel(_label("end-to-end latency", "s"))
+    ax.set_ylabel(ts.axis_label("end-to-end latency", "s"))
     ax.legend()
 
 

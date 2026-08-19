@@ -3,13 +3,14 @@
   "threads": 8,
   "rows": 2048,
   "passes": 2048,
-  "elapsed_s": 127.289,
-  "rows_per_s": 16.0894,
+  "elapsed_s": 128.132,
+  "rows_per_s": 15.9835,
   "row_group_size": 2048,
   "morsels": 1,
   "inflight": 128,
   "batch": 1,
   "model": "Qwen/Qwen2.5-7B-Instruct",
+  "max_out_mult": 256,
   "tuple_format": "json",
   "endpoints": "http://127.0.0.1:8000/v1/chat/completions"
 }

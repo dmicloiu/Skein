@@ -20,8 +20,8 @@ Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-7B-Instruct, api_base=htt
 Total time: 1.69s
 Total cost: $0.0000
 Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
-prompt token: 0.0, completion token: 2414.0
-  Token usage: 2414.0 tokens, Cost: $0.0000
+prompt token: 0.0, completion token: 2841.0
+  Token usage: 2841.0 tokens, Cost: $0.0000
 Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q103.csv
 Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
 ✓ palimpzest completed successfully
@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   palimpzest: ✅ Completed
-    Q103: ✅ 1.76s, 20 rows, 2414.0 tokens
+    Q103: ✅ 1.80s, 20 rows, 2841.0 tokens

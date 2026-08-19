@@ -1,8 +1,8 @@
 # HELP python_gc_objects_collected_total Objects collected during gc
 # TYPE python_gc_objects_collected_total counter
-python_gc_objects_collected_total{generation="0"} 50442.0
-python_gc_objects_collected_total{generation="1"} 7187.0
-python_gc_objects_collected_total{generation="2"} 501.0
+python_gc_objects_collected_total{generation="0"} 50585.0
+python_gc_objects_collected_total{generation="1"} 7316.0
+python_gc_objects_collected_total{generation="2"} 381.0
 # HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
 # TYPE python_gc_objects_uncollectable_total counter
 python_gc_objects_uncollectable_total{generation="0"} 0.0
@@ -10,24 +10,24 @@ python_gc_objects_uncollectable_total{generation="1"} 0.0
 python_gc_objects_uncollectable_total{generation="2"} 0.0
 # HELP python_gc_collections_total Number of times this generation was collected
 # TYPE python_gc_collections_total counter
-python_gc_collections_total{generation="0"} 2228.0
-python_gc_collections_total{generation="1"} 202.0
+python_gc_collections_total{generation="0"} 2243.0
+python_gc_collections_total{generation="1"} 203.0
 python_gc_collections_total{generation="2"} 13.0
 # HELP python_info Python platform information
 # TYPE python_info gauge
 python_info{implementation="CPython",major="3",minor="11",patchlevel="15",version="3.11.15"} 1.0
 # HELP process_virtual_memory_bytes Virtual memory size in bytes.
 # TYPE process_virtual_memory_bytes gauge
-process_virtual_memory_bytes 3.7481611264e+010
+process_virtual_memory_bytes 3.747381248e+010
 # HELP process_resident_memory_bytes Resident memory size in bytes.
 # TYPE process_resident_memory_bytes gauge
-process_resident_memory_bytes 1.245708288e+09
+process_resident_memory_bytes 1.283457024e+09
 # HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
 # TYPE process_start_time_seconds gauge
-process_start_time_seconds 1.78674154503e+09
+process_start_time_seconds 1.78707613321e+09
 # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
 # TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 37.81
+process_cpu_seconds_total 36.88
 # HELP process_open_fds Number of open file descriptors.
 # TYPE process_open_fds gauge
 process_open_fds 54.0
@@ -39,19 +39,19 @@ process_max_fds 1e+06
 vllm:estimated_flops_per_gpu_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:estimated_flops_per_gpu_created Estimated number of floating point operations per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_flops_per_gpu_created gauge
-vllm:estimated_flops_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222802656e+09
+vllm:estimated_flops_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918306398e+09
 # HELP vllm:estimated_read_bytes_per_gpu_total Estimated number of bytes read from memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_read_bytes_per_gpu_total counter
 vllm:estimated_read_bytes_per_gpu_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:estimated_read_bytes_per_gpu_created Estimated number of bytes read from memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_read_bytes_per_gpu_created gauge
-vllm:estimated_read_bytes_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222802887e+09
+vllm:estimated_read_bytes_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918306646e+09
 # HELP vllm:estimated_write_bytes_per_gpu_total Estimated number of bytes written to memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_write_bytes_per_gpu_total counter
 vllm:estimated_write_bytes_per_gpu_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:estimated_write_bytes_per_gpu_created Estimated number of bytes written to memory per GPU (for Model Flops Utilization calculations).
 # TYPE vllm:estimated_write_bytes_per_gpu_created gauge
-vllm:estimated_write_bytes_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222803044e+09
+vllm:estimated_write_bytes_per_gpu_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918306785e+09
 # HELP vllm:num_requests_running Number of requests in model execution batches.
 # TYPE vllm:num_requests_running gauge
 vllm:num_requests_running{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -75,49 +75,49 @@ vllm:kv_cache_usage_perc{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct
 vllm:prefix_cache_queries_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.0627e+06
 # HELP vllm:prefix_cache_queries_created Prefix cache queries, in terms of number of queried tokens.
 # TYPE vllm:prefix_cache_queries_created gauge
-vllm:prefix_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280443e+09
+vllm:prefix_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191830812e+09
 # HELP vllm:prefix_cache_hits_total Prefix cache hits, in terms of number of cached tokens.
 # TYPE vllm:prefix_cache_hits_total counter
 vllm:prefix_cache_hits_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 599600.0
 # HELP vllm:prefix_cache_hits_created Prefix cache hits, in terms of number of cached tokens.
 # TYPE vllm:prefix_cache_hits_created gauge
-vllm:prefix_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222804534e+09
+vllm:prefix_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191830822e+09
 # HELP vllm:external_prefix_cache_queries_total External prefix cache queries from KV connector cross-instance cache sharing, in terms of number of queried tokens.
 # TYPE vllm:external_prefix_cache_queries_total counter
 vllm:external_prefix_cache_queries_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:external_prefix_cache_queries_created External prefix cache queries from KV connector cross-instance cache sharing, in terms of number of queried tokens.
 # TYPE vllm:external_prefix_cache_queries_created gauge
-vllm:external_prefix_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222804635e+09
+vllm:external_prefix_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308315e+09
 # HELP vllm:external_prefix_cache_hits_total External prefix cache hits from KV connector cross-instance cache sharing, in terms of number of cached tokens.
 # TYPE vllm:external_prefix_cache_hits_total counter
 vllm:external_prefix_cache_hits_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:external_prefix_cache_hits_created External prefix cache hits from KV connector cross-instance cache sharing, in terms of number of cached tokens.
 # TYPE vllm:external_prefix_cache_hits_created gauge
-vllm:external_prefix_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222804759e+09
+vllm:external_prefix_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308434e+09
 # HELP vllm:mm_cache_queries_total Multi-modal cache queries, in terms of number of queried items.
 # TYPE vllm:mm_cache_queries_total counter
 vllm:mm_cache_queries_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:mm_cache_queries_created Multi-modal cache queries, in terms of number of queried items.
 # TYPE vllm:mm_cache_queries_created gauge
-vllm:mm_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280488e+09
+vllm:mm_cache_queries_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308554e+09
 # HELP vllm:mm_cache_hits_total Multi-modal cache hits, in terms of number of cached items.
 # TYPE vllm:mm_cache_hits_total counter
 vllm:mm_cache_hits_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:mm_cache_hits_created Multi-modal cache hits, in terms of number of cached items.
 # TYPE vllm:mm_cache_hits_created gauge
-vllm:mm_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222804968e+09
+vllm:mm_cache_hits_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308651e+09
 # HELP vllm:num_preemptions_total Cumulative number of preemption from the engine.
 # TYPE vllm:num_preemptions_total counter
 vllm:num_preemptions_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:num_preemptions_created Cumulative number of preemption from the engine.
 # TYPE vllm:num_preemptions_created gauge
-vllm:num_preemptions_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222805057e+09
+vllm:num_preemptions_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308735e+09
 # HELP vllm:prompt_tokens_total Number of prefill tokens processed.
 # TYPE vllm:prompt_tokens_total counter
 vllm:prompt_tokens_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.0627e+06
 # HELP vllm:prompt_tokens_created Number of prefill tokens processed.
 # TYPE vllm:prompt_tokens_created gauge
-vllm:prompt_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280515e+09
+vllm:prompt_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918308835e+09
 # HELP vllm:prompt_tokens_by_source_total Number of prompt tokens by source.
 # TYPE vllm:prompt_tokens_by_source_total counter
 vllm:prompt_tokens_by_source_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="local_compute"} 463100.0
@@ -125,21 +125,21 @@ vllm:prompt_tokens_by_source_total{engine="0",model_name="meta-llama/Llama-3.1-8
 vllm:prompt_tokens_by_source_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="external_kv_transfer"} 0.0
 # HELP vllm:prompt_tokens_by_source_created Number of prompt tokens by source.
 # TYPE vllm:prompt_tokens_by_source_created gauge
-vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="local_compute"} 1.7867417222805305e+09
-vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="local_cache_hit"} 1.7867417222805345e+09
-vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="external_kv_transfer"} 1.7867417222805424e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="local_compute"} 1.7870761918308966e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="local_cache_hit"} 1.7870761918309007e+09
+vllm:prompt_tokens_by_source_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct",source="external_kv_transfer"} 1.787076191830908e+09
 # HELP vllm:prompt_tokens_cached_total Number of cached prompt tokens (local + external).
 # TYPE vllm:prompt_tokens_cached_total counter
 vllm:prompt_tokens_cached_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 599600.0
 # HELP vllm:prompt_tokens_cached_created Number of cached prompt tokens (local + external).
 # TYPE vllm:prompt_tokens_cached_created gauge
-vllm:prompt_tokens_cached_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222805517e+09
+vllm:prompt_tokens_cached_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918309174e+09
 # HELP vllm:generation_tokens_total Number of generation tokens processed.
 # TYPE vllm:generation_tokens_total counter
 vllm:generation_tokens_total{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 20200.0
 # HELP vllm:generation_tokens_created Number of generation tokens processed.
 # TYPE vllm:generation_tokens_created gauge
-vllm:generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222806149e+09
+vllm:generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191830927e+09
 # HELP vllm:request_success_total Count of successfully processed requests.
 # TYPE vllm:request_success_total counter
 vllm:request_success_total{engine="0",finished_reason="stop",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -149,11 +149,11 @@ vllm:request_success_total{engine="0",finished_reason="error",model_name="meta-l
 vllm:request_success_total{engine="0",finished_reason="repetition",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 # HELP vllm:request_success_created Count of successfully processed requests.
 # TYPE vllm:request_success_created gauge
-vllm:request_success_created{engine="0",finished_reason="stop",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222806392e+09
-vllm:request_success_created{engine="0",finished_reason="length",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222806544e+09
-vllm:request_success_created{engine="0",finished_reason="abort",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.78674172228066e+09
-vllm:request_success_created{engine="0",finished_reason="error",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280665e+09
-vllm:request_success_created{engine="0",finished_reason="repetition",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222806702e+09
+vllm:request_success_created{engine="0",finished_reason="stop",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191830948e+09
+vllm:request_success_created{engine="0",finished_reason="length",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191830963e+09
+vllm:request_success_created{engine="0",finished_reason="abort",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918309686e+09
+vllm:request_success_created{engine="0",finished_reason="error",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918309736e+09
+vllm:request_success_created{engine="0",finished_reason="repetition",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918309793e+09
 # HELP vllm:request_prompt_tokens Number of prefill tokens processed.
 # TYPE vllm:request_prompt_tokens histogram
 vllm:request_prompt_tokens_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -174,7 +174,7 @@ vllm:request_prompt_tokens_count{engine="0",model_name="meta-llama/Llama-3.1-8B-
 vllm:request_prompt_tokens_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.0627e+06
 # HELP vllm:request_prompt_tokens_created Number of prefill tokens processed.
 # TYPE vllm:request_prompt_tokens_created gauge
-vllm:request_prompt_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222807066e+09
+vllm:request_prompt_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918310153e+09
 # HELP vllm:request_generation_tokens Number of generation tokens processed.
 # TYPE vllm:request_generation_tokens histogram
 vllm:request_generation_tokens_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -195,28 +195,28 @@ vllm:request_generation_tokens_count{engine="0",model_name="meta-llama/Llama-3.1
 vllm:request_generation_tokens_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 20200.0
 # HELP vllm:request_generation_tokens_created Number of generation tokens processed.
 # TYPE vllm:request_generation_tokens_created gauge
-vllm:request_generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280847e+09
+vllm:request_generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918311522e+09
 # HELP vllm:iteration_tokens_total Histogram of number of tokens per engine_step.
 # TYPE vllm:iteration_tokens_total histogram
 vllm:iteration_tokens_total_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
-vllm:iteration_tokens_total_bucket{engine="0",le="8.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 14.0
-vllm:iteration_tokens_total_bucket{engine="0",le="16.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 15.0
-vllm:iteration_tokens_total_bucket{engine="0",le="32.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 27.0
-vllm:iteration_tokens_total_bucket{engine="0",le="64.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 31.0
-vllm:iteration_tokens_total_bucket{engine="0",le="128.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 139.0
-vllm:iteration_tokens_total_bucket{engine="0",le="256.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 139.0
-vllm:iteration_tokens_total_bucket{engine="0",le="512.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 140.0
-vllm:iteration_tokens_total_bucket{engine="0",le="1024.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 142.0
-vllm:iteration_tokens_total_bucket{engine="0",le="2048.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 147.0
-vllm:iteration_tokens_total_bucket{engine="0",le="4096.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 155.0
-vllm:iteration_tokens_total_bucket{engine="0",le="8192.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 171.0
-vllm:iteration_tokens_total_bucket{engine="0",le="16384.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 190.0
-vllm:iteration_tokens_total_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 229.0
-vllm:iteration_tokens_total_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 229.0
+vllm:iteration_tokens_total_bucket{engine="0",le="8.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 26.0
+vllm:iteration_tokens_total_bucket{engine="0",le="16.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 39.0
+vllm:iteration_tokens_total_bucket{engine="0",le="32.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 53.0
+vllm:iteration_tokens_total_bucket{engine="0",le="64.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 73.0
+vllm:iteration_tokens_total_bucket{engine="0",le="128.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 175.0
+vllm:iteration_tokens_total_bucket{engine="0",le="256.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 175.0
+vllm:iteration_tokens_total_bucket{engine="0",le="512.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 177.0
+vllm:iteration_tokens_total_bucket{engine="0",le="1024.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 188.0
+vllm:iteration_tokens_total_bucket{engine="0",le="2048.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 199.0
+vllm:iteration_tokens_total_bucket{engine="0",le="4096.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 213.0
+vllm:iteration_tokens_total_bucket{engine="0",le="8192.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 232.0
+vllm:iteration_tokens_total_bucket{engine="0",le="16384.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 240.0
+vllm:iteration_tokens_total_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 284.0
+vllm:iteration_tokens_total_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 284.0
 vllm:iteration_tokens_total_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.0829e+06
 # HELP vllm:iteration_tokens_total_created Histogram of number of tokens per engine_step.
 # TYPE vllm:iteration_tokens_total_created gauge
-vllm:iteration_tokens_total_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222808745e+09
+vllm:iteration_tokens_total_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918311818e+09
 # HELP vllm:request_max_num_generation_tokens Histogram of maximum number of requested generation tokens.
 # TYPE vllm:request_max_num_generation_tokens histogram
 vllm:request_max_num_generation_tokens_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -237,7 +237,7 @@ vllm:request_max_num_generation_tokens_count{engine="0",model_name="meta-llama/L
 vllm:request_max_num_generation_tokens_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 20200.0
 # HELP vllm:request_max_num_generation_tokens_created Histogram of maximum number of requested generation tokens.
 # TYPE vllm:request_max_num_generation_tokens_created gauge
-vllm:request_max_num_generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222809079e+09
+vllm:request_max_num_generation_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191831218e+09
 # HELP vllm:request_params_n Histogram of the n request parameter.
 # TYPE vllm:request_params_n histogram
 vllm:request_params_n_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -250,7 +250,7 @@ vllm:request_params_n_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instr
 vllm:request_params_n_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 # HELP vllm:request_params_n_created Histogram of the n request parameter.
 # TYPE vllm:request_params_n_created gauge
-vllm:request_params_n_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722280933e+09
+vllm:request_params_n_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918312435e+09
 # HELP vllm:request_params_max_tokens Histogram of the max_tokens request parameter.
 # TYPE vllm:request_params_max_tokens histogram
 vllm:request_params_max_tokens_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -271,7 +271,7 @@ vllm:request_params_max_tokens_count{engine="0",model_name="meta-llama/Llama-3.1
 vllm:request_params_max_tokens_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 32320.0
 # HELP vllm:request_params_max_tokens_created Histogram of the max_tokens request parameter.
 # TYPE vllm:request_params_max_tokens_created gauge
-vllm:request_params_max_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222809532e+09
+vllm:request_params_max_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918312647e+09
 # HELP vllm:time_to_first_token_seconds Histogram of time to first token in seconds.
 # TYPE vllm:time_to_first_token_seconds histogram
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.001",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
@@ -279,13 +279,13 @@ vllm:time_to_first_token_seconds_bucket{engine="0",le="0.005",model_name="meta-l
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.01",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.02",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="0.04",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.06",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.08",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 8.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.25",model_name="meta-llama/Llama-3.1-8B-Instruct"} 58.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 745.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1754.0
-vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2003.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.06",model_name="meta-llama/Llama-3.1-8B-Instruct"} 3.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.08",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 34.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.25",model_name="meta-llama/Llama-3.1-8B-Instruct"} 104.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 344.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1109.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="2.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="5.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="7.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -298,21 +298,21 @@ vllm:time_to_first_token_seconds_bucket{engine="0",le="640.0",model_name="meta-l
 vllm:time_to_first_token_seconds_bucket{engine="0",le="2560.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:time_to_first_token_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:time_to_first_token_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:time_to_first_token_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1126.6606767177582
+vllm:time_to_first_token_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1340.7446699142456
 # HELP vllm:time_to_first_token_seconds_created Histogram of time to first token in seconds.
 # TYPE vllm:time_to_first_token_seconds_created gauge
-vllm:time_to_first_token_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222809796e+09
+vllm:time_to_first_token_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918312924e+09
 # HELP vllm:inter_token_latency_seconds Histogram of inter-token latency in seconds.
 # TYPE vllm:inter_token_latency_seconds histogram
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="meta-llama/Llama-3.1-8B-Instruct"} 395.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="meta-llama/Llama-3.1-8B-Instruct"} 5448.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="meta-llama/Llama-3.1-8B-Instruct"} 8078.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="meta-llama/Llama-3.1-8B-Instruct"} 13800.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 14809.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="meta-llama/Llama-3.1-8B-Instruct"} 16040.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="meta-llama/Llama-3.1-8B-Instruct"} 16441.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18158.0
-vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1346.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="meta-llama/Llama-3.1-8B-Instruct"} 13774.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="meta-llama/Llama-3.1-8B-Instruct"} 15059.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="meta-llama/Llama-3.1-8B-Instruct"} 15401.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 15817.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="meta-llama/Llama-3.1-8B-Instruct"} 16247.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="meta-llama/Llama-3.1-8B-Instruct"} 16503.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18126.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18135.0
 vllm:inter_token_latency_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
 vllm:inter_token_latency_seconds_bucket{engine="0",le="0.75",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
 vllm:inter_token_latency_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
@@ -325,17 +325,17 @@ vllm:inter_token_latency_seconds_bucket{engine="0",le="40.0",model_name="meta-ll
 vllm:inter_token_latency_seconds_bucket{engine="0",le="80.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
 vllm:inter_token_latency_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
 vllm:inter_token_latency_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 18180.0
-vllm:inter_token_latency_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1191.5667335172184
+vllm:inter_token_latency_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 761.4115670333558
 # HELP vllm:inter_token_latency_seconds_created Histogram of inter-token latency in seconds.
 # TYPE vllm:inter_token_latency_seconds_created gauge
-vllm:inter_token_latency_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222810183e+09
+vllm:inter_token_latency_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.78707619183133e+09
 # HELP vllm:request_time_per_output_token_seconds Histogram of time_per_output_token_seconds per request.
 # TYPE vllm:request_time_per_output_token_seconds histogram
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.01",model_name="meta-llama/Llama-3.1-8B-Instruct"} 0.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.025",model_name="meta-llama/Llama-3.1-8B-Instruct"} 40.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.05",model_name="meta-llama/Llama-3.1-8B-Instruct"} 437.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.075",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1378.0
-vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1930.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.01",model_name="meta-llama/Llama-3.1-8B-Instruct"} 68.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.025",model_name="meta-llama/Llama-3.1-8B-Instruct"} 567.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.05",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1286.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.075",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1761.0
+vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.1",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2016.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.15",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.2",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -352,17 +352,17 @@ vllm:request_time_per_output_token_seconds_bucket{engine="0",le="40.0",model_nam
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="80.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_time_per_output_token_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_time_per_output_token_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:request_time_per_output_token_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 132.39630372413512
+vllm:request_time_per_output_token_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 84.60128522592913
 # HELP vllm:request_time_per_output_token_seconds_created Histogram of time_per_output_token_seconds per request.
 # TYPE vllm:request_time_per_output_token_seconds_created gauge
-vllm:request_time_per_output_token_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222810493e+09
+vllm:request_time_per_output_token_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918313603e+09
 # HELP vllm:e2e_request_latency_seconds Histogram of e2e request latency in seconds.
 # TYPE vllm:e2e_request_latency_seconds histogram
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 6.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 6.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 141.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 320.0
-vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1974.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 27.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 80.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 175.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1334.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="5.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -381,14 +381,14 @@ vllm:e2e_request_latency_seconds_bucket{engine="0",le="1920.0",model_name="meta-
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="7680.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:e2e_request_latency_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:e2e_request_latency_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:e2e_request_latency_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2211.4995622634888
+vllm:e2e_request_latency_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1895.1968076229095
 # HELP vllm:e2e_request_latency_seconds_created Histogram of e2e request latency in seconds.
 # TYPE vllm:e2e_request_latency_seconds_created gauge
-vllm:e2e_request_latency_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222810814e+09
+vllm:e2e_request_latency_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918313935e+09
 # HELP vllm:request_queue_time_seconds Histogram of time spent in WAITING phase for request.
 # TYPE vllm:request_queue_time_seconds histogram
-vllm:request_queue_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1937.0
-vllm:request_queue_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2007.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1871.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -410,16 +410,16 @@ vllm:request_queue_time_seconds_bucket{engine="0",le="1920.0",model_name="meta-l
 vllm:request_queue_time_seconds_bucket{engine="0",le="7680.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_queue_time_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_queue_time_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:request_queue_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 83.55417451355606
+vllm:request_queue_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 193.24251880492375
 # HELP vllm:request_queue_time_seconds_created Histogram of time spent in WAITING phase for request.
 # TYPE vllm:request_queue_time_seconds_created gauge
-vllm:request_queue_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222811234e+09
+vllm:request_queue_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918314373e+09
 # HELP vllm:request_inference_time_seconds Histogram of time spent in RUNNING phase for request.
 # TYPE vllm:request_inference_time_seconds histogram
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 6.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 115.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 901.0
-vllm:request_inference_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1666.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 216.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 738.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1541.0
+vllm:request_inference_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="2.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="2.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -439,14 +439,14 @@ vllm:request_inference_time_seconds_bucket{engine="0",le="1920.0",model_name="me
 vllm:request_inference_time_seconds_bucket{engine="0",le="7680.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_inference_time_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_inference_time_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:request_inference_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1652.313303061761
+vllm:request_inference_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1229.8890512066573
 # HELP vllm:request_inference_time_seconds_created Histogram of time spent in RUNNING phase for request.
 # TYPE vllm:request_inference_time_seconds_created gauge
-vllm:request_inference_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222811556e+09
+vllm:request_inference_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918314729e+09
 # HELP vllm:request_prefill_time_seconds Histogram of time spent in PREFILL phase for request.
 # TYPE vllm:request_prefill_time_seconds histogram
-vllm:request_prefill_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1856.0
-vllm:request_prefill_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1960.0
+vllm:request_prefill_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1826.0
+vllm:request_prefill_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2019.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -468,16 +468,16 @@ vllm:request_prefill_time_seconds_bucket{engine="0",le="1920.0",model_name="meta
 vllm:request_prefill_time_seconds_bucket{engine="0",le="7680.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_prefill_time_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_prefill_time_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:request_prefill_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 460.7465695445426
+vllm:request_prefill_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 468.4774841733015
 # HELP vllm:request_prefill_time_seconds_created Histogram of time spent in PREFILL phase for request.
 # TYPE vllm:request_prefill_time_seconds_created gauge
-vllm:request_prefill_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222811906e+09
+vllm:request_prefill_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.787076191831511e+09
 # HELP vllm:request_decode_time_seconds Histogram of time spent in DECODE phase for request.
 # TYPE vllm:request_decode_time_seconds histogram
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 62.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 640.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1748.0
-vllm:request_decode_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2019.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.3",model_name="meta-llama/Llama-3.1-8B-Instruct"} 934.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1446.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="0.8",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1929.0
+vllm:request_decode_time_seconds_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="1.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="2.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="2.5",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
@@ -497,10 +497,10 @@ vllm:request_decode_time_seconds_bucket{engine="0",le="1920.0",model_name="meta-
 vllm:request_decode_time_seconds_bucket{engine="0",le="7680.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_decode_time_seconds_bucket{engine="0",le="+Inf",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
 vllm:request_decode_time_seconds_count{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 2020.0
-vllm:request_decode_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1191.5667335172184
+vllm:request_decode_time_seconds_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 761.4115670333558
 # HELP vllm:request_decode_time_seconds_created Histogram of time spent in DECODE phase for request.
 # TYPE vllm:request_decode_time_seconds_created gauge
-vllm:request_decode_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.786741722281225e+09
+vllm:request_decode_time_seconds_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918315449e+09
 # HELP vllm:request_prefill_kv_computed_tokens Histogram of new KV tokens computed during prefill (excluding cached tokens).
 # TYPE vllm:request_prefill_kv_computed_tokens histogram
 vllm:request_prefill_kv_computed_tokens_bucket{engine="0",le="1.0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 10.0
@@ -521,7 +521,7 @@ vllm:request_prefill_kv_computed_tokens_count{engine="0",model_name="meta-llama/
 vllm:request_prefill_kv_computed_tokens_sum{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 463100.0
 # HELP vllm:request_prefill_kv_computed_tokens_created Histogram of new KV tokens computed during prefill (excluding cached tokens).
 # TYPE vllm:request_prefill_kv_computed_tokens_created gauge
-vllm:request_prefill_kv_computed_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7867417222812605e+09
+vllm:request_prefill_kv_computed_tokens_created{engine="0",model_name="meta-llama/Llama-3.1-8B-Instruct"} 1.7870761918315804e+09
 # HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
 # TYPE vllm:cache_config_info gauge
 vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="auto",calculate_kv_scales="False",enable_prefix_caching="True",engine="0",gpu_memory_utilization="0.9",hash_block_size="None",is_attention_free="False",kv_cache_dtype_skip_layers="[]",kv_cache_memory_bytes="None",kv_offloading_backend="native",kv_offloading_size="None",kv_sharing_fast_prefill="False",mamba_block_size="None",mamba_cache_dtype="auto",mamba_cache_mode="none",mamba_page_size_padded="None",mamba_ssm_cache_dtype="auto",num_cpu_blocks="None",num_gpu_blocks="34751",num_gpu_blocks_override="None",prefix_caching_hash_algo="sha256",sliding_window="None",user_specified_block_size="False",user_specified_mamba_block_size="False"} 1.0
@@ -530,21 +530,21 @@ vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="
 http_requests_total{handler="/v1/chat/completions",method="POST",status="2xx"} 2020.0
 # HELP http_requests_created Total number of requests by method, status and handler.
 # TYPE http_requests_created gauge
-http_requests_created{handler="/v1/chat/completions",method="POST",status="2xx"} 1.7867417316769626e+09
+http_requests_created{handler="/v1/chat/completions",method="POST",status="2xx"} 1.7870761966643133e+09
 # HELP http_request_size_bytes Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_request_size_bytes summary
 http_request_size_bytes_count{handler="/v1/chat/completions"} 2020.0
-http_request_size_bytes_sum{handler="/v1/chat/completions"} 5.64701e+06
+http_request_size_bytes_sum{handler="/v1/chat/completions"} 5.61671e+06
 # HELP http_request_size_bytes_created Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_request_size_bytes_created gauge
-http_request_size_bytes_created{handler="/v1/chat/completions"} 1.7867417316769783e+09
+http_request_size_bytes_created{handler="/v1/chat/completions"} 1.7870761966643312e+09
 # HELP http_response_size_bytes Content length of outgoing responses by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_response_size_bytes summary
 http_response_size_bytes_count{handler="/v1/chat/completions"} 2020.0
 http_response_size_bytes_sum{handler="/v1/chat/completions"} 1.3583e+06
 # HELP http_response_size_bytes_created Content length of outgoing responses by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
 # TYPE http_response_size_bytes_created gauge
-http_response_size_bytes_created{handler="/v1/chat/completions"} 1.7867417316769965e+09
+http_response_size_bytes_created{handler="/v1/chat/completions"} 1.7870761966643486e+09
 # HELP http_request_duration_highr_seconds Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
 # TYPE http_request_duration_highr_seconds histogram
 http_request_duration_highr_seconds_bucket{le="0.01"} 0.0
@@ -552,11 +552,11 @@ http_request_duration_highr_seconds_bucket{le="0.025"} 0.0
 http_request_duration_highr_seconds_bucket{le="0.05"} 0.0
 http_request_duration_highr_seconds_bucket{le="0.075"} 0.0
 http_request_duration_highr_seconds_bucket{le="0.1"} 0.0
-http_request_duration_highr_seconds_bucket{le="0.25"} 0.0
-http_request_duration_highr_seconds_bucket{le="0.5"} 6.0
-http_request_duration_highr_seconds_bucket{le="0.75"} 109.0
-http_request_duration_highr_seconds_bucket{le="1.0"} 320.0
-http_request_duration_highr_seconds_bucket{le="1.5"} 1963.0
+http_request_duration_highr_seconds_bucket{le="0.25"} 27.0
+http_request_duration_highr_seconds_bucket{le="0.5"} 80.0
+http_request_duration_highr_seconds_bucket{le="0.75"} 134.0
+http_request_duration_highr_seconds_bucket{le="1.0"} 1205.0
+http_request_duration_highr_seconds_bucket{le="1.5"} 2020.0
 http_request_duration_highr_seconds_bucket{le="2.0"} 2020.0
 http_request_duration_highr_seconds_bucket{le="2.5"} 2020.0
 http_request_duration_highr_seconds_bucket{le="3.0"} 2020.0
@@ -570,18 +570,18 @@ http_request_duration_highr_seconds_bucket{le="30.0"} 2020.0
 http_request_duration_highr_seconds_bucket{le="60.0"} 2020.0
 http_request_duration_highr_seconds_bucket{le="+Inf"} 2020.0
 http_request_duration_highr_seconds_count 2020.0
-http_request_duration_highr_seconds_sum 2231.546330729034
+http_request_duration_highr_seconds_sum 1922.2213715489343
 # HELP http_request_duration_highr_seconds_created Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
 # TYPE http_request_duration_highr_seconds_created gauge
-http_request_duration_highr_seconds_created 1.7867417230477028e+09
+http_request_duration_highr_seconds_created 1.787076192059144e+09
 # HELP http_request_duration_seconds Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
 # TYPE http_request_duration_seconds histogram
 http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.1",method="POST"} 0.0
-http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.5",method="POST"} 6.0
-http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="1.0",method="POST"} 320.0
+http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="0.5",method="POST"} 80.0
+http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="1.0",method="POST"} 1205.0
 http_request_duration_seconds_bucket{handler="/v1/chat/completions",le="+Inf",method="POST"} 2020.0
 http_request_duration_seconds_count{handler="/v1/chat/completions",method="POST"} 2020.0
-http_request_duration_seconds_sum{handler="/v1/chat/completions",method="POST"} 2231.546330729034
+http_request_duration_seconds_sum{handler="/v1/chat/completions",method="POST"} 1922.2213715489343
 # HELP http_request_duration_seconds_created Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
 # TYPE http_request_duration_seconds_created gauge
-http_request_duration_seconds_created{handler="/v1/chat/completions",method="POST"} 1.7867417316770203e+09
+http_request_duration_seconds_created{handler="/v1/chat/completions",method="POST"} 1.7870761966643715e+09
