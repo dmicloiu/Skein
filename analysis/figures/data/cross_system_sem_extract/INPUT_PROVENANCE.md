@@ -97,15 +97,20 @@ The `f1_score` in the result JSONs (and therefore in the figures) is the harness
 apparent R>=4 quality collapse. `extract_rescored.csv` is the corrected scoring, produced by
 `analysis/rescore_extract.py` from the `verdicts_*_diag.jsonl` per-row dumps.
 
-**Job 3103523 emitted no verdict dumps** — `FLOCK_VERDICT_DUMP` was not set — so
-`rescore_extract.py` cannot be run against the unbounded era. The retained
+**Job 3103523 emitted no verdict dumps** — the dump was not requested — so
+`rescore_extract.py` cannot be run against the unbounded era. The knob for
+`cross_system_analysis_clariden.sh` is **`VERDICT_DUMP=1`**, not `FLOCK_VERDICT_DUMP`:
+line 210 of that script `unset`s any inherited `FLOCK_VERDICT_DUMP` before setting it
+itself from `VERDICT_DUMP`, so passing `FLOCK_VERDICT_DUMP=1` fails **silently**. Note also
+that the dump writes *during* the run, so a job that produces it cannot be cited for
+timings — the dump and citable timings require two separate runs. The retained
 `extract_rescored.csv` and `verdicts_*.jsonl` therefore describe the **bounded** era only.
 
 Consequences:
 - The quality gate above does not depend on them: it applies the harness scorer consistently
   to both eras, which is valid for detecting a *shift* even though the scorer is biased.
 - **Do not publish an absolute F1 for the unbounded era from this directory.** That would
-  require a re-run of 3103523 with `FLOCK_VERDICT_DUMP` set.
+  require a re-run of 3103523 with `VERDICT_DUMP=1`, whose timings would not be citable.
 - Do not read `extract_rescored.csv` alongside the current `cross_system_summary.csv` as if
   they were one measurement.
 

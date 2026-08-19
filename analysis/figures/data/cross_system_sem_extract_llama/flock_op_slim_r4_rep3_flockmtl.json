@@ -2,15 +2,15 @@
   "Q103": {
     "query_id": "103",
     "status": "success",
-    "execution_time": 6.97316961,
+    "execution_time": 3.826498788,
     "token_usage": 0,
     "money_cost": 0.0,
     "extra": {
-      "t_bind_start_ns": 1786743197997712423,
-      "t_submit_ns": 1786743197997712775,
-      "t_done_ns": 1786743204970882385,
+      "t_bind_start_ns": 1787077206100993807,
+      "t_submit_ns": 1787077206100994223,
+      "t_done_ns": 1787077209927493011,
       "row_count": 2000,
-      "throughput_rows_per_s": 286.8136173156987,
+      "throughput_rows_per_s": 522.6710135835015,
       "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl/flock_op_slim_r4_rep3/Q103",
       "run_label": "flock_op_slim_r4_rep3",
       "duckdb_threads": 1
@@ -18,8 +18,8 @@
     "row_count": 2000,
     "model_name": "meta-llama/Llama-3.1-8B-Instruct",
     "concurrent_llm_worker": 128,
-    "precision": 0.8251543007275471,
-    "recall": 0.8858885009095159,
-    "f1_score": 0.8389598842213792
+    "precision": 0.8247826086956522,
+    "recall": 0.8855811868345312,
+    "f1_score": 0.8385210048202781
   }
 }

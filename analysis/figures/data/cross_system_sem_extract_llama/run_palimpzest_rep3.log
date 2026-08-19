@@ -17,11 +17,11 @@ Creating vLLM model: model_id=hosted_vllm/meta-llama/Llama-3.1-8B-Instruct, api_
   MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 2000… 0:00… 0:00… Cost: $0.0000 
   LLMConvertBonded (a620c6153c)     ━━━━━ 100% 2000… 0:00… 0:00… Cost: $0.0000 
   ProjectOp (97e6eb8e58)            ━━━━━ 100% 2000… 0:00… 0:00… Cost: $0.0000 
-Total time: 9.63s
+Total time: 9.68s
 Total cost: $0.0000
 Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
-prompt token: 0.0, completion token: 29958.0
-  Token usage: 29958.0 tokens, Cost: $0.0000
+prompt token: 0.0, completion token: 30090.0
+  Token usage: 30090.0 tokens, Cost: $0.0000
 Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q103.csv
 Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
 ✓ palimpzest completed successfully
@@ -38,4 +38,4 @@ BENCHMARK SUMMARY
 
 MOVIE:
   palimpzest: ✅ Completed
-    Q103: ✅ 9.73s, 2000 rows, 29958.0 tokens
+    Q103: ✅ 9.74s, 2000 rows, 30090.0 tokens

@@ -2,15 +2,15 @@
   "Q103": {
     "query_id": "103",
     "status": "success",
-    "execution_time": 9.730084657669067,
-    "token_usage": 30192.0,
+    "execution_time": 9.353120565414429,
+    "token_usage": 30325.0,
     "money_cost": 0.0,
     "extra": {},
     "row_count": 2000,
     "model_name": "vllm/meta-llama/Llama-3.1-8B-Instruct",
     "concurrent_llm_worker": 128,
-    "precision": 0.8285730834111624,
-    "recall": 0.8904097935212649,
-    "f1_score": 0.8418961491578966
+    "precision": 0.8274723950045808,
+    "recall": 0.889487851296311,
+    "f1_score": 0.8405778798849473
   }
 }
