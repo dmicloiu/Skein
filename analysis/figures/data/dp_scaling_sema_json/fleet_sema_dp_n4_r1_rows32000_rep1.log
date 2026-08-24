@@ -1,0 +1,26 @@
+0: booting replica 0: gpus=[0] port=8000 -> /users/dmicloiu/projects/flock/analysis/results/dp_scaling_sema_qwen2-5-7b-instruct/3175104/vllm_n4_tp1_ep0.log
+0: booting replica 1: gpus=[1] port=8001 -> /users/dmicloiu/projects/flock/analysis/results/dp_scaling_sema_qwen2-5-7b-instruct/3175104/vllm_n4_tp1_ep1.log
+0: booting replica 2: gpus=[2] port=8002 -> /users/dmicloiu/projects/flock/analysis/results/dp_scaling_sema_qwen2-5-7b-instruct/3175104/vllm_n4_tp1_ep2.log
+0: booting replica 3: gpus=[3] port=8003 -> /users/dmicloiu/projects/flock/analysis/results/dp_scaling_sema_qwen2-5-7b-instruct/3175104/vllm_n4_tp1_ep3.log
+0: replica 0 ready on port 8000
+0: replica 1 ready on port 8001
+0: replica 2 ready on port 8002
+0: replica 3 ready on port 8003
+0: fleet ready (n=4 tp=1, 4 GPUs loaded); endpoints published to /users/dmicloiu/projects/sembench/logs/sema_fleet_endpoints_3175104.txt
+0: HSN_IP=172.28.34.116
+0: N_ENDPOINTS=4
+0: TP=1
+0: MODEL=Qwen/Qwen2.5-7B-Instruct
+0: EP0_CHAT=http://172.28.34.116:8000/v1/chat/completions
+0: EP0_METRICS=http://127.0.0.1:8000/metrics
+0: EP1_CHAT=http://172.28.34.116:8001/v1/chat/completions
+0: EP1_METRICS=http://127.0.0.1:8001/metrics
+0: EP2_CHAT=http://172.28.34.116:8002/v1/chat/completions
+0: EP2_METRICS=http://127.0.0.1:8002/metrics
+0: EP3_CHAT=http://172.28.34.116:8003/v1/chat/completions
+0: EP3_METRICS=http://127.0.0.1:8003/metrics
+srun: forcing job termination
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+0: [2026-08-24T18:38:06.435] error: *** STEP 3175104.0 ON nid006745 CANCELLED AT 2026-08-24T18:38:06 DUE to SIGNAL Killed ***
+srun: error: nid006745: task 0: Killed
+srun: Terminating StepId=3175104.0

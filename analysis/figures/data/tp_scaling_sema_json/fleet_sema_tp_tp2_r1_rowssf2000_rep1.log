@@ -1,0 +1,14 @@
+0: booting replica 0: gpus=[0,1] port=8000 -> /users/dmicloiu/projects/flock/analysis/results/tp_scaling_sema_qwen2-5-7b-instruct/3175100/vllm_n1_tp2_ep0.log
+0: replica 0 ready on port 8000
+0: fleet ready (n=1 tp=2, 2 GPUs loaded); endpoints published to /users/dmicloiu/projects/sembench/logs/sema_fleet_endpoints_3175100.txt
+0: HSN_IP=172.28.53.243
+0: N_ENDPOINTS=1
+0: TP=2
+0: MODEL=Qwen/Qwen2.5-7B-Instruct
+0: EP0_CHAT=http://172.28.53.243:8000/v1/chat/completions
+0: EP0_METRICS=http://127.0.0.1:8000/metrics
+srun: forcing job termination
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+0: [2026-08-24T18:02:03.757] error: *** STEP 3175100.0 ON nid006790 CANCELLED AT 2026-08-24T18:02:03 DUE to SIGNAL Killed ***
+srun: error: nid006790: task 0: Killed
+srun: Terminating StepId=3175100.0

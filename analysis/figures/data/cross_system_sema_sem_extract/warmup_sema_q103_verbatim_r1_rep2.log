@@ -1,0 +1,66 @@
+Multi-Modal Data Systems Benchmark
+Systems: sema
+Use cases: movie
+Model: Qwen/Qwen2.5-7B-Instruct
+Queries: 103
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running sema ---
+
+Running 1 queries for sema
+  sema setup: loaded [{'tbl': 'movies_2000', 'n': 2}, {'tbl': 'reviews_2000', 'n': 20}]
+SET llm_url='http://172.28.26.148:8000/v1/chat/completions';
+SET llm_model='Qwen/Qwen2.5-7B-Instruct';
+SET llm_api_key='EMPTY';
+SET semantic_batch_size=1;
+SET threads=1;
+SET enable_semantic_filter_dp=false;
+SET enable_semantic_filter_multiplexer=false;
+SET enable_semantic_operator_fusion=false;
+SET enable_partial_deduction=false;
+-- EXPERIMENT extraction-throughput query -- Sema translation of
+-- query/flockmtl/Q103.sql, arm (b): VERBATIM PROMPT.
+--
+-- The instruction text is byte-identical to the flockmtl / LOTUS / Palimpzest
+-- arms, so this is the strictly fair prompt-parity comparison. Its known
+-- problem is documented rather than worked around: with exactly this wording
+-- Sema's semantic map returns empty strings and stray fragments (observed on a
+-- 3-row fixture: "", ":-(", ""), which looks like substring-scraping of the JSON
+-- response rather than parsing it. Expect a low F1 here for a PARSING reason,
+-- not a model-quality reason -- see Q103_question.sql for the arm that isolates
+-- that, and report the two together.
+--
+-- Column order matters: MovieEvaluator._evaluate_q103 reads column 0 as
+-- reviewId and column 1 as the predicted label, canonicalising anything
+-- containing POSITIVE/NEGATIVE.
+--
+-- Sema's semantic map is a projection-position s'...' expression. Note it is
+-- NOT usable as a boolean outside WHERE: inside CASE WHEN it evaluates as a map
+-- and fails with a BOOL conversion error, which is why Q4/Q8 cannot be ported
+-- directly. (Do not write the jinja model placeholder in these comments -- the
+-- runner renders the whole file, so it would be substituted inside the comment.)
+SELECT
+  reviewId,
+  s'Classify the sentiment of this movie review as exactly one of POSITIVE or NEGATIVE. Answer with only the single word POSITIVE or NEGATIVE: {reviewText}' AS predicted_sentiment
+FROM reviews_2000;
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/_jobs/3174428/raw_results/sema/Q103.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/_jobs/3174428/metrics/sema.json
+✓ sema completed successfully
+
+--- Running evaluation for movie ---
+Evaluating sema...
+Evaluating Q103 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/_jobs/3174428/metrics/sema.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  sema: ✅ Completed
+    Q103: ✅ 21.40s, 20 rows

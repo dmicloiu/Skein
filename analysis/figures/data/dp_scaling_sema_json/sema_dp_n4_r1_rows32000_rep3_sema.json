@@ -1,0 +1,41 @@
+{
+  "Q101": {
+    "query_id": "101",
+    "status": "success",
+    "execution_time": 72.787442,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "row_count": 17722,
+      "throughput_rows_per_s": 243.47606555537425,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/_jobs/3175104/metrics/sema/sema_dp_n4_r1_rows32000_rep3/Q101",
+      "run_label": "sema_dp_n4_r1_rows32000_rep3",
+      "sema_exec_host": "nid001306",
+      "sema_exec_arch": "x86_64",
+      "srun_overhead_s": 3.0747508099999976,
+      "semantic_batch_size": 1,
+      "duckdb_threads": 1,
+      "aqe_enabled": false,
+      "optimizers": {
+        "enable_semantic_filter_dp": false,
+        "enable_semantic_filter_multiplexer": false,
+        "enable_semantic_operator_fusion": false,
+        "enable_partial_deduction": false
+      },
+      "semantic_filter_subparams": null,
+      "semantic_voting_rounds": 1,
+      "query_variant": null,
+      "row_limit": 32000,
+      "f1_invalid_row_limited": true,
+      "llm_model": "Qwen/Qwen2.5-7B-Instruct",
+      "chat_endpoint": "http://172.28.34.116:8000/v1/chat/completions",
+      "rows_per_s_confounded": true
+    },
+    "row_count": 17722,
+    "model_name": "Qwen/Qwen2.5-7B-Instruct",
+    "concurrent_llm_worker": 1,
+    "precision": 0.9855269109000452,
+    "recall": 0.0795665648806182,
+    "f1_score": 0.14724527505015308
+  }
+}

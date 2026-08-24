@@ -1,0 +1,40 @@
+{
+  "Q103": {
+    "query_id": "103",
+    "status": "success",
+    "execution_time": 3.938458,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "row_count": 2000,
+      "throughput_rows_per_s": 507.8129562382029,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/_jobs/3174431/metrics/sema/sema_q103_question_r32_rep3/Q103",
+      "run_label": "sema_q103_question_r32_rep3",
+      "sema_exec_host": "nid001306",
+      "sema_exec_arch": "x86_64",
+      "srun_overhead_s": 11.093065510999999,
+      "semantic_batch_size": 32,
+      "duckdb_threads": 1,
+      "aqe_enabled": false,
+      "optimizers": {
+        "enable_semantic_filter_dp": false,
+        "enable_semantic_filter_multiplexer": false,
+        "enable_semantic_operator_fusion": false,
+        "enable_partial_deduction": false
+      },
+      "semantic_voting_rounds": 1,
+      "query_variant": "question",
+      "row_limit": null,
+      "f1_invalid_row_limited": false,
+      "llm_model": "Qwen/Qwen2.5-7B-Instruct",
+      "chat_endpoint": "http://172.28.33.168:8000/v1/chat/completions",
+      "rows_per_s_confounded": true
+    },
+    "row_count": 2000,
+    "model_name": "Qwen/Qwen2.5-7B-Instruct",
+    "concurrent_llm_worker": 1,
+    "precision": 0.6494262473730513,
+    "recall": 0.6770396717140096,
+    "f1_score": 0.6320083647321668
+  }
+}
