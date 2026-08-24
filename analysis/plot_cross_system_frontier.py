@@ -29,6 +29,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import thesis_style as ts
 
 C_FLOCK = "#009E73"   # Okabe-Ito bluish green: flock operator (under test)
 C_LOTUS = "#0072B2"   # Okabe-Ito blue: LOTUS (baseline)
@@ -39,27 +40,8 @@ ROWS = 2000  # sf_2000; throughput = rows / execution_time
 
 
 def _setup_style():
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 12,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 11,
-        "ytick.labelsize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 11,
-        "legend.loc": "best",
-    })
+    """House style, matching the other eval-chapter figures (thesis_style, base_font=14)."""
+    ts.setup_style(base_font=14)
 
 
 def arm_stats(results_dir: Path, arm: str, system: str, qkey: str):
@@ -98,17 +80,17 @@ def draw_panel(ax, results_dir: Path, qkey: str, title: str, winner_r: int,
                     markeredgecolor="white", markeredgewidth=0.6 if r == winner_r else 0,
                     zorder=5 if r == winner_r else 4)
         ax.annotate(f"R={r}", (s["x"], s["y"]), textcoords="offset points",
-                    xytext=label_offsets.get(r, (0, 9)), fontsize=10,
+                    xytext=label_offsets.get(r, (0, 9)), fontsize=13,
                     color="0.25", ha="center")
     ax.plot(xs, ys, "-", color=C_FLOCK, lw=2.0, alpha=0.7, zorder=3,
-            label="flock operator (slim, batch-adaptive)")
+            label="Skein (slim, R sweep)")
 
     # flock full-prompt R=1 (same system -> same hue, open diamond)
     s = arm_stats(results_dir, "flock_op_r1", "flockmtl", qkey)
     if s:
         ax.errorbar(s["x"], s["y"], xerr=s["xerr"], yerr=s["yerr"], fmt="D",
                     color=C_FLOCK, markerfacecolor="white", ms=9, lw=1.2,
-                    capsize=2, zorder=4, label="flock operator (full prompt, R=1)")
+                    capsize=2, zorder=4, label="Skein (full, R = 1)")
 
     for arm, system, color, label in [("lotus", "lotus", C_LOTUS, "LOTUS"),
                                       ("palimpzest", "palimpzest", C_PZ, "Palimpzest")]:
@@ -117,7 +99,7 @@ def draw_panel(ax, results_dir: Path, qkey: str, title: str, winner_r: int,
             ax.errorbar(s["x"], s["y"], xerr=s["xerr"], yerr=s["yerr"], fmt="s",
                         color=color, ms=9, lw=1.2, capsize=2, zorder=4, label=label)
             ax.annotate(label, (s["x"], s["y"]), textcoords="offset points",
-                        xytext=(0, -16), fontsize=10, color="0.25", ha="center")
+                        xytext=(0, -16), fontsize=13, color="0.25", ha="center")
 
     ax.set_title(title)
     ax.set_xlabel("throughput (rows/s)")
@@ -142,16 +124,18 @@ def main() -> int:
 
     _setup_style()
     fig, (ax_f, ax_e) = plt.subplots(1, 2, figsize=(12.4, 4.8))
-    # winners (starred): filter R=4 (beats LOTUS on both axes); extract R=2
-    # (matches LOTUS throughput at +0.26 F1; batching collapses extract at R>=4).
-    # Per-R label offsets dodge collisions (extract's collapsed R>=4 cluster).
-    draw_panel(ax_f, args.filter_dir, "Q101", "Semantic filter", winner_r=4,
+    # winner (starred): R=8 on both operators -- the throughput operating point
+    # fixed in subsec:eval-prompt, and the Pareto point in the data
+    # (pareto_rows_f1/pareto_tok_f1 flag slim R=8 on the extract).
+    # Per-R label offsets dodge collisions.
+    draw_panel(ax_f, args.filter_dir, "Q101", "Semantic filter", winner_r=8,
                label_offsets={4: (-10, 10), 8: (14, 6), 16: (16, -3), 32: (-16, -4)})
-    draw_panel(ax_e, args.extract_dir, "Q103", "Semantic extract", winner_r=2,
-               label_offsets={1: (-14, 4), 2: (12, 8), 4: (16, 2), 8: (16, -8),
+    draw_panel(ax_e, args.extract_dir, "Q103", "Semantic extract", winner_r=8,
+               label_offsets={1: (-14, 4), 2: (12, 8), 4: (2, 14), 8: (16, -8),
                               16: (18, 0), 32: (-18, -2)})
     ax_f.legend()
     fig.tight_layout()
+    ts.no_suptitle(fig)
     for ext in ("png", "pdf"):
         path = args.out_dir / f"cross_system_frontier.{ext}"
         fig.savefig(path)

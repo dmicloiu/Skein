@@ -37,36 +37,21 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import thesis_style as ts
+
 C_THROUGHPUT = "blue"
 C_LATENCY = "#d62728"      # red
 C_KV = "#9467bd"           # purple
 C_CACHE = "green"
 C_ALT = "#ff7f0e"          # orange
-C_GRAY = "#7f7f7f"
+C_GRAY = ts.GRAY           # neutral gray (== "#7f7f7f")
 
 STALL_MS = 100.0           # ITL band boundary: the two modes sit at ~10 and ~215 ms
 
 
 def setup_style():
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 10,
-        "axes.titlesize": 10,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 10,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 9,
-        "legend.loc": "best",
-    })
+    """Delegate to the shared thesis_style house rcParams (increased scale)."""
+    ts.setup_style(base_font=13)
 
 
 def read_csv(path: Path) -> list[dict]:
@@ -79,6 +64,7 @@ def fnum(row: dict, key: str) -> float:
 
 
 def save(fig, figures_dir: Path, name: str):
+    ts.no_suptitle(fig)  # house policy: no argumentative suptitle
     for ext in ("pdf", "png"):
         fig.savefig(figures_dir / f"{name}.{ext}")
     plt.close(fig)
@@ -110,7 +96,7 @@ def fig_saturation(results: Path, figures_dir: Path):
     axL.tick_params(axis="y", labelcolor=C_THROUGHPUT)
     axL.axvline(128, color=C_GRAY, ls=":", lw=1)
     axL.annotate("N = 128", xy=(128, 0), xytext=(140, 30),
-                 fontsize=9, color=C_GRAY)
+                 fontsize=11.5, color=C_GRAY)
     axLr = axL.twinx()
     axLr.plot(n, e2e50, "s--", color=C_LATENCY, label="e2e p50")
     axLr.plot(n, e2e95, "^--", color=C_LATENCY, alpha=0.45, label="e2e p95")
@@ -122,7 +108,7 @@ def fig_saturation(results: Path, figures_dir: Path):
     h1, l1 = axL.get_legend_handles_labels()
     h2, l2 = axLr.get_legend_handles_labels()
     axL.legend(h1 + h2, l1 + l2, loc="center right")
-    axL.set_title("(a) Throughput and request latency")
+    axL.set_title("Throughput and request latency")
 
     axR.plot(n, running, "o-", color=C_THROUGHPUT, label="running (mean)")
     axR.plot(n, waiting, "s-", color=C_ALT, label="waiting (mean)")
@@ -141,7 +127,7 @@ def fig_saturation(results: Path, figures_dir: Path):
     h1, l1 = axR.get_legend_handles_labels()
     h2, l2 = axRr.get_legend_handles_labels()
     axR.legend(h1 + h2, l1 + l2, loc="upper left")
-    axR.set_title("(b) Queue state and KV utilisation")
+    axR.set_title("Queue state and KV utilisation")
 
     fig.tight_layout()
     save(fig, figures_dir, "vllm_saturation")
@@ -191,9 +177,9 @@ def fig_itl_cliff(results: Path, figures_dir: Path):
     ylo, yhi = np.log10(5), np.log10(290)
     ax.axhspan(ylo, np.log10(60), color=C_THROUGHPUT, alpha=0.05, zorder=0)
     ax.axhspan(np.log10(150), yhi, color=C_LATENCY, alpha=0.06, zorder=0)
-    ax.text(-0.55, np.log10(55), "decode band", fontsize=8.5, color=C_GRAY,
+    ax.text(-0.55, np.log10(55), "decode band", fontsize=11, color=C_GRAY,
             va="top", ha="left")
-    ax.text(-0.55, np.log10(272), "stall band", fontsize=8.5, color=C_GRAY,
+    ax.text(-0.55, np.log10(272), "stall band", fontsize=11, color=C_GRAY,
             va="top", ha="left")
     for i, n_val in enumerate(ns):
         ld = np.log10(itls[n_val])
@@ -207,7 +193,7 @@ def fig_itl_cliff(results: Path, figures_dir: Path):
         ax.plot([i - 0.2, i + 0.2], [med, med], color="white", lw=1.8, zorder=5)
     ax.axvline(3.5, color=C_GRAY, ls=":", lw=1)
     ax.text(3.58, np.log10(105), "latency cliff", rotation=90, va="center",
-            fontsize=8.5, color=C_GRAY)
+            fontsize=11, color=C_GRAY)
     yticks = [5, 10, 20, 50, 100, 200]
     ax.set_ylim(ylo, yhi)
     ax.set_yticks([np.log10(v) for v in yticks], [str(v) for v in yticks])
@@ -247,14 +233,14 @@ def fig_batching(results: Path, figures_dir: Path):
     axL.set_xticks([1, 8, 32, 128], ["1", "8", "32", "128"])
     axL.minorticks_off()
     axL.axvline(32, color=C_GRAY, ls=":", lw=1)
-    axL.annotate("R = 32", xy=(32, 0), xytext=(36, 30), fontsize=9,
+    axL.annotate("R = 32", xy=(32, 0), xytext=(36, 30), fontsize=11.5,
                  color=C_GRAY)
     axL.set_xlabel("R (rows per prompt) [log]")
     axL.set_ylabel("rows/s")
     leg = axL.legend(loc="upper left", title="in-flight requests N")
-    leg.get_title().set_fontsize(9)
+    leg.get_title().set_fontsize(11.5)
     leg.get_title().set_fontweight("bold")
-    axL.set_title("(a) Row throughput")
+    axL.set_title("Row throughput")
 
     # per-row prompt-token cost (identical across N; take N=128)
     sub = sorted((r for r in rows if int(r["n_concurrent"]) == 128),
@@ -273,7 +259,7 @@ def fig_batching(results: Path, figures_dir: Path):
     axR.axhspan(35, tok_row[-1], color=C_THROUGHPUT, alpha=0.06, zorder=0)
     axR.annotate(f"payload floor ≈ {tok_row[-1]:.0f} tok/row",
                  xy=(16, tok_row[-1]), xytext=(9, 37),
-                 fontsize=9, color=C_GRAY)
+                 fontsize=11.5, color=C_GRAY)
     axRr = axR.twinx()
     axRr.plot(r_vals, e2e, "s--", color=C_LATENCY, label="e2e p50 (N = 128)")
     axRr.set_yscale("log")
@@ -284,7 +270,7 @@ def fig_batching(results: Path, figures_dir: Path):
     h1, l1 = axR.get_legend_handles_labels()
     h2, l2 = axRr.get_legend_handles_labels()
     axR.legend(h1 + h2, l1 + l2, loc="upper center")
-    axR.set_title("(b) Per-row prompt cost and request latency")
+    axR.set_title("Per-row prompt cost and request latency")
 
     fig.tight_layout()
     save(fig, figures_dir, "vllm_batching")
@@ -329,7 +315,7 @@ def fig_prefill_cache(results: Path, figures_dir: Path):
     axL.tick_params(axis="y", labelcolor=C_THROUGHPUT)
     axL.axvline(1363, color=C_GRAY, ls=":", lw=1)
     axL.annotate("R = 32 batch", xy=(1363, rps[-1]), xytext=(1500, 2.1),
-                 fontsize=9, color=C_GRAY)
+                 fontsize=11.5, color=C_GRAY)
     axLr = axL.twinx()
     axLr.plot(ptok, tok, "s--", color=C_ALT, label="total tok/s")
     axLr.set_ylim(0, 42)
@@ -340,7 +326,7 @@ def fig_prefill_cache(results: Path, figures_dir: Path):
     h1, l1 = axL.get_legend_handles_labels()
     h2, l2 = axLr.get_legend_handles_labels()
     axL.legend(h1 + h2, l1 + l2, loc="lower left")
-    axL.set_title("(a) Prompt-length sweep")
+    axL.set_title("Prompt-length sweep")
 
     # CacheIso (free-form arms, N=64, identical real prompts): cache off /
     # cache on cold / cache on warm replay.
@@ -365,21 +351,21 @@ def fig_prefill_cache(results: Path, figures_dir: Path):
         axR.annotate(f"{b.get_height():.0f} rows/s",
                      xy=(b.get_x() + b.get_width() / 2, b.get_height()),
                      xytext=(0, 3), textcoords="offset points",
-                     ha="center", va="bottom", fontsize=8.5, fontweight="bold",
+                     ha="center", va="bottom", fontsize=11, fontweight="bold",
                      bbox=dict(facecolor="white", edgecolor="none", pad=0.8))
         axR.annotate(f"hit {hit * 100:.0f}%",
                      xy=(b.get_x() + b.get_width() / 2, b.get_height() / 2),
-                     ha="center", va="center", fontsize=9, color="white",
+                     ha="center", va="center", fontsize=11.5, color="white",
                      fontweight="bold")
     axR.axhline(805, ls="--", lw=1.2, color="0.35")
     axR.set_xlim(-0.6, 3.1)
-    axR.text(2.42, 805, "compute ceiling\n\u2248805 rows/s", fontsize=8.5,
+    axR.text(2.42, 805, "compute ceiling\n\u2248805 rows/s", fontsize=11,
              color="0.35", va="center", ha="left",
              bbox=dict(facecolor="white", edgecolor="none", pad=1.0))
     axR.set_ylim(0, 4300)  # headroom for the two-line bar annotations
     axR.set_xticks(x, labels)
     axR.set_ylabel("rows/s")
-    axR.set_title("(b) Prefix-cache isolation, identical prompts")
+    axR.set_title("Prefix-cache isolation, identical prompts")
 
     fig.tight_layout()
     save(fig, figures_dir, "vllm_prefill_cache")
@@ -447,7 +433,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
                      color=colors.get(morsels, C_KV), zorder=3,
                      label=f"morsels = {morsels} (measured)")
         axL.axhline(128, color=C_GRAY, ls=":", lw=1)
-        axL.text(1, 150, "saturation concurrency N \u2248 128", fontsize=8.5,
+        axL.text(1, 150, "saturation concurrency N \u2248 128", fontsize=11,
                  color=C_GRAY)
         decs = [1, 2, 4, 8, 16, 32, 64, 128]
         axL.set_xscale("log", base=2)
@@ -459,7 +445,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
         axL.set_xlabel("SET threads [log]")
         axL.set_ylabel("peak in-flight requests at vLLM [log]")
         axL.legend(loc="center right")
-        axL.set_title("(a) Threads sweep (fixed morsels)")
+        axL.set_title("Threads sweep (fixed morsels)")
 
         # morsel sweeps: series per thread setting, x = morsel count
         ms_points: dict[int, dict[int, list]] = {}
@@ -480,7 +466,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
                      color=colors_ms.get(threads, C_KV), zorder=3,
                      label=f"threads = {threads} (measured)")
         axR.axhline(128, color=C_GRAY, ls=":", lw=1)
-        axR.text(1, 150, "saturation concurrency N \u2248 128", fontsize=8.5,
+        axR.text(1, 150, "saturation concurrency N \u2248 128", fontsize=11,
                  color=C_GRAY)
         axR.set_xscale("log", base=2)
         axR.set_yscale("log", base=2)
@@ -491,7 +477,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
         axR.set_xlabel("morsels (2048-row row groups) [log]")
         axR.set_ylabel("peak in-flight requests at vLLM [log]")
         axR.legend(loc="lower right")
-        axR.set_title("(b) Morsel sweep (fixed threads)")
+        axR.set_title("Morsel sweep (fixed threads)")
     else:
         # ---- interim: sem_filter A/B scalar arm (GH200) ----
         print("NOTE: GH200 morsel/threads sweep not found under "
@@ -510,7 +496,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
         axL.set_xlabel("SET threads [log]")
         axL.set_ylabel("mean in-flight requests at vLLM")
         axL.legend()
-        axL.set_title("(a)")
+        axL.set_title("")
 
         morsel_cells = [r for r in ab if r["arm"] == "scalar" and r["R"] == "1"]
         morsel_cells.sort(key=lambda r: int(r["morsels"]))
@@ -523,7 +509,7 @@ def fig_morsel_bottleneck(sweep_root: Path, ab_csv: Path, figures_dir: Path):
         axR.set_xlabel("min(morsels, threads) [log]")
         axR.set_ylabel("mean in-flight requests at vLLM [log]")
         axR.legend()
-        axR.set_title("(b)")
+        axR.set_title("")
 
     fig.tight_layout()
     save(fig, figures_dir, "flock_morsel_bottleneck")

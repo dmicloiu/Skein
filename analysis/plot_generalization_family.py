@@ -36,6 +36,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import thesis_style as ts
+
 DATA = Path("analysis/figures/data")
 QWEN, LLAMA = "Qwen2.5-7B", "Llama-3.1-8B"
 COLORS = {QWEN: "#2e8b57", LLAMA: "#7048a8"}
@@ -57,26 +59,13 @@ ALWAYS_TRUE_F1 = 0.853  # 1487/2000 positives -> P=.744, R=1.0
 
 
 def _setup_style():
-    plt.rcParams.update({
-        "figure.dpi": 110, "savefig.dpi": 200, "savefig.bbox": "tight",
-        "font.family": "sans-serif", "font.size": 12,
-        "axes.titlesize": 13, "axes.titleweight": "bold",
-        "axes.titlelocation": "left", "axes.titlepad": 10,
-        "axes.labelsize": 12, "xtick.labelsize": 11, "ytick.labelsize": 11,
-        "axes.spines.top": False, "axes.spines.right": False,
-        "axes.grid": True, "grid.alpha": 0.25,
-        "legend.frameon": False, "legend.fontsize": 10.5,
-    })
-
-
-def _suptitle(fig, text, tag="PhysicalSemFilter"):
-    # The frontier figure carries extract panels too, so the tag is per-figure.
-    fig.suptitle(f"[{tag}]  {text}", fontweight="bold",
-                 fontsize=12.5, x=0.02, y=1.02, ha="left")
+    """Delegate to the shared thesis_style house rcParams."""
+    ts.setup_style(base_font=14)
 
 
 def _save(fig, out_dir: Path, name: str):
     out_dir.mkdir(parents=True, exist_ok=True)
+    ts.no_suptitle(fig)  # house policy: no argumentative suptitle
     fig.tight_layout()
     for ext in ("png", "pdf"):
         fig.savefig(out_dir / f"{name}.{ext}")
@@ -123,7 +112,7 @@ def render_laws(out_dir: Path):
     ax_l.set_xticklabels(["1", "2", "4"])
     ax_l.set_xlabel("GPUs"); ax_l.set_ylabel("per-GPU efficiency")
     ax_l.set_ylim(0.5, 1.18)
-    ax_l.set_title("(a) both scale-out axes, both families")
+    ax_l.set_title("Both scale-out axes, both families")
     ax_l.legend(loc="lower left", ncol=1)
 
     width = 0.35
@@ -141,10 +130,9 @@ def render_laws(out_dir: Path):
     ax_r.set_xticks(range(3)); ax_r.set_xticklabels(labels)
     ax_r.set_ylabel("throughput relative to 1 × TP4")
     ax_r.set_ylim(0, 1.8)
-    ax_r.set_title("(b) fixed 4-GPU budget, total cap 512")
+    ax_r.set_title("Fixed 4-GPU budget, total cap 512")
     ax_r.legend(loc="upper right")
 
-    _suptitle(fig, "the engine laws hold across model families")
     _save(fig, out_dir, "gen_family_laws")
     plt.close(fig)
 
@@ -177,9 +165,8 @@ def render_prompt(out_dir: Path):
     ax.set_xlabel("rows packed per request (R)")
     ax.set_ylabel("F1")
     ax.set_ylim(0.45, 0.98)
-    ax.set_title("quality vs batch size, by prompt head and model family")
+    ax.set_title("Quality vs batch size, by prompt head and model family")
     ax.legend(loc="lower left", ncol=2)
-    _suptitle(fig, "the prompt result does NOT transfer across families")
     _save(fig, out_dir, "gen_family_prompt")
     plt.close(fig)
 
@@ -201,7 +188,7 @@ def render_frontier(out_dir: Path):
                      if a.startswith("flock_op") and r.get("f1") and r.get("rows_s")]
             ax.scatter([p[0] for p in flock], [p[1] for p in flock], s=70,
                        color=COLORS[fam], edgecolor="black", linewidth=0.6,
-                       zorder=3, label="flock (operator arms)")
+                       zorder=3, label="Skein")
             best = max(flock, key=lambda p: p[1])
             ax.annotate(best[2].replace("flock_op_", "").replace("_", " "),
                         (best[0], best[1]), xytext=(6, 6),
@@ -212,12 +199,10 @@ def render_frontier(out_dir: Path):
                     ax.scatter([float(rows[arm]["rows_s"])], [float(rows[arm]["f1"])],
                                s=110, marker=mk, color=c, edgecolor="black",
                                linewidth=0.7, zorder=4, label=arm.upper() if arm == "lotus" else "Palimpzest")
-            ax.set_title(f"({'ab'[col]}{row+1}) {fam} — {task}")
+            ax.set_title(f"{fam} — {task}")
             ax.set_xlabel("rows/s"); ax.set_ylabel("F1")
             if row == 0 and col == 0:
                 ax.legend(loc="lower right", fontsize=9.5)
-    _suptitle(fig, "cross-system standing is family-dependent",
-              tag="PhysicalSemFilter + PhysicalSemExtract")
     _save(fig, out_dir, "gen_family_frontier")
     plt.close(fig)
 

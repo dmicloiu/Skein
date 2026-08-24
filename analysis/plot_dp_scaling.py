@@ -27,8 +27,9 @@ into the images (model / GPUs / caps / reps belong in the LaTeX caption).
                      the TP penalty shrinks with size.
   dp_cap_collapse    each fleet's cap sweep normalised by its own saturation
                      point: the two models collapse onto one curve.
-  dp_multinode       fleet-size generalization: the N=8 cross-node point on
-                     the ideal line + per-endpoint latency local vs remote.
+  dp_multinode       fleet-size generalization: per-endpoint latency at N=8,
+                     local vs remote endpoints indistinguishable. (The N=8
+                     cross-node throughput point lives on dp_scaling_curve.)
   dp_kvstress        workload-shape generalization: replica advantage per
                      workload depth (prefill / 512 out / 1024 out) + the KV
                      occupancy and preemption evidence.
@@ -59,13 +60,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import thesis_style as ts
+
 # House convention (plot_tp_scaling.py): blue = the baseline being beaten,
 # green = the behaviour under test. Here DP is under test; the TP curve is the
 # scale-out baseline it is measured against.
-COLOR_DP = "green"
-COLOR_TP = "blue"
+COLOR_DP = ts.COLOR_UNDER_TEST      # Skein, primary green (DP is the recommended mode)
+COLOR_TP = "#7fbf7f"                # Skein, lighter green shade (the other Skein mode)
 COLOR_IDEAL = "0.45"
-COLOR_SCALAR = "#8c564b"   # distinct from the ideal-reference grays
+COLOR_SCALAR = ts.COLOR_BASELINE   # Flock baseline -> blue, paper-wide (green=Skein, blue=Flock)
 COLOR_STARVE = "#c8722a"   # latency/over-cap accents
 
 # DP scaling curve: fleet size -> (cap, total GPUs). cap = 128*N.
@@ -76,36 +79,13 @@ GRID_CAP = 512
 
 
 def _setup_style():
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 12,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 11,
-        "ytick.labelsize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 11,
-        "legend.loc": "best",
-    })
-
-
-def _suptitle(fig, text: str):
-    fig.suptitle(f"[PhysicalSemFilter]  {text}",
-                 fontweight="bold", fontsize=12.5, x=0.02, y=1.02, ha="left")
+    """Delegate to the shared thesis_style house rcParams."""
+    ts.setup_style(base_font=14)
 
 
 def _save(fig, out_dir: Path, name: str):
     out_dir.mkdir(parents=True, exist_ok=True)
+    ts.no_suptitle(fig)  # house policy: no argumentative suptitle
     fig.tight_layout()
     for ext in ("png", "pdf"):
         path = out_dir / f"{name}.{ext}"
@@ -194,7 +174,7 @@ def _curve_panel(ax, dp_pts, tp_pts, ideal_base, ylabel, *, scalar=None,
             label="ideal linear" if legend else None)
     if scalar is not None:
         ax.axhline(scalar, ls=":", lw=1.6, color=COLOR_SCALAR, zorder=1,
-                   label="scalar llm_filter (no scale-out)" if legend else None)
+                   label="Flock (no scale-out)" if legend else None)
         best = max(m for _, m, _, _ in dp_pts)
         ax.annotate(f"{scalar:.1f} rows/s ({best / scalar:.0f}x below)",
                     (max(gpus) * 1.2, scalar), textcoords="offset points",
@@ -237,7 +217,7 @@ def render_curve(rows, effs, tp_rows, tp_effs, scalar_rows,
     fig, (ax_a, ax) = plt.subplots(1, 2, figsize=(11.4, 4.5))
     _curve_panel(ax_a, rows["dp"], tp_rows, rows["base"],
                  "throughput (rows/s)", scalar=scalar_rows, legend=True)
-    ax_a.set_title("(a) throughput")
+    ax_a.set_title("Throughput")
 
     # (b) per-GPU efficiency: ratio panel, so the ideal is a flat 1.0 line and
     # the y-axis is absolute -- no ideal_base scaling.
@@ -269,9 +249,8 @@ def render_curve(rows, effs, tp_rows, tp_effs, scalar_rows,
     ax.set_ylim(0, 1.25)
     ax.set_xlabel("GH200 GPUs")
     ax.set_ylabel("per-GPU efficiency (x 1-GPU rows/s)")
-    ax.set_title("(b) per-GPU efficiency")
+    ax.set_title("Per-GPU efficiency")
     ax.legend(loc="lower left")
-    _suptitle(fig, "DP scales linearly whereas TP does not")
     _save(fig, out_dir, "dp_scaling_curve")
     plt.close(fig)
 
@@ -304,7 +283,7 @@ def render_budget(grid_rows, grid_queue, out_dir: Path) -> None:
     ax.set_xlabel("topology at a fixed 4-GPU budget")
     ax.set_ylabel("throughput (rows/s)")
     ax.set_ylim(0, ymax)
-    ax.set_title("(a) throughput")
+    ax.set_title("Throughput")
 
     # (b) the WHY: per-request scheduler queue time. One engine serialises
     # admission that N independent engines absorb.
@@ -319,11 +298,10 @@ def render_budget(grid_rows, grid_queue, out_dir: Path) -> None:
     ax.set_xticks(range(len(GRID)))
     ax.set_xticklabels([labels[k] for k in GRID])
     ax.set_xlabel("topology at a fixed 4-GPU budget")
-    ax.set_ylabel("mean admission latency per request (ms)")
+    ax.set_ylabel("latency per request (ms)")
     ax.set_ylim(0, ymax)
-    ax.set_title("(b) mean admission latency")
+    ax.set_title("Mean admission latency")
 
-    _suptitle(fig, "performance analysis of different topologies at 4 GPUs and the same total concurrency")
     _save(fig, out_dir, "dp_budget_bars")
     plt.close(fig)
 
@@ -362,7 +340,7 @@ def render_cap_sweep(rows_c: dict, e2e_c: dict, wait_c: dict, n_ep: int,
     xstyle(ax_l)
     ax_l.set_ylabel("throughput (rows/s)")
     ax_l.set_ylim(440, 600)
-    ax_l.set_title("(a) throughput")
+    ax_l.set_title("Throughput")
 
     e = {c: stat(e2e_c[c]) for c in caps if c in e2e_c}
     ax_r.errorbar(caps, [e[c][0] for c in caps],
@@ -382,8 +360,7 @@ def render_cap_sweep(rows_c: dict, e2e_c: dict, wait_c: dict, n_ep: int,
     ax_r.set_yticks([v for v in yt if e[caps[0]][0] * 0.8 <= v <= e[caps[-1]][0] * 1.3])
     ax_r.set_yticklabels([str(v) for v in ax_r.get_yticks()])
     ax_r.set_ylabel("mean e2e latency (ms)")
-    ax_r.set_title("(b) mean e2e latency")
-    _suptitle(fig, "performance analysis of the in-flight cap on a 4-endpoint fleet")
+    ax_r.set_title("Mean e2e latency")
     _save(fig, out_dir, "dp_cap_sweep")
     plt.close(fig)
 
@@ -490,8 +467,6 @@ def render_model_frontier(cells: dict, out_dir: Path) -> None:
     ax.set_ylabel("model (rows ordered by F1)")
     ax.legend(loc="upper left", fontsize=10)
     ax.grid(axis="y", alpha=0)
-    _suptitle(fig, "quality and throughput across model sizes and topologies "
-                   "at a fixed 4-GPU budget")
     _save(fig, out_dir, "dp_model_frontier")
     plt.close(fig)
 
@@ -513,7 +488,7 @@ def render_balance(bal: list[dict], summary_rows: list[dict], out_dir: Path) -> 
     names = {("op", 2, 1, 256): "2 x TP1\ncap 256",
              ("op", 4, 1, 512): "4 x TP1\ncap 512",
              ("op", 2, 2, 512): "2 x TP2\ncap 512",
-             ("scalar", 4, 1, 128): "scalar\n4 x TP1"}
+             ("scalar", 4, 1, 128): "Flock\n4 x TP1"}
     ep_colors = ["#1a5c1a", "#2e8b57", "#5aab6e", "#9ccfa4"]
 
     fig, axes = plt.subplots(1, 2, figsize=(11.8, 4.5))
@@ -555,7 +530,7 @@ def render_balance(bal: list[dict], summary_rows: list[dict], out_dir: Path) -> 
     ax.set_xticklabels([names[c[:4]] for c in cfgs])
     ax.set_ylabel("share of fleet requests (%)")
     ax.set_ylim(0, 118)
-    ax.set_title("(a) round_robin dispatch evenness")
+    ax.set_title("Round-robin dispatch evenness")
     ax.legend(loc="upper left", ncol=2, fontsize=9.5)
 
     # (b) driver CPU vs fleet concurrency: the client-vs-GPU discriminator.
@@ -573,20 +548,19 @@ def render_balance(bal: list[dict], summary_rows: list[dict], out_dir: Path) -> 
     if pts:
         ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=64,
                    color=COLOR_DP, edgecolor="black", linewidth=0.6, zorder=3,
-                   label="operator (async, 1 IO thread)")
+                   label="Skein (async, 1 IO thread)")
     if sc:
         ax.scatter([p[0] for p in sc], [p[1] for p in sc], s=64, marker="s",
                    color=COLOR_TP, edgecolor="black", linewidth=0.6, zorder=3,
-                   label="scalar llm_filter (blocking)")
+                   label="Flock (blocking)")
     ax.set_xlabel("fleet concurrency (mean in-flight requests)")
     ax.set_ylabel("driver CPU (cores)")
     # scalar sits at concurrency ~1, the cap-2048 probe at ~1965: clip neither.
     ax.set_xlim(-60, max((p[0] for p in pts), default=500) * 1.08)
     ax.set_ylim(0, 1.35)
-    ax.set_title("(b) driver CPU vs fleet concurrency")
+    ax.set_title("Driver CPU vs fleet concurrency")
     ax.legend(loc="center right")
 
-    _suptitle(fig, "dispatch evenness and client-side cost across fleet configurations")
     _save(fig, out_dir, "dp_balance")
     plt.close(fig)
 
@@ -630,7 +604,6 @@ def render_model_efficiency(dp7, tp7, eff32, out_dir: Path) -> None:
     ax.set_xlabel("GH200 GPUs")
     ax.set_ylabel("per-GPU efficiency (x 1-GPU rows/s)")
     ax.legend(loc="lower left", ncol=2, fontsize=10)
-    _suptitle(fig, "per-GPU efficiency of both scale-out axes at 7B and 32B")
     _save(fig, out_dir, "dp_model_efficiency")
     plt.close(fig)
 
@@ -719,56 +692,21 @@ def render_cap_collapse(summary: Path, out_dir: Path) -> None:
     ax.set_ylabel("throughput (% of own plateau)")
     ax.set_ylim(50, 108)
     ax.legend(loc="lower left")
-    _suptitle(fig, "cap response of the 7B and 32B fleets (4 endpoints each), "
-                   "normalised by saturation cap")
     _save(fig, out_dir, "dp_cap_collapse")
     plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
 # Generalization figures.
-# dp_multinode -- fleet-size generalization: the DP curve crossing the node
-# boundary at per-GPU ~1.0, with the per-endpoint evidence that the network
-# hop is invisible (local and remote endpoints indistinguishable in latency
-# and share).
+# dp_multinode -- fleet-size generalization: the per-endpoint evidence that the
+# network hop is invisible (local and remote endpoints indistinguishable in
+# latency and share). The cross-node throughput point that used to sit beside
+# this now extends dp_scaling_curve's throughput panel across the node boundary.
 # ---------------------------------------------------------------------------
-def render_multinode(rows_dp, base, mn_rows, bal, out_dir: Path) -> None:
-    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(12.4, 4.6))
+def render_multinode(bal, out_dir: Path) -> None:
+    fig, ax = plt.subplots(figsize=(7.4, 4.6))
 
-    # (a) throughput vs N with the cross-node point
-    ax = ax_l
-    xs = [g for g, _, _, _ in rows_dp] + [8]
-    ax.plot(xs, [base * g for g in xs], ls="--", lw=1.6, color=COLOR_IDEAL,
-            zorder=1, label="ideal linear")
-    ax.axvspan(5.66, 11, color="0.92", zorder=0)
-    ax.text(6.8, base * 1.5, "two nodes", fontsize=10, color="0.4",
-            ha="center", rotation=90)
-    m = [v for _, v, _, _ in rows_dp]
-    ax.errorbar([g for g, _, _, _ in rows_dp], m,
-                yerr=[[v - a for _, v, a, _ in rows_dp],
-                      [b - v for _, v, _, b in rows_dp]],
-                marker="o", ms=7, lw=2.0, capsize=3, color=COLOR_DP, zorder=3,
-                label="DP, single node")
-    v, a, b = mn_rows
-    ax.errorbar([8], [v], yerr=[[v - a], [b - v]], marker="o", ms=8, lw=0,
-                capsize=3, color=COLOR_DP, markerfacecolor="white",
-                markeredgewidth=1.8, zorder=4, label="DP, 4 + 4 over 2 nodes")
-    for g, val in list(zip([g for g, _, _, _ in rows_dp], m)) + [(8, v)]:
-        off, ha = ((7, -14), "left") if g == 1 else ((-4, 9), "right")
-        ax.annotate(f"{val:.0f}", (g, val), textcoords="offset points",
-                    xytext=off, ha=ha, fontsize=9.5, fontweight="bold",
-                    color=COLOR_DP)
-    ax.set_xscale("log", base=2)
-    ax.set_xticks(xs)
-    ax.set_xticklabels([str(g) for g in xs])
-    ax.set_xlim(0.82, 8 * 1.35)
-    ax.set_xlabel("GH200 GPUs (TP1 endpoints)")
-    ax.set_ylabel("throughput (rows/s)")
-    ax.set_title("(a) throughput across the node boundary")
-    ax.legend(loc="upper left", fontsize=10)
-
-    # (b) per-endpoint mean e2e at N=8: local vs remote indistinguishable
-    ax = ax_r
+    # per-endpoint mean e2e at N=8: local vs remote indistinguishable
     per_ep = {}
     for r in bal:
         if (r["job"].startswith("mn_rep") and r["cap"] == "1024" and r["e2e_ms"]):
@@ -791,9 +729,8 @@ def render_multinode(rows_dp, base, mn_rows, bal, out_dir: Path) -> None:
         ax.set_ylim(0, max(fleet) * 1.3)
         ax.set_xlabel("endpoint (requests split 12.50% each)")
         ax.set_ylabel("mean e2e per request (ms)")
-        ax.set_title("(b) per-endpoint latency at N=8")
-        ax.legend(loc="lower right", fontsize=9.5)
-    _suptitle(fig, "fleet-size generalization: N=8 across two nodes")
+        ax.set_title("Per-endpoint latency at N=8")
+        ax.legend(loc="upper left", fontsize=15)
     _save(fig, out_dir, "dp_multinode")
     plt.close(fig)
 
@@ -856,7 +793,7 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
     ax.set_xticklabels([lab for _, lab in wls])
     ax.set_ylabel("replica advantage (4xTP1 / 1xTP4 rows/s)")
     ax.set_ylim(0, 1.75)
-    ax.set_title("(a) the replica advantage per workload")
+    ax.set_title("The replica advantage per workload")
     ax.legend(loc="upper right", fontsize=10)
 
     # (b) the mechanism, depth-resolved: KV peak + preemptions per stress cell
@@ -892,10 +829,8 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
     ax.set_xticklabels([glabels[g] for g in groups])
     ax.set_ylabel("peak KV-cache occupancy (%)")
     ax.set_ylim(0, 132)
-    ax.set_title("(b) KV pressure on the stress workloads")
+    ax.set_title("KV pressure on the stress workloads")
 
-    _suptitle(fig, "workload-shape generalization: the KV/decode boundary of "
-                   "the replica advantage")
     _save(fig, out_dir, "dp_kvstress")
     plt.close(fig)
 
@@ -1009,6 +944,11 @@ def main() -> int:
         grid_rows = {k: stat(grid_rows_src[("op", k[0], k[1], GRID_CAP)]) for k in GRID}
         grid_queue = {k: stat(grid_queue_src[("op", k[0], k[1], GRID_CAP)]) for k in GRID}
 
+    # the cross-node 8-GPU cell gates the multinode latency figure below
+    rows_mn = collect_dp(args.summary, "rows_s", jobs="mn")
+    mn_datum = (stat(rows_mn[("op", 8, 1, 1024)])
+                if ("op", 8, 1, 1024) in rows_mn else None)
+
     print_summary(rows, effs, grid_rows or {}, tp_rows) if grid_rows else None
     render_curve(rows, effs, tp_rows, tp_effs, scalar_rows, args.out_dir)
 
@@ -1054,11 +994,8 @@ def main() -> int:
               file=sys.stderr)
 
     # generalization figures: fleet size (multi-node) and workload shape (KV)
-    rows_mn = collect_dp(args.summary, "rows_s", jobs="mn")
-    if ("op", 8, 1, 1024) in rows_mn and args.balance.exists():
-        render_multinode(rows["dp"], rows["base"],
-                         stat(rows_mn[("op", 8, 1, 1024)]),
-                         collect_balance(args.balance), args.out_dir)
+    if mn_datum is not None and args.balance.exists():
+        render_multinode(collect_balance(args.balance), args.out_dir)
     else:
         print("  [warn] no multi-node cells -> skipping dp_multinode",
               file=sys.stderr)

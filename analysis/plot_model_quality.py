@@ -4,17 +4,14 @@ Why the larger models score LOWER F1 on the movie benchmark: they are more
 conservative on the thresholded predicate ("clearly positive"), and the gold
 label is the critic score, not the text. Renders ONE paper figure:
 
-  dp_model_quality  (a) precision/recall per model -- precision rises toward
-                    1.0 while recall falls: a threshold shift, not confusion.
-                    (b) the gray zone -- critic-score distribution of the
-                    gold-positive rows the large model rejects vs the ones
-                    both models pass: the rejections concentrate in lukewarm
-                    scores.
+  dp_model_quality  pass rate as a function of the review's normalised critic
+                    score, against the score-derived gold label: the larger
+                    models withhold "clearly positive" across the lukewarm
+                    middle, a threshold shift rather than confusion.
 
 Reads the operator verdict dumps (one per model; greedy decoding makes them
 topology-invariant) plus the gold CSV directly -- sibling of
-diagnose_rsweep.py, which established verdict-level analysis. Aggregate P/R
-comes from the summary CSV (single source of truth for cell metrics).
+diagnose_rsweep.py, which established verdict-level analysis.
 
 Usage:
   python analysis/plot_model_quality.py \
@@ -39,34 +36,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import thesis_style as ts
+
 MODEL_ORDER = ["7B", "32B", "72B"]
-COLOR_PRECISION = "#1a5c1a"
-COLOR_RECALL = "#7fbf7f"
 COLOR_CONSENSUS = "#2e8b57"
 COLOR_REJECTED = "#c8722a"
 
 
 def _setup_style():
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 12,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 11,
-        "ytick.labelsize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 11,
-    })
+    """Delegate to the shared thesis_style house rcParams."""
+    ts.setup_style(base_font=14)
 
 
 def _model_short(m: str | None) -> str:
@@ -105,19 +84,6 @@ def norm_score(s: str) -> float | None:
         return None
 
 
-def collect_pr(summary: Path) -> dict[str, dict]:
-    out: dict[str, dict] = {}
-    with open(summary, newline="") as f:
-        for r in csv.DictReader(f):
-            if r["arm"] != "op" or not r["precision"]:
-                continue
-            c = out.setdefault(_model_short(r["model"]),
-                               {"precision": [], "recall": []})
-            c["precision"].append(float(r["precision"]))
-            c["recall"].append(float(r["recall"]))
-    return out
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary", type=Path,
@@ -145,38 +111,13 @@ def main() -> int:
     verdicts = {m: load_verdicts(p) for m, p in
                 find_verdicts([d for d in (args.dp_dir, args.frontier_dir)
                                if d.exists()]).items()}
-    pr = collect_pr(args.summary)
-    models = [m for m in MODEL_ORDER if m in pr]
+    fig, ax = plt.subplots(figsize=(7.6, 4.6))
 
-    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(12.6, 4.6))
-
-    # (a) precision/recall per model
-    ax = ax_l
-    width = 0.32
-    for gi, m in enumerate(models):
-        p, r = median(pr[m]["precision"]), median(pr[m]["recall"])
-        ax.bar(gi - width / 2, p, width * 0.9, color=COLOR_PRECISION,
-               edgecolor="black", linewidth=0.6, zorder=3,
-               label="precision" if gi == 0 else None)
-        ax.bar(gi + width / 2, r, width * 0.9, color=COLOR_RECALL,
-               edgecolor="black", linewidth=0.6, zorder=3,
-               label="recall" if gi == 0 else None)
-        for x, v in ((gi - width / 2, p), (gi + width / 2, r)):
-            ax.text(x, v + 0.012, f"{v:.2f}", ha="center", va="bottom",
-                    fontsize=9.5, fontweight="bold")
-    ax.set_xticks(range(len(models)))
-    ax.set_xticklabels(models)
-    ax.set_ylim(0, 1.18)
-    ax.set_ylabel("score vs gold")
-    ax.set_title("(a) precision and recall per model")
-    ax.legend(loc="upper left", ncol=2)
-
-    # (b) where each model draws the line: per score bin, the share of
+    # where each model draws the line: per score bin, the share of
     # reviews the model calls "clearly positive" -- P(pass | score), the
     # direct form of the threshold-shift claim (a distribution of scores
     # given the verdict would be its inverse). Gold's own rate is the
     # near-step reference the models are graded against.
-    ax = ax_r
     MODEL_COLORS = {"7B": COLOR_CONSENSUS, "32B": COLOR_REJECTED,
                     "72B": "#8c564b"}
     bins = [x / 20 for x in range(6, 21)]
@@ -205,15 +146,14 @@ def main() -> int:
         ax.set_xlabel("critic score (normalized)")
         ax.set_ylabel('reviews passed as "clearly positive" (%)')
         ax.set_ylim(-3, 108)
-        ax.set_title("(b) pass rate by critic score")
+        ax.set_title("Pass rate by critic score")
         ax.legend(loc="upper left", fontsize=9.5)
     else:
         ax.set_axis_off()
-        print("  [warn] need verdict dumps + parseable scores -> panel (b) skipped",
+        print("  [warn] need verdict dumps + parseable scores -> panel skipped",
               file=sys.stderr)
 
-    fig.suptitle("[PhysicalSemFilter]  quality decomposition across model sizes",
-                 fontweight="bold", fontsize=12.5, x=0.02, y=1.02, ha="left")
+    ts.no_suptitle(fig)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
     for ext in ("png", "pdf"):

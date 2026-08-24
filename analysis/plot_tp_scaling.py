@@ -37,46 +37,24 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import thesis_style as ts
+
 # Mirror plot_router_experiment.py: blue = baseline, green = behaviour under test.
-COLOR_SCALAR = "blue"      # scalar llm_filter (rewrite off) is the baseline
-COLOR_OPERATOR = "green"   # PhysicalSemFilter (rewrite on) is under test
+COLOR_SCALAR = ts.COLOR_BASELINE      # scalar llm_filter (rewrite off) is the baseline
+COLOR_OPERATOR = ts.COLOR_UNDER_TEST  # PhysicalSemFilter (rewrite on) is under test
 
 TPS = [1, 2, 4]
 CAPS = {1: [128], 2: [128, 256], 4: [128, 256, 512]}
 
 
 def _setup_style():
-    """Consistent styling, copied from plot_router_experiment.py."""
-    plt.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 200,
-        "savefig.bbox": "tight",
-        "font.family": "sans-serif",
-        "font.size": 12,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 11,
-        "ytick.labelsize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "grid.alpha": 0.25,
-        "legend.frameon": False,
-        "legend.fontsize": 11,
-        "legend.loc": "best",
-    })
-
-
-def _suptitle(fig, text: str):
-    fig.suptitle(f"[PhysicalSemFilter]  {text}",
-                 fontweight="bold", fontsize=12.5, x=0.02, y=1.02, ha="left")
+    """Consistent styling: delegate to the shared thesis_style house rcParams."""
+    ts.setup_style(base_font=14)
 
 
 def _save(fig, out_dir: Path, name: str):
     out_dir.mkdir(parents=True, exist_ok=True)
+    ts.no_suptitle(fig)  # house policy: no argumentative suptitle
     fig.tight_layout()
     for ext in ("png", "pdf"):
         path = out_dir / f"{name}.{ext}"
@@ -132,7 +110,7 @@ def _bars_panel(ax, data: dict, scalar_label: str, ymax: float) -> None:
                 color, label = COLOR_SCALAR, (scalar_label if gi == 0 else None)
             else:
                 color = cap_colors[cap]
-                label = f"operator, cap {cap}" if cap not in seen else None
+                label = f"Skein, cap {cap}" if cap not in seen else None
                 seen.add(cap)
             ax.bar(x, m, width * 0.92, yerr=[[m - a], [b - m]], capsize=3,
                    color=color, edgecolor="black", linewidth=0.6, label=label)
@@ -156,17 +134,15 @@ def render_bars(data: dict, out_dir: Path, heroic: dict | None = None) -> None:
     ymax = max(vals) * 1.27
     if heroic:
         fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(12.6, 4.8), sharey=True)
-        _bars_panel(ax_l, data, "scalar llm_filter", ymax)
-        _bars_panel(ax_r, heroic, "scalar llm_filter", ymax)
-        ax_l.set_title("(a) DuckDB threads = 8, MORSELS = 1 [sembench]")
-        ax_r.set_title("(b) DuckDB threads = 128, MORSELS = 128 [best case]")
+        _bars_panel(ax_l, data, "Flock", ymax)
+        _bars_panel(ax_r, heroic, "Flock", ymax)
+        ax_l.set_title("DuckDB threads = 8, morsels = 1")
+        ax_r.set_title("DuckDB threads = 128, morsels = 128")
         ax_l.set_ylabel("throughput (rows/s)")
-        _suptitle(fig, "the operator's lead widens with TP -- even against the scalar's best case")
     else:
         fig, ax = plt.subplots(figsize=(7.6, 4.8))
-        _bars_panel(ax, data, "scalar llm_filter", ymax)
+        _bars_panel(ax, data, "Flock", ymax)
         ax.set_ylabel("throughput (rows/s)")
-        _suptitle(fig, "the operator's lead widens with TP; the saturating cap scales with it")
     _save(fig, out_dir, "tp_scaling_bars")
     plt.close(fig)
 
@@ -195,10 +171,10 @@ def render_concurrency(data: dict, conc: dict, out_dir: Path) -> None:
                 fontsize=11, fontweight="bold", color="0.3")
         ax.bar(xs, sm, width * 0.9, yerr=[[sm - sa], [sb - sm]], capsize=3,
                color=COLOR_SCALAR, edgecolor="black", linewidth=0.6, zorder=3,
-               label="scalar llm_filter" if gi == 0 else None)
+               label="Flock" if gi == 0 else None)
         ax.bar(xo, m, width * 0.9, yerr=[[m - a], [b - m]], capsize=3,
                color=COLOR_OPERATOR, edgecolor="black", linewidth=0.6, zorder=3,
-               label="operator (best cap)" if gi == 0 else None)
+               label="Skein (best cap)" if gi == 0 else None)
         ax.text(xs, sm + 12, f"{sm:.0f}", ha="center", va="bottom",
                 fontsize=10, fontweight="bold", zorder=4)
     ax.set_xticks(range(len(TPS)))
@@ -207,7 +183,6 @@ def render_concurrency(data: dict, conc: dict, out_dir: Path) -> None:
     ax.set_ylabel("mean in-flight requests (Little's law)")
     ax.set_ylim(0, 590)
     ax.legend(loc="upper left")
-    _suptitle(fig, "the operator sustains its cap at every TP; scalar concurrency is structural")
     _save(fig, out_dir, "tp_concurrency")
     plt.close(fig)
 
