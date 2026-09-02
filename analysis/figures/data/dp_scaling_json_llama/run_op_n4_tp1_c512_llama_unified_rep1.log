@@ -1,3 +1,0 @@
-rewrite=on threads=1 rows=32000 inflight=512 batch=1 tuple_format=json model=meta-llama/Llama-3.1-8B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions,http://127.0.0.1:8001/v1/chat/completions,http://127.0.0.1:8002/v1/chat/completions,http://127.0.0.1:8003/v1/chat/completions
-burn-in done (1 synthetic rows, untimed)
-DONE rewrite=on threads=1 rows=32000 passes=31926 elapsed_s=61.229 rows_per_s=522.63

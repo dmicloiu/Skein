@@ -1,3 +1,0 @@
-rewrite=on threads=1 rows=2000 inflight=128 batch=2 model=Qwen/Qwen2.5-7B-Instruct endpoints=http://127.0.0.1:8000/v1/chat/completions
-burn-in done (2 synthetic rows, untimed)
-DONE rewrite=on threads=1 rows=2000 passes=1128 elapsed_s=4.094 rows_per_s=488.47

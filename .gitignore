@@ -26,8 +26,19 @@ analysis/results/
 
 # SLURM job stdout/stderr.
 logs/
+# Python bytecode caches (analysis scripts).
+__pycache__/
+*.pyc
+
 # Test-run scratch databases (gtest targets create these in CWD).
 flock_semantic_test.db
+flock_sem_filter_test.db
+
+# Bulky raw run artefacts that leaked into figures/data. The summary CSVs and
+# small per-rep JSON/verdicts stay committed to redraw figures; the raw payload
+# dumps and per-run logs are kept only at the `thesis-submitted` tag.
+analysis/figures/data/**/payloads_*.jsonl
+analysis/figures/data/**/run_*.log
 flock_semantic_test.db.wal
 flock_sem_filter_test.db
 flock_sem_filter_test.db.wal

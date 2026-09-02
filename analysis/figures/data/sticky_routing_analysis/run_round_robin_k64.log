@@ -1,9 +1,0 @@
-loaded 512 payloads from /users/dmicloiu/projects/flock/analysis/results/router_sticky_sweep/2492926/payloads_k64.jsonl
-loaded 512 prefix keys from /users/dmicloiu/projects/flock/analysis/results/router_sticky_sweep/2492926/keys_k64.txt
-strategy=round_robin endpoints=4 inflight=128 warmup=0 total=512 timeout_ms=120000 rows_per_request=32 payloads=512 keys=512
-  [main] submitted=129 completed=1 inflight=128 rate=0.4 req/s
-  [main] submitted=275 completed=149 inflight=126 rate=70.8 req/s
-  [main] submitted=433 completed=307 inflight=126 rate=78.3 req/s
-  [main] done: 512 req in 8.43s = 60.77 req/s
-MAIN strategy=round_robin total=512 ok=512 err=0 elapsed_s=8.426 throughput_rows_per_s=1944.5170
-per_endpoint_count: ep0=128 ep1=128 ep2=128 ep3=128
