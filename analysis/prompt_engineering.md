@@ -60,9 +60,14 @@ Always prefixed by
   `<row><column>…</column></row>` line per row.
 - **Markdown**: row-major table, one line per row.
 
-The columnar JSON layout is directly implicated in the positional collapse: the
-i-th verdict must be aligned with the i-th array element with no anchor text
-(see Q3).
+The columnar JSON layout looks implicated in the positional collapse — the i-th
+verdict must align with the i-th array element with no anchor text — but the
+measurements say otherwise. Every collapse measurement in Q3 was taken under the
+**XML** encoding, which is row-major and *already* carries per-row tags, and the ramp
+is present there too (miss-rate 0.465 -> 0.842 front to back at R=32 under JSON;
+0.419 -> 0.804 under XML). So columnar-ness is not the cause: the ramp survives
+per-row delimiters. What did help was adding explicit row *ids* (Q3's P1), which is a
+different fix from row-major structure.
 
 ### Per-row token cost (measured, full prompt, filter, JSON tuples)
 
@@ -94,10 +99,9 @@ R=1** (matches evaluation.md §3c). The `id`/`id_reason` schema modes append
 their "Output (structured)" paragraph on top of either head and prepend a
 `row_id` column to the tuples.
 
-**Gap: there is no slim path for extract.** `PhysicalSemExtract::RenderPrompt`
-(`src/functions/operator/semantic_extract.cpp:151`) unconditionally renders the
-full `META_PROMPT`. A Q5 extract run "with the winning slim prompt" requires
-mirroring the filter's slim gate there (~10 lines, same env knob).
+*(Closed: `PhysicalSemExtract::RenderPrompt` now honors `FLOCK_SEM_PROMPT=slim` with
+task/one-string-per-row wording, so extract has the same batch-adaptive slim head as
+filter.)*
 
 ### Rendered examples (2 real sf_2000 reviews, JSON tuples)
 
@@ -232,12 +236,12 @@ can't help it. That is pure overhead a leaner prompt eliminates.
    tokens: 33.6k vs 28.6k (1.17×), not 73.7k vs 33.8k (2.2×). The engine does
    similar real work per second at both R; R=1's headline was inflated by
    re-sent, half-cached template bytes.
-2. Cross-system, raw tok/s is actively misleading: Palimpzest's 66.4k tok/s is
+2. Cross-system, raw tok/s is actively misleading: Palimpzest's 62.8k tok/s is
    85.5% cache hits (it repeats a ~480-token template per row) — computed it is
-   the *slowest* engine (17.3k). **evaluation.md §2's "73.7k tok/s, ~1.9×
-   LOTUS" should be restated: on computed tokens flock op R=1 is 33.6k vs LOTUS
-   20.0k = 1.68×** — still the best engine at the best F1, but the honest
-   number.
+   the *slowest* engine (16.3k). **evaluation.md §2's raw "73.7k tok/s, ~1.9x
+   LOTUS" is restated as: on computed tokens flock op R=1 is 34.3k vs LOTUS
+   19.4k = 1.77×** (single-session, 3 reps) — still the best engine at the best
+   F1, but the honest number.
 3. Raw tok/s *rewards* fat, un-amortized prompts: slimming lowers tok/s while
    raising rows/s at near-constant F1 — the definition of a metric pointing the
    wrong way.
@@ -315,7 +319,30 @@ throughput-quality frontier right.
 
 ---
 
-## Q4 — Sweep design (pending approval / runs)
+## Q4 — Sweep design (wiring DONE, runs pending)
+
+**Implemented (2026-07-20):**
+
+- `FLOCK_SEM_VARIANTS` (comma-separated, slim-mode only, unknown tokens throw):
+  `rowmajor` (P1) | `sandwich` (P2) | `symmetric` (P3, filter only) | `count`
+  (P4) | `example` (P5) | `chunk` (P6, implies rowmajor). Parsing + rendering in
+  `semantic_operator_common.{hpp,cpp}` (`ParseSemVariants`,
+  `RenderSlimSemanticPrompt`); the variant-free slim filter prompt is
+  byte-identical to the committed slim (unit-tested), so existing slim results
+  stay comparable. Row-major lines are built as strings (`{"id": k, "col":
+  "v"}`) because nlohmann::json sorts keys.
+- **Slim extract**: `PhysicalSemExtract::RenderPrompt` now honors
+  `FLOCK_SEM_PROMPT=slim` (task/one-string-per-row wording), closing the Q1 gap;
+  variants compose there too.
+- Tests: `SemFilterSlim.*` (parser, byte-parity, composition, JSON escaping +
+  chunk boundaries) and `SemExtract.SlimPromptWording`; all 7 operator suites
+  green, e2e suites also pass under slim + all variants.
+- `analysis/make_dev_test_split.py`: md5(reviewId)-parity split of sf_2000 →
+  976 dev / 1024 test (positive rate 0.76 / 0.73).
+- `analysis/slurm/sem_filter_prompt_variants_clariden.sh`: parameterized
+  screen/combine/confirm phases via `VARIANTS_SWEEP` / `R_SWEEP` / `SPLIT` /
+  `REPS`; cold fleet per cell, two-pass timing/verdicts protocol; the evaluated
+  split csv is frozen into the artefact dir.
 
 - **Split:** hash-split sf_2000 by `reviewId` parity into dev (~1000) / test
   (~1000). Tune on dev only; report the winner on test. Candidates are generic
@@ -334,7 +361,96 @@ throughput-quality frontier right.
 - Infra: Clariden SLURM per `analysis/slurm/`, cold fleet, NO_PROXY=localhost,
   same vLLM config as the cross-system runs.
 
-## Q5 — Cross-system with the winning prompt (pending)
+## Q5 — Cross-system with the winning prompt: RESULTS
+
+Full sf_2000, sembench harness, 3 reps (F1 spread ≤±0.003, deterministic under
+greedy). flock = operator with the shipped batch-adaptive slim prompt
+(`flock_op_slim_r*`); LOTUS/Palimpzest numbers are the original-run medians
+(fresh same-harness reruns agreed within variance). Figure:
+`figures/cross_system_frontier.{png,pdf}` (plot_cross_system_frontier.py).
+
+**Filter (Q101)** — all twelve arms in one session, 3 reps:
+
+| arm | rows/s | F1 | precision | recall |
+|---|---|---|---|---|
+| flock full prompt R=1 | 148 | **0.931** | 0.892 | 0.973 |
+| flock slim R=1 | 374 | 0.877 | 0.990 | 0.788 |
+| flock slim R=2 | 492 | 0.854 | 0.978 | 0.758 |
+| **flock slim R=4** | **593** | **0.842** | 0.986 | 0.735 |
+| flock slim R=8 | 679 | 0.834 | 0.986 | 0.722 |
+| flock slim R=16 | 670 | 0.811 | 0.959 | 0.703 |
+| flock slim R=32 | 621 | 0.746 | 0.867 | 0.656 |
+| LOTUS | 248 | 0.833 | 0.991 | 0.718 |
+| Palimpzest | 130 | 0.878 | 0.985 | 0.792 |
+
+**flock holds the quality crown and dominates LOTUS on both axes.** The full prompt at
+R=1 scores 0.931, ahead of Palimpzest by 0.053 and LOTUS by 0.098 — the best quality in
+the comparison. Against LOTUS the slim arms then win outright: slim R=4 is 2.4× the rate
+at +0.009 F1. Against Palimpzest they are a throughput trade rather than a quality one —
+slim R=1 is 2.9× faster at parity (0.877 vs 0.878) — while flock's own full-prompt arm
+stays 0.053 ahead on quality if that is what is wanted. The R-knob spans 374–679 rows/s;
+quality stays above LOTUS's 0.833 up to R=8 (0.834) and falls below it at R=16 (0.811)
+and R=32 (0.746). The batched prompt's gains replicate on the full set (R=32: 0.746 vs
+the old plain-slim 0.677).
+
+**Extract (Q103, macro-F1 of the predicted sentiment label):**
+
+| arm | rows/s | F1 |
+|---|---|---|
+| Palimpzest | 82.9 | **0.868** |
+| LOTUS | 259.8 | **0.845** |
+| **flock slim R=8** | **591.9** | **0.836** |
+| flock slim R=1 | 354.6 | 0.831 |
+| flock slim R=4 | 547.7 | 0.827 |
+| flock slim R=2 | 465.4 | 0.823 |
+| flock full prompt R=1 | 139.1 | 0.807 |
+| flock slim R=16 | 581.7 | 0.780 |
+| flock slim R=32 | 518.7 | 0.647 |
+
+*(Rates are post-`2565fe75`, which removed a `maxLength` from the extract response schema
+and roughly doubled every batched operator arm. Quality is unaffected — generation is
+bit-identical across the two schema eras. See `consolidation_changelog.md` §5c.)*
+
+**This section previously reported the opposite conclusion and was wrong.** It claimed
+flock dominated extract by +0.26 F1 and that batched extract collapsed to chance level
+at R>=4. Both were artefacts of the harness scorer, which called sklearn macro F1
+without a fixed `labels` set and therefore averaged over every class present in
+prediction or gold. Guided decoding emits an off-vocabulary label on a handful of rows
+(7 in 1904 at R=8); each added a class with F1 0 and divided the macro by 4 instead of
+2. Systems that emit free text were penalised hardest, which is why LOTUS and Palimpzest
+each gained ~0.28 F1 when the scorer was fixed. The corrected picture:
+
+1. **flock does not dominate extract on quality.** Palimpzest leads at 0.868, LOTUS at
+   0.845, and every flock point is below both. flock's contribution is throughput: slim
+   R=8 runs 2.28x LOTUS's rate for -0.009 F1.
+2. **Batched extract does not collapse.** Quality is flat from R=1 to R=8
+   (0.831 -> 0.836) and degrades only at R=16/32, mirroring the filter. The count/chunk
+   form transfers to extract after all.
+
+**A design asymmetry worth naming.** Filter guides decoding with
+`{"type": "boolean"}` — two representable values, so an invalid verdict cannot occur.
+Extract guides with `{"type": "string", "maxLength": N}`: the prompt names the two
+labels but the grammar does not enforce them, so the output space the prompt constrains
+is wider than the one the grammar constrains. That is where the off-vocabulary answers
+come from, and it is why this failure mode exists on extract and not on filter. An enum
+schema would remove it; the measured ceiling is +0.001-0.002 F1, so it is a design
+cleanup rather than a way to change the cross-system standing. Left as future work, and
+noted here because a reader comparing the two operators' schemas will otherwise wonder.
+
+Ruled out while diagnosing this: the operator's row-to-completion pairing (regression
+test `SemExtractE2E.ProductionShapePairingHolds`, 2000 rows at batch 8 / cap 128),
+model misalignment (identity beats every within-batch permutation, 0.834 vs 0.47-0.49),
+row loss (2000/2000 emitted) and truncation (`finished_reason="length"` = 0).
+
+**Fairness:** every system answers the same benchmark criterion sentence on
+the same 2000 rows against the same vLLM, each at its own default sampling (flock
+pinned to temperature 0, LOTUS/PZ at their runner defaults); flock's slim head is
+generic (nothing movie- or label-specific; tuned on a dev split, reported
+here on the full set); LOTUS/PZ run their default prompts at matched prompt
+economy (slim ~150 tok/row vs LOTUS ~147). The engine-vs-prompt split is
+preserved by reporting the full-prompt arm alongside: even flock's *untuned*
+prompt dominates on engine efficiency (§2), and the slim arms add the prompt
+win on top.
 
 - Filter first: flock operator (winner, R=1 and best-throughput R) vs LOTUS vs
   Palimpzest, ≥3 reps, same harness as §2; report rows/s, F1, computed tok/s.
