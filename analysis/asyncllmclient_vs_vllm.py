@@ -114,7 +114,7 @@ def main() -> int:
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(12, 5))
 
     # ---- left: throughput bar ----
-    tools = ["vLLM performance\nanalysis", "AsyncLLMClient"]
+    tools = ["reference driver", "AsyncLLMClient"]
     rows_mean = [ref_rows_mean, cli_rows_mean]
     rows_sd = [ref_rows_sd, cli_rows_sd]
     bar_kwargs = dict(color=[COLOR_REFERENCE, COLOR_CLIENT],
@@ -150,7 +150,7 @@ def main() -> int:
     x = np.arange(len(labels))
     width = 0.38
     ref_kw = dict(color=COLOR_REFERENCE, edgecolor="black",
-                  linewidth=0.6, label="vLLM performance analysis")
+                  linewidth=0.6, label="reference driver")
     cli_kw = dict(color=COLOR_CLIENT, edgecolor="black",
                   linewidth=0.6, label="AsyncLLMClient")
     if have_errorbars:

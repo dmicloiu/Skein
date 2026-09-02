@@ -123,7 +123,8 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     _setup_style()
-    fig, (ax_f, ax_e) = plt.subplots(1, 2, figsize=(12.4, 4.8))
+    fig, (ax_f, ax_e) = plt.subplots(1, 2, figsize=(12.4, 4.8),
+                                     sharex=True, sharey=True)
     # winner (starred): R=8 on both operators -- the throughput operating point
     # fixed in subsec:eval-prompt, and the Pareto point in the data
     # (pareto_rows_f1/pareto_tok_f1 flag slim R=8 on the extract).
@@ -133,6 +134,7 @@ def main() -> int:
     draw_panel(ax_e, args.extract_dir, "Q103", "Semantic extract", winner_r=8,
                label_offsets={1: (-14, 4), 2: (12, 8), 4: (2, 14), 8: (16, -8),
                               16: (18, 0), 32: (-18, -2)})
+    ax_e.set_ylabel("")  # shared y-axis: left panel carries the label + ticks
     ax_f.legend()
     fig.tight_layout()
     ts.no_suptitle(fig)

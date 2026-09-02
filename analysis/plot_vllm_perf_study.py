@@ -91,7 +91,7 @@ def fig_saturation(results: Path, figures_dir: Path):
     axL.plot(n, rps, "o-", color=C_THROUGHPUT, label="rows/s")
     axL.set_xscale("log", base=2)
     axL.set_ylim(0, 900)
-    axL.set_xlabel("offered concurrency N (requests in flight) [log]")
+    axL.set_xlabel("offered concurrency N [log]")
     axL.set_ylabel("rows/s", color=C_THROUGHPUT)
     axL.tick_params(axis="y", labelcolor=C_THROUGHPUT)
     axL.axvline(128, color=C_GRAY, ls=":", lw=1)
@@ -116,7 +116,7 @@ def fig_saturation(results: Path, figures_dir: Path):
     axR.set_yscale("log")
     axR.set_ylim(0.1, 5e3)  # headroom so the legend sits above the curves
     axR.set_xlabel("offered concurrency N [log]")
-    axR.set_ylabel("scheduler queue population [log]")
+    axR.set_ylabel("# requests [log]")
     axRr = axR.twinx()
     axRr.plot(n, kv, "d--", color=C_KV, label="KV-cache util (max)")
     axRr.set_ylim(0, 1.0)
@@ -240,7 +240,7 @@ def fig_batching(results: Path, figures_dir: Path):
     leg = axL.legend(loc="upper left", title="in-flight requests N")
     leg.get_title().set_fontsize(11.5)
     leg.get_title().set_fontweight("bold")
-    axL.set_title("Row throughput")
+    axL.set_title("Throughput")
 
     # per-row prompt-token cost (identical across N; take N=128)
     sub = sorted((r for r in rows if int(r["n_concurrent"]) == 128),

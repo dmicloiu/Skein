@@ -165,7 +165,7 @@ def render_prompt(out_dir: Path):
     ax.set_xlabel("rows packed per request (R)")
     ax.set_ylabel("F1")
     ax.set_ylim(0.45, 0.98)
-    ax.set_title("Quality vs batch size, by prompt head and model family")
+    ax.set_title("Quality vs batch size")
     ax.legend(loc="lower left", ncol=2)
     _save(fig, out_dir, "gen_family_prompt")
     plt.close(fig)
@@ -174,8 +174,18 @@ def render_prompt(out_dir: Path):
 # ---------------------------------------------------------------------------
 # G3 -- cross-system standing per family per task.
 # ---------------------------------------------------------------------------
+def _fmt_arm(a: str) -> str:
+    """flock_op_slim_r16 -> 'slim R=16'; flock_op_r1 -> 'full R=1'."""
+    a = a.replace("flock_op_", "")
+    if a.startswith("slim_r"):
+        return "slim R=" + a[len("slim_r"):]
+    if a.startswith("r") and a[1:].isdigit():
+        return "full R=" + a[1:]
+    return a.replace("_", " ")
+
+
 def render_frontier(out_dir: Path):
-    fig, axes = plt.subplots(2, 2, figsize=(12.2, 8.4))
+    fig, axes = plt.subplots(2, 2, figsize=(12.2, 8.4), sharex="col", sharey="col")
     for row, fam in enumerate([QWEN, LLAMA]):
         for col, (task, path) in enumerate(zip(("filter", "extract"), XS_SRC[fam])):
             ax = axes[row][col]
@@ -190,9 +200,9 @@ def render_frontier(out_dir: Path):
                        color=COLORS[fam], edgecolor="black", linewidth=0.6,
                        zorder=3, label="Skein")
             best = max(flock, key=lambda p: p[1])
-            ax.annotate(best[2].replace("flock_op_", "").replace("_", " "),
+            ax.annotate(_fmt_arm(best[2]),
                         (best[0], best[1]), xytext=(6, 6),
-                        textcoords="offset points", fontsize=9,
+                        textcoords="offset points", fontsize=11,
                         color=COLORS[fam], fontweight="bold")
             for arm, mk, c in (("lotus", "^", "#1f77b4"), ("palimpzest", "D", "#8c564b")):
                 if arm in rows and rows[arm].get("f1"):
@@ -200,9 +210,15 @@ def render_frontier(out_dir: Path):
                                s=110, marker=mk, color=c, edgecolor="black",
                                linewidth=0.7, zorder=4, label=arm.upper() if arm == "lotus" else "Palimpzest")
             ax.set_title(f"{fam} — {task}")
-            ax.set_xlabel("rows/s"); ax.set_ylabel("F1")
-            if row == 0 and col == 0:
-                ax.legend(loc="lower right", fontsize=9.5)
+            ax.margins(x=0.08, y=0.12)
+            if row == 1:
+                ax.set_xlabel("rows/s")
+            if col == 0:
+                ax.set_ylabel("F1")
+            # one legend per family row so the colour->family mapping is explicit:
+            # green = Skein on Qwen (top), purple = Skein on Llama (bottom)
+            if col == 0:
+                ax.legend(loc="lower left", fontsize=12)
     _save(fig, out_dir, "gen_family_frontier")
     plt.close(fig)
 

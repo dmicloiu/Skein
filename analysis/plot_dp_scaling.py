@@ -179,8 +179,8 @@ def _curve_panel(ax, dp_pts, tp_pts, ideal_base, ylabel, *, scalar=None,
         ax.annotate(f"{scalar:.1f} rows/s ({best / scalar:.0f}x below)",
                     (max(gpus) * 1.2, scalar), textcoords="offset points",
                     xytext=(0, 5), ha="right", fontsize=9.5, color=COLOR_SCALAR)
-    for pts, color, lab in ((tp_pts, COLOR_TP, "TP: 1 endpoint x N shards"),
-                            (dp_pts, COLOR_DP, "DP: N endpoints x TP1")):
+    for pts, color, lab in ((tp_pts, COLOR_TP, "TP: 1 endpoint x G shards"),
+                            (dp_pts, COLOR_DP, "DP: G endpoints x TP1")):
         if not pts:
             continue
         x = [g for g, _, _, _ in pts]
@@ -206,7 +206,7 @@ def _curve_panel(ax, dp_pts, tp_pts, ideal_base, ylabel, *, scalar=None,
     ax.set_xticks(gpus)
     ax.set_xticklabels([str(g) for g in gpus])
     ax.set_xlim(min(gpus) * 0.82, max(gpus) * 1.22)
-    ax.set_xlabel("GH200 GPUs")
+    ax.set_xlabel("G GH200 GPUs")
     ax.set_ylabel(ylabel)
     if legend:
         ax.legend(loc="upper left")
@@ -223,8 +223,8 @@ def render_curve(rows, effs, tp_rows, tp_effs, scalar_rows,
     # the y-axis is absolute -- no ideal_base scaling.
     ax.axhline(1.0, ls="--", lw=1.6, color=COLOR_IDEAL, zorder=1,
                label="ideal linear")
-    for pts, color, lab in ((tp_effs, COLOR_TP, "TP: 1 endpoint x N shards"),
-                            (effs["dp"], COLOR_DP, "DP: N endpoints x TP1")):
+    for pts, color, lab in ((tp_effs, COLOR_TP, "TP: 1 endpoint x G shards"),
+                            (effs["dp"], COLOR_DP, "DP: G endpoints x TP1")):
         if not pts:
             continue
         x = [g for g, _, _, _ in pts]
@@ -247,7 +247,7 @@ def render_curve(rows, effs, tp_rows, tp_effs, scalar_rows,
     ax.set_xticklabels([str(g) for g, _, _, _ in effs["dp"]])
     ax.set_xlim(0.82, 4 * 1.22)
     ax.set_ylim(0, 1.25)
-    ax.set_xlabel("GH200 GPUs")
+    ax.set_xlabel("G GH200 GPUs")
     ax.set_ylabel("per-GPU efficiency (x 1-GPU rows/s)")
     ax.set_title("Per-GPU efficiency")
     ax.legend(loc="lower left")
@@ -729,7 +729,7 @@ def render_multinode(bal, out_dir: Path) -> None:
         ax.set_ylim(0, max(fleet) * 1.3)
         ax.set_xlabel("endpoint (requests split 12.50% each)")
         ax.set_ylabel("mean e2e per request (ms)")
-        ax.set_title("Per-endpoint latency at N=8")
+        ax.set_title("Per-endpoint latency (8×TP1)")
         ax.legend(loc="upper left", fontsize=15)
     _save(fig, out_dir, "dp_multinode")
     plt.close(fig)
@@ -768,7 +768,7 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
 
     fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(13.2, 4.6))
 
-    # (a) replica advantage per workload; parity line = the boundary
+    # (a) replica advantage per workload (1.0 = the DP/TP boundary, read off the y-axis)
     ax = ax_l
     width = 0.3
     wls = [("prefill", "prefill-heavy\n(511 in / 9 out)"),
@@ -787,12 +787,10 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
             note = f"{v:.2f}x" + (f"\n({n_rep} rep)" if n_rep < 3 else "")
             ax.text(x, v + 0.03, note, ha="center", va="bottom",
                     fontsize=10, fontweight="bold")
-    ax.axhline(1.0, ls="--", lw=1.5, color="0.35", zorder=2)
-    ax.text(-0.42, 1.02, "parity", fontsize=9.5, color="0.35", va="bottom")
     ax.set_xticks(range(len(wls)))
     ax.set_xticklabels([lab for _, lab in wls])
     ax.set_ylabel("replica advantage (4xTP1 / 1xTP4 rows/s)")
-    ax.set_ylim(0, 1.75)
+    ax.set_ylim(0, 1.85)  # headroom so the tallest bar's value label clears the title
     ax.set_title("The replica advantage per workload")
     ax.legend(loc="upper right", fontsize=10)
 
@@ -800,8 +798,8 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
     ax = ax_r
     groups = [(m, wl) for m in ("7B", "32B") for wl in ("decode", "deep")
               if kv.get((m, wl, "4xTP1")) is not None]
-    glabels = {("7B", "decode"): "7B, 512 out\n(control)",
-               ("7B", "deep"): "7B, 1024 out\n(control)",
+    glabels = {("7B", "decode"): "7B, 512 out",
+               ("7B", "deep"): "7B, 1024 out",
                ("32B", "decode"): "32B, 512 out",
                ("32B", "deep"): "32B, 1024 out"}
     for gi, (model, wl) in enumerate(groups):
@@ -829,7 +827,7 @@ def render_kvstress(summary: Path, out_dir: Path) -> None:
     ax.set_xticklabels([glabels[g] for g in groups])
     ax.set_ylabel("peak KV-cache occupancy (%)")
     ax.set_ylim(0, 132)
-    ax.set_title("KV pressure on the stress workloads")
+    ax.set_title("KV pressure")
 
     _save(fig, out_dir, "dp_kvstress")
     plt.close(fig)
