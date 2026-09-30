@@ -1,0 +1,64 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: movie
+Model: Qwen/Qwen2.5-7B-Instruct
+Queries: 107
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+-- Q107: Q7 (all opposite-sentiment review pairs for one movie, no LIMIT) with the
+-- pair space deduplicated.
+--
+-- reviews_2000 stores every ant_man review TWICE (128 distinct reviewIds across
+-- 256 rows, with identical reviewText and scoreSentiment), and Q7's
+-- `r1.reviewId <> r2.reviewId` additionally emits both orderings of every pair.
+-- Q7 therefore evaluates 65,280 llm_filter predicates to decide only 8,128
+-- distinct unordered pairs -- exactly 8x redundant LLM work.
+--
+-- DISTINCT collapses the row duplicates and `<` keeps one ordering per pair:
+-- 8,128 predicates, and identical precision/recall/F1, because the evaluator
+-- scores unordered pairs (`tuple(sorted([reviewId1, reviewId2]))`).
+--
+-- The shape Q7 exercises is preserved: an inner keyed equi-join on id, a pair
+-- inequality, and a cross-side llm_filter in the WHERE (one column from each
+-- side, so it cannot be pushed below the join and stays a LogicalFilter for
+-- flock's semantic rewrite to consume).
+WITH reviews AS (
+    SELECT DISTINCT id, reviewId, reviewText
+    FROM reviews_2000
+    WHERE id = 'ant_man_and_the_wasp_quantumania'
+)
+SELECT r1.id AS id, r1.reviewId AS reviewId1, r2.reviewId AS reviewId2
+FROM reviews AS r1
+JOIN reviews AS r2
+  ON r1.id = r2.id AND r1.reviewId < r2.reviewId
+WHERE llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-7B-Instruct'},
+      {'prompt': 'These two movie reviews express opposite sentiments - one is positive and the other is negative',
+       'context_columns': [
+           {'data': r1.reviewText, 'name': 'review1'},
+           {'data': r2.reviewText, 'name': 'review2'}
+       ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q107.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for movie ---
+Evaluating flockmtl...
+Evaluating Q107 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  flockmtl: ✅ Completed
+    Q107: ✅ 2.17s, 121 rows

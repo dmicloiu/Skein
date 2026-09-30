@@ -1,0 +1,25 @@
+{
+  "Q107": {
+    "query_id": "107",
+    "status": "success",
+    "execution_time": 62.84143458,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1790770791015878115,
+      "t_submit_ns": 1790770791015878627,
+      "t_done_ns": 1790770853857313207,
+      "row_count": 5366,
+      "throughput_rows_per_s": 85.38952103597887,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl/flock_op_r1_rep3/Q107",
+      "run_label": "flock_op_r1_rep3",
+      "duckdb_threads": 1
+    },
+    "row_count": 5366,
+    "model_name": "Qwen/Qwen2.5-7B-Instruct",
+    "concurrent_llm_worker": 128,
+    "precision": 0.5264629146477824,
+    "recall": 0.6903714565004888,
+    "f1_score": 0.5973778811588074
+  }
+}
