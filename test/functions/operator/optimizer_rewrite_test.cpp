@@ -152,6 +152,9 @@ TEST(OptimizerRewriteDump, AllPlans) {
             {"#9 projection", "SELECT " + LlmFilter("a", "b") + " AS keep FROM docs"},
             {"#10 CONCAT cmp", "SELECT a FROM docs WHERE CONCAT(" + LlmFilter("a", "b") + ", 'x') = 'truex'"},
             {"#11 JOIN ON", "SELECT d1.a FROM docs d1 JOIN docs d2 ON llm_filter({'model_name':'gpt-4o'}, {'prompt':'p', 'context_columns':[{'data': d1.a}, {'data': d2.a}]})"},
+            {"#12 WHERE above JOIN (Q7 shape)",
+             "SELECT d1.a, d1.b, d2.b FROM docs d1 JOIN docs d2 ON d1.x = d2.x AND d1.b <> d2.b WHERE d1.x = 1 AND " +
+                     LlmFilter("d1.a", "d2.a")},
     };
     for (const auto& [label, sql] : queries) {
         std::cout << "==== " << label << " ====\n" << sql << "\n";
@@ -277,6 +280,30 @@ TEST(OptimizerRewrite, Case11_JoinCondition) {
             "SELECT d1.a FROM docs d1 JOIN docs d2 ON llm_filter({'model_name':'gpt-4o'}, "
             "{'prompt':'p', 'context_columns':[{'data': d1.a}, {'data': d2.a}]})");
     EXPECT_TRUE(SemFiltersIn(*plan).empty());
+}
+
+// The Q7/Q107 shape from the sembench cross-system experiment: the llm_filter sits
+// in the WHERE of an inner keyed self-join and reads one column from EACH side, so
+// it cannot be pushed below the join. Case11 pins the JOIN-ON placement (not
+// rewritten); this pins the WHERE-above-join placement, which the flock_op_* arms
+// depend on -- if DuckDB promotes the predicate into the join condition, the
+// operator arm silently runs the scalar path and an operator-vs-scalar measurement
+// compares nothing.
+TEST(OptimizerRewrite, Case12_WhereAboveJoin) {
+    auto plan = Plan("SELECT d1.a, d1.b, d2.b FROM docs d1 JOIN docs d2 "
+                     "ON d1.x = d2.x AND d1.b <> d2.b "
+                     "WHERE d1.x = 1 AND " +
+                     LlmFilter("d1.a", "d2.a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << "llm_filter above a join was NOT rewritten -- the operator "
+                                "arm would silently degrade to scalar. Plan:\n"
+                             << PlanToString(*plan);
+    EXPECT_FALSE(sf[0]->invert);
+    // The constant pin (d1.x = 1) is pushed into the scan, so nothing is left to
+    // carry as a residual on the sem-filter node.
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u) << PlanToString(*plan);
+    // No plain LogicalFilter survives: the rewrite consumed the only one.
+    EXPECT_EQ(CountLogicalFilters(*plan), 0u) << PlanToString(*plan);
 }
 
 // ===========================================================================
