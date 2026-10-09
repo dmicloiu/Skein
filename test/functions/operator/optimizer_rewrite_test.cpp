@@ -302,6 +302,23 @@ TEST(OptimizerRewrite, Case11_JoinCondition) {
     EXPECT_EQ(ResidualCount(*sf[0]), 0u);
 }
 
+// Sembench movie Q108's shape: each side is independently filtered, sorted and capped;
+// the inner join has only a two-sided semantic predicate. The ORDER BY/LIMIT
+// subqueries must not prevent the unkeyed rewrite.
+TEST(OptimizerRewrite, Unkeyed_CappedInputsJoinCondition) {
+    auto plan = Plan(
+        "WITH left_docs AS (SELECT a, x FROM docs WHERE x = 1 ORDER BY a LIMIT 2), "
+        "right_docs AS (SELECT a, x FROM docs WHERE x = 2 ORDER BY a LIMIT 2) "
+        "SELECT d1.a, d2.a FROM left_docs d1 JOIN right_docs d2 ON " +
+        LlmFilter("d1.a", "d2.a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << PlanToString(*plan);
+    ASSERT_EQ(sf[0]->children.size(), 1u);
+    EXPECT_EQ(sf[0]->children[0]->type, LogicalOperatorType::LOGICAL_CROSS_PRODUCT);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);
+    EXPECT_FALSE(HasScalarLlmFilter(*plan)) << PlanToString(*plan);
+}
+
 // The Q7/Q107 shape from the sembench cross-system experiment: the llm_filter sits
 // in the WHERE of an inner keyed self-join and reads one column from EACH side, so
 // it cannot be pushed below the join. This pins the WHERE-above-join placement,
