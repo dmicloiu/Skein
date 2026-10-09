@@ -3,8 +3,12 @@
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
+#include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/planner/expression/bound_operator_expression.hpp"
+#include "duckdb/planner/expression_iterator.hpp"
+#include "duckdb/planner/operator/logical_any_join.hpp"
+#include "duckdb/planner/operator/logical_cross_product.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_projection.hpp"
 #include "flock/functions/operator/semantic_extract.hpp"
@@ -12,6 +16,7 @@
 #include "flock/runtime/semantic_settings.h"
 
 #include <utility>
+#include <unordered_set>
 
 namespace flock {
 
@@ -158,6 +163,58 @@ void TryRewriteFilter(duckdb::unique_ptr<LogicalOperator>& node) {
     node = std::move(current);
 }
 
+// Skein may absorb CROSS JOIN ... WHERE llm_filter(left, right) into an
+// INNER LogicalAnyJoin. Only the bare semantic predicate (or its implicit
+// BOOLEAN cast) is supported here; extra predicates, NOT and OR are outside
+// this rule (other existing filter rewrites may still apply).
+void TryRewriteUnkeyedJoin(duckdb::unique_ptr<LogicalOperator>& node) {
+    auto& join = node->Cast<duckdb::LogicalAnyJoin>();
+    if (join.join_type != duckdb::JoinType::INNER || join.children.size() != 2 ||
+        !join.condition || !join.left_projection_map.empty() || !join.right_projection_map.empty()) {
+        return;
+    }
+    const Expression* call = join.condition.get();
+    while (call->expression_class == ExpressionClass::BOUND_CAST &&
+           call->return_type.id() == LogicalTypeId::BOOLEAN) {
+        call = call->Cast<duckdb::BoundCastExpression>().child.get();
+    }
+    if (call->expression_class != ExpressionClass::BOUND_FUNCTION ||
+        call->Cast<duckdb::BoundFunctionExpression>().function.name != "llm_filter") {
+        return;
+    }
+
+    // Require genuine two-sided, local references. In particular, do not turn
+    // correlated or one-sided predicates into Cartesian semantic joins.
+    std::unordered_set<duckdb::idx_t> left_tables, right_tables;
+    for (const auto& binding : join.children[0]->GetColumnBindings()) {
+        left_tables.insert(binding.table_index);
+    }
+    for (const auto& binding : join.children[1]->GetColumnBindings()) {
+        right_tables.insert(binding.table_index);
+    }
+    bool reads_left = false, reads_right = false, unsupported = false;
+    duckdb::ExpressionIterator::VisitExpression<duckdb::BoundColumnRefExpression>(
+        *call, [&](const duckdb::BoundColumnRefExpression& ref) {
+            const bool on_left = left_tables.count(ref.binding.table_index) != 0;
+            const bool on_right = right_tables.count(ref.binding.table_index) != 0;
+            if (ref.depth != 0 || on_left == on_right) {
+                unsupported = true;
+            }
+            reads_left |= on_left;
+            reads_right |= on_right;
+        });
+    if (unsupported || !reads_left || !reads_right) {
+        return;
+    }
+
+    auto condition = UnwrapLLMCall(std::move(join.condition));
+    auto product = duckdb::make_uniq<duckdb::LogicalCrossProduct>(
+        std::move(join.children[0]), std::move(join.children[1]));
+    duckdb::vector<duckdb::unique_ptr<Expression>> no_residuals;
+    node = duckdb::make_uniq<LogicalSemFilter>(std::move(product), std::move(condition),
+                                               std::move(no_residuals), duckdb::vector<idx_t>{}, false);
+}
+
 // True iff the expression's ROOT is a bound llm_complete(...) call. No CAST/wrapper
 // peeling: a call nested inside another expression (CONCAT(llm_complete(...), 'x'),
 // CAST(llm_complete(...) AS ...)) has a non-llm_complete root, so it is NOT a
@@ -199,6 +256,8 @@ void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
     }
     if (node->type == LogicalOperatorType::LOGICAL_FILTER) {
         TryRewriteFilter(node);
+    } else if (node->type == LogicalOperatorType::LOGICAL_ANY_JOIN) {
+        TryRewriteUnkeyedJoin(node);
     } else if (node->type == LogicalOperatorType::LOGICAL_PROJECTION) {
         TryRewriteProjection(node);
     }

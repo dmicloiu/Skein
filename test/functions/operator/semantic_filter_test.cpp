@@ -471,6 +471,38 @@ TEST(SemFilter, Engine_FiltersRows) {
     EXPECT_EQ(survivors, expected);
 }
 
+// Feed an actual SQL Cartesian product through the deterministic filter engine.
+// Pair IDs encode left*10+right; duplicate left rows must remain duplicates.
+TEST(SemFilter, Engine_UnkeyedPairsPreserveBagSemantics) {
+    duckdb::Connection con(*g_db);
+    auto pairs = con.Query("SELECT l.v * 10 + r.v AS pair_id "
+                           "FROM (VALUES (0), (0), (1)) l(v) "
+                           "CROSS JOIN (VALUES (2), (3)) r(v)");
+    ASSERT_FALSE(pairs->HasError()) << pairs->GetError();
+    ASSERT_EQ(pairs->RowCount(), 6u);
+
+    DataChunk input;
+    input.Initialize(duckdb::Allocator::DefaultAllocator(), duckdb::vector<LogicalType>{LogicalType::BIGINT});
+    for (idx_t i = 0; i < pairs->RowCount(); ++i) {
+        input.SetValue(0, i, Value::BIGINT(pairs->GetValue(0, i).GetValue<int32_t>()));
+    }
+    input.SetCardinality(pairs->RowCount());
+
+    auto fake = std::make_shared<ScriptedFakeClient>(
+            [](const std::string& pair_id) { return std::stoll(pair_id) % 2 == 0; });
+    SemContextColumn cc;
+    cc.data_index = 0;
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 6, fake,
+                                            MakeRouter(), MakeParams(/*cap=*/8, /*batch_size=*/1), nullptr,
+                                            /*invert=*/false, duckdb::vector<idx_t>{},
+                                            std::vector<SemContextColumn>{cc}, "keep even pair ids", "XML",
+                                            std::string(), std::string()).Cast<PhysicalSemFilter>();
+    auto actual = DriveFilter(op, {&input});
+    std::sort(actual.begin(), actual.end());
+    EXPECT_EQ(actual, (std::vector<int64_t>{2, 2, 12}));
+}
+
 TEST(SemFilter, Engine_InvertFlipsVerdict) {
     const int64_t total = 10;
     auto fake = std::make_shared<ScriptedFakeClient>(

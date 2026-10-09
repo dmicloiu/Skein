@@ -200,6 +200,14 @@ std::string QueryOrFallback() {
            "{'prompt': '" + std::string(kPrompt) + "', 'context_columns': [{'data': review}]})";
 }
 
+std::string QueryUnkeyed() {
+    return "SELECT reviews.id * 10 + tags.id AS pair_id "
+           "FROM reviews CROSS JOIN tags "
+           "WHERE llm_filter({'model_name': 'gpt-4o'}, "
+           "{'prompt': '" + std::string(kPrompt) +
+           "', 'context_columns': [{'data': reviews.review}, {'data': tags.label}]})";
+}
+
 // __KEEPROW__ rows -> kept; data designed so KEEP set and the OR fallback set are
 // both known up front.
 const std::vector<long long> kKeepSet = {1, 3, 5};
@@ -264,6 +272,20 @@ TEST(SemFilterE2E, FallbackOrStaysScalar) {
     EXPECT_EQ(RunIds(con, QueryOrFallback()), kOrSet);
 }
 
+TEST(SemFilterE2E, UnkeyedCrossJoinOperatorScalarParity) {
+    duckdb::Connection on(*g_db);
+    ConfigureSession(on, /*rewrite_on=*/true);
+    duckdb::Connection off(*g_db);
+    ConfigureSession(off, /*rewrite_on=*/false);
+
+    const auto sql = QueryUnkeyed();
+    EXPECT_TRUE(PlanHasSemFilter(on, sql));
+    EXPECT_FALSE(PlanHasSemFilter(off, sql));
+    const std::vector<long long> expected{17, 18, 37, 38, 57, 58};
+    EXPECT_EQ(RunIds(on, sql), expected);
+    EXPECT_EQ(RunIds(off, sql), expected);
+}
+
 }  // namespace
 }  // namespace flock
 
@@ -294,6 +316,8 @@ int main(int argc, char** argv) {
         setup.Query("SET semantic_endpoints='" + server.Url("/v1/completions") + "';");
 
         setup.Query("CREATE TABLE reviews(id INTEGER, review VARCHAR, note VARCHAR, x INTEGER);");
+        setup.Query("CREATE TABLE tags(id INTEGER, label VARCHAR);");
+        setup.Query("INSERT INTO tags VALUES (7, 'tag seven'), (8, 'tag eight');");
         setup.Query(
                 "INSERT INTO reviews VALUES "
                 "(1, 'movie __KEEPROW__ alpha', 'na', 1), "

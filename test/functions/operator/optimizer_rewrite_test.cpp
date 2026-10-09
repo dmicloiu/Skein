@@ -76,6 +76,22 @@ size_t CountLogicalFilters(LogicalOperator& op) {
     return n;
 }
 
+bool HasScalarLlmFilter(LogicalOperator& op) {
+    if (op.type == LogicalOperatorType::LOGICAL_FILTER) {
+        for (const auto& expr : op.expressions) {
+            if (expr->ToString().find("llm_filter") != std::string::npos) {
+                return true;
+            }
+        }
+    }
+    for (auto& child : op.children) {
+        if (HasScalarLlmFilter(*child)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Residual conjuncts of a sem-filter node = all expressions except the llm_call.
 size_t ResidualCount(const LogicalSemFilter& sf) { return sf.expressions.size() - 1; }
 
@@ -246,7 +262,7 @@ TEST(OptimizerRewrite, Volatile_SingleColumnFlagOffStaysScalar) {
 }
 
 // ===========================================================================
-// Fallback patterns: #5, #6, #7, #9, #10, #11 (no rewrite).
+// Fallback patterns: #5, #6, #7, #9, #10 (no rewrite).
 // ===========================================================================
 TEST(OptimizerRewrite, Case5_OrIsResidual) {
     auto plan = Plan("SELECT a FROM docs WHERE x > 5 OR " + LlmFilter("a", "b"));
@@ -279,16 +295,19 @@ TEST(OptimizerRewrite, Case11_JoinCondition) {
     auto plan = Plan(
             "SELECT d1.a FROM docs d1 JOIN docs d2 ON llm_filter({'model_name':'gpt-4o'}, "
             "{'prompt':'p', 'context_columns':[{'data': d1.a}, {'data': d2.a}]})");
-    EXPECT_TRUE(SemFiltersIn(*plan).empty());
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << PlanToString(*plan);
+    ASSERT_EQ(sf[0]->children.size(), 1u);
+    EXPECT_EQ(sf[0]->children[0]->type, LogicalOperatorType::LOGICAL_CROSS_PRODUCT);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);
 }
 
 // The Q7/Q107 shape from the sembench cross-system experiment: the llm_filter sits
 // in the WHERE of an inner keyed self-join and reads one column from EACH side, so
-// it cannot be pushed below the join. Case11 pins the JOIN-ON placement (not
-// rewritten); this pins the WHERE-above-join placement, which the flock_op_* arms
-// depend on -- if DuckDB promotes the predicate into the join condition, the
-// operator arm silently runs the scalar path and an operator-vs-scalar measurement
-// compares nothing.
+// it cannot be pushed below the join. This pins the WHERE-above-join placement,
+// which the flock_op_* arms depend on. If DuckDB promotes the predicate into
+// the join condition, the operator arm silently runs the scalar path, and the
+// operator-vs-scalar measurement compares nothing.
 TEST(OptimizerRewrite, Case12_WhereAboveJoin) {
     auto plan = Plan("SELECT d1.a, d1.b, d2.b FROM docs d1 JOIN docs d2 "
                      "ON d1.x = d2.x AND d1.b <> d2.b "
@@ -302,8 +321,60 @@ TEST(OptimizerRewrite, Case12_WhereAboveJoin) {
     // The constant pin (d1.x = 1) is pushed into the scan, so nothing is left to
     // carry as a residual on the sem-filter node.
     EXPECT_EQ(ResidualCount(*sf[0]), 0u) << PlanToString(*plan);
-    // No plain LogicalFilter survives: the rewrite consumed the only one.
-    EXPECT_EQ(CountLogicalFilters(*plan), 0u) << PlanToString(*plan);
+    // DuckDB can leave an empty shell filter after pushing the relational
+    // conjunct; the semantic call itself has been consumed by the operator.
+    EXPECT_FALSE(HasScalarLlmFilter(*plan)) << PlanToString(*plan);
+}
+
+TEST(OptimizerRewrite, Unkeyed_CrossJoinWhere) {
+    auto plan = Plan("SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
+                     LlmFilter("d1.a", "d2.a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << PlanToString(*plan);
+    ASSERT_EQ(sf[0]->children.size(), 1u);
+    EXPECT_EQ(sf[0]->children[0]->type, LogicalOperatorType::LOGICAL_CROSS_PRODUCT);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);
+    EXPECT_FALSE(sf[0]->invert);
+    auto scalar_plan = Plan("SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
+                            LlmFilter("d1.a", "d2.a"), true);
+    EXPECT_EQ(plan->types, scalar_plan->types);
+}
+
+TEST(OptimizerRewrite, Unkeyed_PhysicalPlanEngagesOperator) {
+    duckdb::Connection con(*g_db);
+    auto explain = con.Query("EXPLAIN SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
+                             LlmFilter("d1.a", "d2.a"));
+    ASSERT_FALSE(explain->HasError()) << explain->GetError();
+    ASSERT_EQ(explain->RowCount(), 1u);
+    const auto physical = explain->GetValue(1, 0).GetValue<std::string>();
+    EXPECT_NE(physical.find("CROSS_PRODUCT"), std::string::npos) << physical;
+    EXPECT_NE(physical.find("EXTENSION"), std::string::npos) << physical;
+    EXPECT_EQ(physical.find("BLOCKWISE_NL_JOIN"), std::string::npos) << physical;
+}
+
+TEST(OptimizerRewrite, Unkeyed_FlagOffStaysScalar) {
+    auto plan = Plan("SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
+                     LlmFilter("d1.a", "d2.a"), true);
+    EXPECT_TRUE(SemFiltersIn(*plan).empty());
+    EXPECT_NE(PlanToString(*plan).find("ANY_JOIN"), std::string::npos);
+}
+
+TEST(OptimizerRewrite, Unkeyed_UnsupportedPredicatesAvoidUnkeyedRewrite) {
+    const std::string from = "SELECT d1.a, d2.a FROM docs d1 JOIN docs d2 ON ";
+    for (const auto& condition : {
+             LlmFilter("d1.a", "d2.a") + " OR d1.x = d2.x",
+             "NOT " + LlmFilter("d1.a", "d2.a"),
+             LlmFilter("d1.a", "d2.a") + " AND d1.x = d2.x",
+             LlmFilter("d1.a", "d1.b")}) {
+        auto plan = Plan(from + condition);
+        // DuckDB may move an AND's cheap key into a keyed join, or push a
+        // one-sided call into an ordinary filter. Neither is the unkeyed rule.
+        for (auto* sf : SemFiltersIn(*plan)) {
+            ASSERT_EQ(sf->children.size(), 1u);
+            EXPECT_NE(sf->children[0]->type, LogicalOperatorType::LOGICAL_CROSS_PRODUCT)
+                    << condition << "\n" << PlanToString(*plan);
+        }
+    }
 }
 
 // ===========================================================================
