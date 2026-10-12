@@ -1,0 +1,41 @@
+Multi-Modal Data Systems Benchmark
+Systems: palimpzest
+Use cases: movie
+Model: vllm/Qwen/Qwen2.5-7B-Instruct
+Queries: 107
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running palimpzest ---
+
+Running 1 queries for palimpzest
+Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-7B-Instruct, api_base=http://127.0.0.1:8000/v1
+
+  MarshalAndScanDataOp (0103b0e9e4) ━━━━━ 100% 190/… 0:00… 0:00… Cost: $0.0000 
+  LLMFilter (fb5db1e981)            ━━━━━ 100% 190/… 0:00… 0:00… Cost: $0.0000 
+  ProjectOp (f764511ccb)            ━━━━━ 100% 84/84 0:00… 0:00… Cost: $0.0000 
+Total time: 3.40s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 24808.0
+  Token usage: 24808.0 tokens, Cost: $0.0000
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q107.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
+✓ palimpzest completed successfully
+
+--- Running evaluation for movie ---
+Evaluating palimpzest...
+Evaluating Q107 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  palimpzest: ✅ Completed
+    Q107: ✅ 3.46s, 84 rows, 24808.0 tokens
