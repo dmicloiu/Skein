@@ -1,0 +1,16 @@
+{
+  "Q107": {
+    "query_id": "107",
+    "status": "success",
+    "execution_time": 78.45909857749939,
+    "token_usage": 2320436,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 4572,
+    "model_name": "vllm/Qwen/Qwen2.5-7B-Instruct",
+    "concurrent_llm_worker": 128,
+    "precision": 0.6601049868766404,
+    "recall": 0.7375366568914956,
+    "f1_score": 0.6966759002770083
+  }
+}
