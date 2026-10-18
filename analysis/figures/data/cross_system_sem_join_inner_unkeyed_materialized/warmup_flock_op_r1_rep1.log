@@ -1,0 +1,48 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: movie
+Model: Qwen/Qwen2.5-7B-Instruct
+Queries: 107
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+-- Q7's keyed self-join over distinct unordered review pairs.
+WITH reviews AS (
+    SELECT DISTINCT id, reviewId, reviewText
+    FROM reviews_2000
+    WHERE id = 'ant_man_and_the_wasp_quantumania'
+)
+SELECT r1.id AS id, r1.reviewId AS reviewId1, r2.reviewId AS reviewId2
+FROM reviews AS r1
+JOIN reviews AS r2
+  ON r1.id = r2.id AND r1.reviewId < r2.reviewId
+WHERE llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-7B-Instruct'},
+      {'prompt': 'These two movie reviews express opposite sentiments - one is positive and the other is negative',
+       'context_columns': [
+           {'data': r1.reviewText, 'name': 'review1'},
+           {'data': r2.reviewText, 'name': 'review2'}
+       ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q107.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for movie ---
+Evaluating flockmtl...
+Evaluating Q107 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  flockmtl: ✅ Completed
+    Q107: ✅ 2.31s, 122 rows
