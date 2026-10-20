@@ -398,6 +398,22 @@ TEST_F(TranscribeAudioColumnTest, TranscribeAudioColumnMultipleFiles) {
     EXPECT_EQ(result["data"][2], expected_transcription3);
 }
 
+TEST_F(TranscribeAudioColumnTest, NullAudioKeepsBatchAlignment) {
+    json audio_column = {
+            {"name", "recording"},
+            {"type", "audio"},
+            {"transcription_model", "gpt-4o-transcribe"},
+            {"data", {nullptr, "https://example.com/one.mp3", nullptr}}};
+
+    EXPECT_CALL(*mock_provider, AddTranscriptionRequest(
+            ::testing::Eq(json::array({"https://example.com/one.mp3"})))).Times(1);
+    EXPECT_CALL(*mock_provider, CollectTranscriptions("multipart/form-data"))
+            .WillOnce(::testing::Return(std::vector<nlohmann::json>{"heard"}));
+
+    const auto result = PromptManager::TranscribeAudioColumn(audio_column);
+    EXPECT_EQ(result["data"], (json::array({nullptr, "heard", nullptr})));
+}
+
 // Test TranscribeAudioColumn output format (JSON array)
 TEST_F(TranscribeAudioColumnTest, TranscribeAudioColumnOutputFormat) {
     json audio_column = {
