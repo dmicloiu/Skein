@@ -2,6 +2,8 @@
 #include "flock/model_manager/model.hpp"
 #include "flock/model_manager/providers/handlers/url_handler.hpp"
 #include <fmt/format.h>
+#include <algorithm>
+#include <cctype>
 
 namespace flock {
 
@@ -12,20 +14,9 @@ void OpenAIProvider::AddCompletionRequest(const std::string& prompt, const int n
 
     // Process image columns
     if (media_data.contains("image") && !media_data["image"].empty() && media_data["image"].is_array()) {
-        std::string detail = "low";
-        auto column_index = 1u;
         for (const auto& column: media_data["image"]) {
-            // Process image column as before
-            if (column_index == 1) {
-                detail = column.contains("detail") ? column["detail"].get<std::string>() : "low";
-            }
+            const auto detail = column.contains("detail") ? column["detail"].get<std::string>() : "low";
             auto image_type = column.contains("type") ? column["type"].get<std::string>() : "image";
-            auto mime_type = std::string("image/");
-            if (size_t pos = image_type.find("/"); pos != std::string::npos) {
-                mime_type += image_type.substr(pos + 1);
-            } else {
-                mime_type += std::string("png");
-            }
             message_content.push_back(
                     {{"type", "text"},
                      {"text", "ATTACHMENT COLUMN"}});
@@ -33,10 +24,9 @@ void OpenAIProvider::AddCompletionRequest(const std::string& prompt, const int n
             for (const auto& image: column["data"]) {
                 // Skip null values
                 if (image.is_null()) {
+                    row_index++;
                     continue;
                 }
-                message_content.push_back(
-                        {{"type", "text"}, {"text", "ROW " + std::to_string(row_index) + " :"}});
                 auto image_url = std::string();
                 std::string image_str;
                 if (image.is_string()) {
@@ -44,9 +34,26 @@ void OpenAIProvider::AddCompletionRequest(const std::string& prompt, const int n
                 } else {
                     image_str = image.dump();
                 }
+                if (image_str.empty()) {
+                    row_index++;
+                    continue;
+                }
+                message_content.push_back(
+                        {{"type", "text"}, {"text", "ROW " + std::to_string(row_index) + " :"}});
+
+                auto mime_type = image_type.rfind("image/", 0) == 0 ? image_type : std::string();
+                if (mime_type.empty()) {
+                    auto extension = URLHandler::ExtractFileExtension(image_str);
+                    std::transform(extension.begin(), extension.end(), extension.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (extension == ".jpg" || extension == ".jpeg") mime_type = "image/jpeg";
+                    else if (extension == ".webp") mime_type = "image/webp";
+                    else if (extension == ".gif") mime_type = "image/gif";
+                    else mime_type = "image/png";
+                }
 
                 // Handle file path or URL
-                if (URLHandler::IsUrl(image_str)) {
+                if (URLHandler::IsUrl(image_str) || image_str.rfind("data:", 0) == 0) {
                     // URL - send directly to API
                     image_url = image_str;
                 } else {
@@ -60,7 +67,6 @@ void OpenAIProvider::AddCompletionRequest(const std::string& prompt, const int n
                          {"image_url", {{"url", image_url}, {"detail", detail}}}});
                 row_index++;
             }
-            column_index++;
         }
     }
 

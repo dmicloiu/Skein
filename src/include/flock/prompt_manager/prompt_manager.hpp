@@ -59,7 +59,7 @@ public:
         for (auto i = 0; i < static_cast<int>(columns.size()); i++) {
             if (columns[i].contains("type")) {
                 auto column_type = columns[i]["type"].get<std::string>();
-                if (column_type == "image") {
+                if (column_type == "image" || column_type.compare(0, 6, "image/") == 0) {
                     image_data.push_back(columns[i]);
                 } else if (column_type == "audio") {
                     // Transcribe audio and merge as tabular text data
@@ -85,6 +85,12 @@ public:
         if (!tabular_data.empty()) {
             auto tuples = PromptManager::ConstructInputTuples(tabular_data, tuple_format);
             prompt = PromptManager::ReplaceSection(prompt, PromptSection::TUPLES, tuples);
+        } else if (!image_data.empty()) {
+            // Media-only requests still need an explicit row count and must not
+            // leave the template's {{TUPLES}} token in the submitted prompt.
+            const auto rows = image_data[0]["data"].size();
+            prompt = PromptManager::ReplaceSection(prompt, PromptSection::TUPLES,
+                                                   PromptManager::ConstructNumTuples(static_cast<int>(rows)));
         }
         return {prompt, media_data};
     };

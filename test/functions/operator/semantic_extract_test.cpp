@@ -33,8 +33,12 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <utility>
@@ -80,6 +84,10 @@ public:
 
     LLMRequestHandle Submit(const std::string& /*endpoint*/, const std::string& payload, uint64_t /*generation*/,
                             const std::string& /*request_id*/, LLMOnDone on_done) override {
+        {
+            std::lock_guard<std::mutex> guard(payload_mutex_);
+            last_payload_ = payload;
+        }
         LLMResponse r = Synthesize(payload);
         if (on_done) {
             on_done(std::move(r));
@@ -87,6 +95,11 @@ public:
         return LLMRequestHandle{id_.fetch_add(1, std::memory_order_relaxed) + 1};
     }
     void CancelByGeneration(uint64_t /*generation*/) override {}
+
+    nlohmann::json LastPayload() const {
+        std::lock_guard<std::mutex> guard(payload_mutex_);
+        return nlohmann::json::parse(last_payload_);
+    }
 
 private:
     LLMResponse Synthesize(const std::string& payload) const {
@@ -144,6 +157,8 @@ private:
 
     std::string prefix_;
     mutable std::atomic<uint64_t> id_{0};
+    mutable std::mutex payload_mutex_;
+    std::string last_payload_;
 };
 
 // Build chunks of single-column BIGINT rows holding [0, total).
@@ -444,6 +459,61 @@ TEST(SemExtract, Engine_EmitsExtractedColumn) {
         EXPECT_EQ(rows[v].first, v);
         EXPECT_EQ(rows[v].second, "dx:" + std::to_string(v));  // completion = prefix + the row's value
     }
+}
+
+TEST(SemExtract, Engine_AttachesImagesAtOriginalRowIndices) {
+    const auto image_path = std::filesystem::temp_directory_path() /
+                            ("skein-extract-image-" + std::to_string(std::random_device{}()) + ".jpg");
+    {
+        std::ofstream image_file(image_path, std::ios::binary);
+        image_file.write("\xff\xd8\xff", 3);
+    }
+
+    duckdb::Connection con(*g_db);
+    auto& ctx = *con.context;
+    auto fake = std::make_shared<ScriptedFakeClient>("dx:");
+
+    duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> capture_exprs;
+    capture_exprs.push_back(duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::BIGINT, 0));
+    capture_exprs.push_back(duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::BIGINT, 0));
+    capture_exprs.push_back(duckdb::make_uniq<duckdb::BoundReferenceExpression>(LogicalType::VARCHAR, 1));
+    duckdb::vector<LogicalType> capture_types{LogicalType::BIGINT, LogicalType::BIGINT,
+                                               LogicalType::VARCHAR};
+
+    SemContextColumn id;
+    id.data_index = 1;
+    id.metadata["name"] = "id";
+    SemContextColumn image;
+    image.data_index = 2;
+    image.metadata["name"] = "photo";
+    image.metadata["type"] = "image/jpeg";
+    auto context_columns = std::vector<SemContextColumn>{id, image};
+
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemExtract>(
+                       duckdb::vector<LogicalType>{LogicalType::BIGINT, LogicalType::JSON()}, 0, fake,
+                       MakeRouter(), MakeParams(/*cap=*/4, /*batch_size=*/2), std::move(capture_exprs),
+                       std::move(capture_types), /*llm_call_index=*/1, std::move(context_columns),
+                       "Describe the photo", "XML", std::string(), std::string())
+                       .Cast<PhysicalSemExtract>();
+
+    DataChunk input;
+    input.Initialize(duckdb::Allocator::DefaultAllocator(),
+                     duckdb::vector<LogicalType>{LogicalType::BIGINT, LogicalType::VARCHAR});
+    input.SetValue(0, 0, Value::BIGINT(1));
+    input.SetValue(1, 0, Value());
+    input.SetValue(0, 1, Value::BIGINT(2));
+    input.SetValue(1, 1, Value(image_path.string()));
+    input.SetCardinality(2);
+
+    EXPECT_EQ(DriveExtract(op, ctx, {&input}),
+              (std::vector<std::pair<int64_t, std::string>>{{1, "dx:1"}, {2, "dx:2"}}));
+    const auto content = fake->LastPayload()["messages"][0]["content"];
+    ASSERT_EQ(content.size(), 3u);
+    EXPECT_EQ(content[1]["text"], "Attachment photo, row 2:");
+    EXPECT_EQ(content[2]["image_url"]["url"], "data:image/jpeg;base64,/9j/");
+    EXPECT_EQ(content[0]["text"].get<std::string>().find("{{TUPLES}}"), std::string::npos);
+    std::filesystem::remove(image_path);
 }
 
 // Concurrent Sink: N threads each drive op.Sink with their OWN

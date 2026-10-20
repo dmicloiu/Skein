@@ -62,6 +62,7 @@ public:
                       std::string tuple_format, std::string served_model, std::string sticky_key);
 
     std::string RenderPrompt(const std::vector<RowData>& batch) const override;
+    nlohmann::json RenderMedia(const std::vector<RowData>& batch) const override;
     void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const override;
 
     // Guided schema.

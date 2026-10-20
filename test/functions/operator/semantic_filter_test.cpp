@@ -29,7 +29,11 @@
 
 #include <atomic>
 #include <functional>
+#include <fstream>
+#include <filesystem>
 #include <memory>
+#include <mutex>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -74,6 +78,10 @@ public:
 
     LLMRequestHandle Submit(const std::string& /*endpoint*/, const std::string& payload, uint64_t /*generation*/,
                             const std::string& /*request_id*/, LLMOnDone on_done) override {
+        {
+            std::lock_guard<std::mutex> lock(payload_mutex_);
+            last_payload_ = payload;
+        }
         LLMResponse r = Synthesize(payload);
         if (on_done) {
             on_done(std::move(r));
@@ -81,6 +89,11 @@ public:
         return LLMRequestHandle{id_.fetch_add(1, std::memory_order_relaxed) + 1};
     }
     void CancelByGeneration(uint64_t /*generation*/) override {}
+
+    nlohmann::json LastPayload() const {
+        std::lock_guard<std::mutex> lock(payload_mutex_);
+        return nlohmann::json::parse(last_payload_);
+    }
 
 private:
     LLMResponse Synthesize(const std::string& payload) const {
@@ -141,6 +154,8 @@ private:
 
     std::function<bool(const std::string&)> verdict_;
     mutable std::atomic<uint64_t> id_{0};
+    mutable std::mutex payload_mutex_;
+    std::string last_payload_;
 };
 
 // Build chunks of single-column BIGINT rows holding [0, total).
@@ -469,6 +484,59 @@ TEST(SemFilter, Engine_FiltersRows) {
         expected.push_back(v);
     }
     EXPECT_EQ(survivors, expected);
+}
+
+TEST(SemFilter, Engine_AttachesImagesAtOriginalRowIndices) {
+    const auto image_path = std::filesystem::temp_directory_path() /
+                            ("skein-test-image-" + std::to_string(std::random_device{}()) + ".jpg");
+    {
+        std::ofstream image_file(image_path, std::ios::binary);
+        image_file.write("\xff\xd8\xff", 3);
+    }
+    auto fake = std::make_shared<ScriptedFakeClient>([](const std::string&) { return true; });
+    SemContextColumn text;
+    text.data_index = 0;
+    text.metadata["name"] = "id";
+    SemContextColumn image;
+    image.data_index = 1;
+    image.metadata["name"] = "photo";
+    image.metadata["type"] = "image";
+    image.metadata["detail"] = "high";
+
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                            MakeRouter(), MakeParams(4, 2), nullptr, false,
+                                            duckdb::vector<idx_t>{0},
+                                            std::vector<SemContextColumn>{text, image}, "inspect photo", "XML",
+                                            std::string(), std::string()).Cast<PhysicalSemFilter>();
+    DataChunk input;
+    input.Initialize(duckdb::Allocator::DefaultAllocator(),
+                     duckdb::vector<LogicalType>{LogicalType::BIGINT, LogicalType::VARCHAR});
+    input.SetValue(0, 0, Value::BIGINT(1));
+    input.SetValue(1, 0, Value());
+    input.SetValue(0, 1, Value::BIGINT(2));
+    input.SetValue(1, 1, Value(image_path.string()));
+    input.SetCardinality(2);
+
+    EXPECT_EQ(DriveFilter(op, {&input}), (std::vector<int64_t>{1, 2}));
+    const auto content = fake->LastPayload()["messages"][0]["content"];
+    ASSERT_EQ(content.size(), 3u);
+    EXPECT_EQ(content[1]["text"], "Attachment photo, row 2:");
+    EXPECT_EQ(content[2]["image_url"]["url"], "data:image/jpeg;base64,/9j/");
+    EXPECT_EQ(content[2]["image_url"]["detail"], "high");
+    EXPECT_EQ(content[0]["text"].get<std::string>().find("{{TUPLES}}"), std::string::npos);
+    std::filesystem::remove(image_path);
+}
+
+TEST(SemFilter, ImageOnlyPromptHasRowCount) {
+    nlohmann::json columns = nlohmann::json::array(
+            {{{"name", "photo"}, {"type", "image"}, {"data", {"a.jpg", "b.jpg"}}}});
+    const auto rendered = PromptManager::Render("Describe each photo", columns,
+                                                ScalarFunctionType::FILTER, "XML");
+    const auto& prompt = std::get<0>(rendered);
+    EXPECT_NE(prompt.find("The Number of Tuples to Generate Responses for: 2"), std::string::npos);
+    EXPECT_EQ(prompt.find("{{TUPLES}}"), std::string::npos);
+    EXPECT_EQ(std::get<1>(rendered)["image"].size(), 1u);
 }
 
 // Feed an actual SQL Cartesian product through the deterministic filter engine.

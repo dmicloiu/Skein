@@ -91,9 +91,6 @@ std::vector<SemContextColumn> ExtractContextColumns(duckdb::ClientContext& conte
                 if (str == "NULL") {
                     continue;
                 }
-                if (field == "type" && (str == "image" || str == "audio")) {
-                    throw duckdb::NotImplementedException(label + ": image/audio context columns are not supported");
-                }
                 cc.metadata[field] = str;
             }
         }
@@ -114,13 +111,40 @@ nlohmann::json BuildContextColumnsJson(const std::vector<SemContextColumn>& cont
     for (const auto& cc : context_columns) {
         nlohmann::json column = cc.metadata;
         auto data = nlohmann::json::array();
+        const auto type = cc.metadata.is_object() ? cc.metadata.value("type", std::string()) : std::string();
         for (const auto& row : batch) {
-            data.push_back(row.values[cc.data_index].ToString());
+            const auto& value = row.values[cc.data_index];
+            if (value.IsNull() && (type == "image" || type.compare(0, 6, "image/") == 0 || type == "audio")) {
+                data.push_back(nullptr);
+            } else {
+                data.push_back(value.ToString());
+            }
         }
         column["data"] = std::move(data);
         columns.push_back(std::move(column));
     }
     return columns;
+}
+
+nlohmann::json BuildImageColumnsJson(const nlohmann::json& columns) {
+    auto images = nlohmann::json::array();
+    for (const auto& column : columns) {
+        const auto type = column.value("type", std::string());
+        if (type == "image" || type.compare(0, 6, "image/") == 0) {
+            images.push_back(column);
+        }
+    }
+    return images;
+}
+
+bool HasMediaColumns(const nlohmann::json& columns) {
+    for (const auto& column : columns) {
+        const auto type = column.value("type", std::string());
+        if (type == "image" || type.compare(0, 6, "image/") == 0 || type == "audio") {
+            return true;
+        }
+    }
+    return false;
 }
 
 namespace {

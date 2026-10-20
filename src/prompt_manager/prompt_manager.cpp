@@ -250,16 +250,33 @@ nlohmann::json PromptManager::TranscribeAudioColumn(const nlohmann::json& audio_
     transcription_model_json["model_name"] = transcription_model_name;
     Model transcription_model(transcription_model_json);
 
-    // Add transcription requests to batch
-    transcription_model.AddTranscriptionRequest(audio_column["data"]);
+    // Keep null rows aligned with their original batch positions. Providers
+    // skip null inputs, so submit only real audio files and scatter results.
+    auto files = nlohmann::json::array();
+    for (const auto& file : audio_column["data"]) {
+        if (!file.is_null()) files.push_back(file);
+    }
+    if (!files.empty()) transcription_model.AddTranscriptionRequest(files);
 
     // Collect transcriptions
-    auto transcription_results = transcription_model.CollectTranscriptions();
+    auto transcription_results = files.empty() ? std::vector<nlohmann::json>()
+                                               : transcription_model.CollectTranscriptions();
 
     // Convert vector<nlohmann::json> to nlohmann::json array
     nlohmann::json transcriptions = nlohmann::json::array();
-    for (const auto& result: transcription_results) {
-        transcriptions.push_back(result);
+    size_t result_index = 0;
+    for (const auto& file : audio_column["data"]) {
+        if (file.is_null()) {
+            transcriptions.push_back(nullptr);
+        } else {
+            if (result_index >= transcription_results.size()) {
+                throw std::runtime_error("Audio transcription returned fewer results than input files");
+            }
+            transcriptions.push_back(transcription_results[result_index++]);
+        }
+    }
+    if (result_index != transcription_results.size()) {
+        throw std::runtime_error("Audio transcription returned more results than input files");
     }
 
     // Create transcription column with proper naming

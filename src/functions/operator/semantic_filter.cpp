@@ -139,7 +139,7 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     // data = each row's value stringified), then render through the shared builder
     // so the bytes match llm_filter at the same batch_size.
     auto columns = BuildContextColumnsJson(context_columns_, batch);
-    if (SemPromptSlim()) {
+    if (SemPromptSlim() && !HasMediaColumns(columns)) {
         // Lean, text-only head + the SAME tuples, dropping the META_PROMPT
         // image/audio boilerplate. Batch-adaptive: a multi-row batch renders the
         // count/index contract + chunked row-major form; a single-row batch keeps the plain slim form.
@@ -147,6 +147,10 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     }
     return std::get<0>(
             PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+}
+
+nlohmann::json PhysicalSemFilter::RenderMedia(const std::vector<RowData>& batch) const {
+    return BuildImageColumnsJson(BuildContextColumnsJson(context_columns_, batch));
 }
 
 bool PhysicalSemFilter::ParseVerdict(const nlohmann::json& element) {

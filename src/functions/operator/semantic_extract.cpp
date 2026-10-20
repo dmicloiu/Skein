@@ -153,13 +153,17 @@ std::string PhysicalSemExtract::RenderPrompt(const std::vector<RowData>& batch) 
     // (metadata verbatim, data = each row's captured value) through the SAME shared
     // builder with the COMPLETE template.
     auto columns = BuildContextColumnsJson(context_columns_, batch);
-    if (SemPromptSlim()) {
+    if (SemPromptSlim() && !HasMediaColumns(columns)) {
         // Lean text-only head + the SAME tuples, mirroring the filter's slim
         // path (extract wording: task / one string per row; batch-adaptive).
         return RenderSlimSemanticPrompt(SlimKind::kExtract, prompt_template_, columns, tuple_format_);
     }
     return std::get<0>(
             PromptManager::Render(prompt_template_, columns, ScalarFunctionType::COMPLETE, tuple_format_));
+}
+
+nlohmann::json PhysicalSemExtract::RenderMedia(const std::vector<RowData>& batch) const {
+    return BuildImageColumnsJson(BuildContextColumnsJson(context_columns_, batch));
 }
 
 std::string PhysicalSemExtract::ParseCompletion(const nlohmann::json& element) {
@@ -221,7 +225,7 @@ duckdb::unique_ptr<duckdb::LocalSinkState> PhysicalSemExtract::GetLocalSinkState
 
 duckdb::unique_ptr<duckdb::GlobalSinkState> PhysicalSemExtract::GetGlobalSinkState(
         duckdb::ClientContext& /*context*/) const {
-    auto state = CreateGlobalSinkState();  // binds render_prompt + response_schema to this operator
+    auto state = CreateGlobalSinkState();  // binds prompt, media, and response-schema hooks
     state->served_model = served_model_;
     state->sticky_key = sticky_key_;
     return std::move(state);

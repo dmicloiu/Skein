@@ -23,6 +23,24 @@ cd Skein
 
 The build script configures the project and starts DuckDB with the extension loaded. See the [Flock documentation](https://dais-polymtl.github.io/flock/) for model setup and the existing SQL functions. The semantic operators use a co-located OpenAI-compatible endpoint; configure its URL with `SET semantic_endpoints = 'http://localhost:8000/v1';`.
 
+## Image and audio context
+
+`llm_filter` and `llm_complete` accept image columns alongside text columns in both the scalar path and the asynchronous semantic operators. Image values may be local file paths, HTTP(S) URLs, or data URLs. Local images are encoded into the chat request; their MIME type is inferred from the file extension. Null images are skipped without changing the row numbers used to match attachments to the batch.
+
+```sql
+SELECT id
+FROM products
+WHERE llm_filter(
+    {'model_name': 'vision_model'},
+    {'prompt': 'Does the image match the description?',
+     'context_columns': [
+         {'data': description, 'name': 'description', 'type': 'text'},
+         {'data': image_path, 'name': 'image', 'type': 'image'}
+     ]});
+```
+
+For audio, set `type` to `audio` and provide a registered `transcription_model`. Skein transcribes non-null files and inserts the resulting text into the same row positions before prompting. The model and transcription provider must be configured separately.
+
 ## Research and tests
 
 The [Skein research overview](analysis/SKEIN.md) describes the architecture, thesis results, and reproducibility steps. Experiment scripts, figures, and data are under [`analysis/`](analysis/). The full raw runs and original analysis notes are preserved at the `thesis-submitted` tag.

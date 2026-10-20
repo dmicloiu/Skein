@@ -31,7 +31,8 @@ struct SemContextColumn {
 
 // Extract the prompt-context columns from a bound llm_* call's prompt struct (its
 // 2nd argument). v1 supports tabular columns whose `data` is a direct column
-// reference; anything else (computed data, image/audio) is rejected loudly.
+// reference; computed data is rejected loudly. Image and audio metadata is
+// retained so the async request can attach images or transcribe audio.
 // `fn_label` prefixes error messages (e.g. "sem_filter" / "sem_extract").
 // `data_index` is set to the source BoundReferenceExpression index; callers that
 // re-project the row may overwrite it with the captured position.
@@ -45,6 +46,12 @@ std::vector<SemContextColumn> ExtractContextColumns(duckdb::ClientContext& conte
 // at the same batch size.
 nlohmann::json BuildContextColumnsJson(const std::vector<SemContextColumn>& context_columns,
                                        const std::vector<RowData>& batch);
+
+// Extract image columns in their original order for the chat payload.
+nlohmann::json BuildImageColumnsJson(const nlohmann::json& columns);
+
+// A slim text-only prompt cannot describe attachments or transcribed audio.
+bool HasMediaColumns(const nlohmann::json& columns);
 
 // Which semantic operator a slim prompt is rendered for; selects the wording
 // (criterion/boolean vs task/string).

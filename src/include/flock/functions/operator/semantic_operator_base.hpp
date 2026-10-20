@@ -72,6 +72,7 @@ public:
     // Renders ONE multi-row prompt that packs the whole batch (flock's
     // BatchAndComplete strategy). batch_size rows -> one prompt -> one request.
     using RenderFn = std::function<std::string(const std::vector<RowData>& batch)>;
+    using MediaFn = std::function<nlohmann::json(const std::vector<RowData>& batch)>;
     // Parses one element of the response's boolean_array and appends its output
     // row to `out`. items[i] <-> rows[i].
     using ParseFn = std::function<void(const nlohmann::json& element, const RowData&, duckdb::DataChunk& out)>;
@@ -89,6 +90,9 @@ public:
     // the analogous parse hook is a Drain parameter because parsing runs in the
     // source phase.
     RenderFn render_prompt;
+    // Image columns for the same rows, in prompt column and row order.
+    // Empty by default for text-only operators and direct engine tests.
+    MediaFn render_media;
 
     // Served-model id stamped into body["model"]. Set ONCE before any Sink (like
     // render_prompt); empty -> omitted from the body.
@@ -146,7 +150,8 @@ private:
     duckdb::SinkResultType MergeAndCoalesce(SemLocalSinkState& local, duckdb::idx_t resume_idx,
                                             duckdb::InterruptState& interrupt);
     // Build the /v1/completions JSON body for a batch: ONE multi-row prompt
-    std::string BuildPayload(const std::string& prompt, size_t batch_rows) const;
+    std::string BuildPayload(const std::string& prompt, const nlohmann::json& image_columns,
+                             size_t batch_rows) const;
     // Render the batch's single prompt, choose an endpoint, build the payload,
     // and Submit (all OUTSIDE the lock).
     void SubmitBatch(std::vector<PendingRequest> batch);
@@ -239,6 +244,7 @@ public:
     // packs a whole batch into one multi-row prompt (W4: flock's tuple
     // formatter); ParseAndEmit consumes one response element per row.
     virtual std::string RenderPrompt(const std::vector<RowData>& batch) const = 0;
+    virtual nlohmann::json RenderMedia(const std::vector<RowData>& batch) const;
     virtual void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const = 0;
 
     // Guided-decoding schema hook. Returns the value for body["response_format"]

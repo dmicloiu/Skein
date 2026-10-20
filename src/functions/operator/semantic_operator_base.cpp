@@ -1,6 +1,7 @@
 #include "flock/functions/operator/semantic_operator_base.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
@@ -38,6 +39,69 @@ bool SemPromptSlim() {
 }
 
 namespace {
+
+std::string ImageMimeType(const nlohmann::json& column, const std::string& path) {
+    const auto type = column.value("type", std::string("image"));
+    if (type.compare(0, 6, "image/") == 0) {
+        return type;
+    }
+    const auto dot = path.find_last_of('.');
+    std::string extension = dot == std::string::npos ? "" : path.substr(dot);
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (extension == ".jpg" || extension == ".jpeg") return "image/jpeg";
+    if (extension == ".webp") return "image/webp";
+    if (extension == ".gif") return "image/gif";
+    return "image/png";
+}
+
+std::string EncodeImageFile(const std::string& path) {
+    std::FILE* file = std::fopen(path.c_str(), "rb");
+    if (!file) throw std::runtime_error("flock semantic operator: cannot open image: " + path);
+    std::string encoded;
+    static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    unsigned char bytes[3];
+    size_t count;
+    while ((count = std::fread(bytes, 1, 3, file)) != 0) {
+        const unsigned int triple = (static_cast<unsigned int>(bytes[0]) << 16) |
+                                    (count > 1 ? static_cast<unsigned int>(bytes[1]) << 8 : 0) |
+                                    (count > 2 ? bytes[2] : 0);
+        encoded.push_back(alphabet[(triple >> 18) & 63]);
+        encoded.push_back(alphabet[(triple >> 12) & 63]);
+        encoded.push_back(count > 1 ? alphabet[(triple >> 6) & 63] : '=');
+        encoded.push_back(count > 2 ? alphabet[triple & 63] : '=');
+    }
+    const bool read_error = std::ferror(file) != 0;
+    std::fclose(file);
+    if (read_error || encoded.empty()) {
+        throw std::runtime_error("flock semantic operator: cannot read image: " + path);
+    }
+    return encoded;
+}
+
+nlohmann::json BuildChatContent(const std::string& prompt, const nlohmann::json& image_columns) {
+    auto content = nlohmann::json::array({{{"type", "text"}, {"text", prompt}}});
+    for (const auto& column : image_columns) {
+        const std::string name = column.value("name", std::string("image"));
+        const std::string detail = column.value("detail", std::string("low"));
+        const auto& data = column.at("data");
+        for (size_t row = 0; row < data.size(); ++row) {
+            if (data[row].is_null()) continue;
+            const std::string path = data[row].get<std::string>();
+            if (path.empty()) continue;
+            std::string url = path;
+            if (path.compare(0, 7, "http://") != 0 && path.compare(0, 8, "https://") != 0 &&
+                path.compare(0, 5, "data:") != 0) {
+                url = "data:" + ImageMimeType(column, path) + ";base64," +
+                      EncodeImageFile(path);
+            }
+            content.push_back({{"type", "text"},
+                               {"text", "Attachment " + name + ", row " + std::to_string(row + 1) + ":"}});
+            content.push_back({{"type", "image_url"}, {"image_url", {{"url", url}, {"detail", detail}}}});
+        }
+    }
+    return content;
+}
 
 // Parse one /v1/chat/completions response into the batch's per-row response array.
 //
@@ -190,7 +254,8 @@ void SemGlobalSinkState::NoteInFlight(size_t now_in_flight) {
     }
 }
 
-std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t batch_rows) const {
+std::string SemGlobalSinkState::BuildPayload(const std::string& prompt,
+                                              const nlohmann::json& image_columns, size_t batch_rows) const {
     // ONE multi-row prompt -> ONE /v1/chat/completions request (flock's
     // BatchAndComplete strategy). The single completion returns an "items" array
     // of batch_rows elements, realigned with the rows in ParseItems.
@@ -200,7 +265,7 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt, size_t b
     // template (+ default system prompt) identically for both arms. (Mirrors
     // flock's openai adapter message shape.)
     body["messages"] = nlohmann::json::array(
-            {{{"role", "user"}, {"content", nlohmann::json::array({{{"type", "text"}, {"text", prompt}}})}}});
+            {{{"role", "user"}, {"content", BuildChatContent(prompt, image_columns)}}});
     if (!served_model.empty()) {
         body["model"] = served_model;
     }
@@ -239,6 +304,7 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     // Pack the whole batch into ONE multi-row prompt (render hook is read-only
     // after setup, so it is lock-free here).
     const std::string prompt = render_prompt(rows);
+    const nlohmann::json image_columns = render_media ? render_media(rows) : nlohmann::json::array();
     // Routing key for StickyByPrefix. Prefer the operator-supplied sticky_key (the
     // query-stable template head). Fall back to a bounded leading slice of the
     // prompt, which stays inside flock's shared instruction/template head while
@@ -246,7 +312,7 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     // reaches the tail and scatters a query's batches across endpoints.
     const std::string key = sticky_key.empty() ? prompt.substr(0, kStickyPrefixBytes) : sticky_key;
     EndpointRouter::Pick pick = router->Choose(key);
-    std::string payload = BuildPayload(prompt, rows.size());
+    std::string payload = BuildPayload(prompt, image_columns, rows.size());
     const uint64_t gen = generation.load(std::memory_order_acquire);
     const size_t endpoint_index = pick.index;
     const std::string request_id = "sem-batch-" + std::to_string(row_ids.front());
@@ -533,8 +599,13 @@ duckdb::unique_ptr<SemGlobalSinkState> SemanticOperatorBase::CreateGlobalSinkSta
         DumpPrompt(prompt);  // no-op unless FLOCK_PROMPT_DUMP is set (diagnostics)
         return prompt;
     };
+    state->render_media = [this](const std::vector<RowData>& batch) { return RenderMedia(batch); };
     state->response_schema = [this](size_t batch_rows) { return BuildResponseFormat(batch_rows); };
     return state;
+}
+
+nlohmann::json SemanticOperatorBase::RenderMedia(const std::vector<RowData>& /*batch*/) const {
+    return nlohmann::json::array();
 }
 
 duckdb::unique_ptr<duckdb::GlobalSinkState> SemanticOperatorBase::GetGlobalSinkState(
