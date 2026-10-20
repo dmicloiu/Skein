@@ -1,0 +1,52 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: ecomm
+Model: Qwen/Qwen2.5-7B-Instruct
+Queries: 7
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+-- SemBench e-commerce Q7: directed product self-join, including self-pairs.
+-- Preserve the benchmark's price <= 500 predicate and full n x n pair space.
+-- Project the nested description before the join so both context columns
+-- are ordinary left/right references for Skein's unkeyed-join rewrite.
+WITH product_selection AS (
+    SELECT id,
+           productDisplayName || ' - ' || productDescriptors.description.value
+               AS product_description
+    FROM styles_details
+    WHERE price <= 500
+)
+SELECT p1.id::VARCHAR || '-' || p2.id::VARCHAR AS id
+FROM product_selection AS p1
+JOIN product_selection AS p2
+  ON llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-7B-Instruct'},
+      {'prompt': 'You will be given two product descriptions. Do both product descriptions describe products of the same category from the same brand, e.g., both are t-shirts from Adidas?',
+       'context_columns': [
+           {'data': p1.product_description, 'name': 'first product description'},
+           {'data': p2.product_description, 'name': 'second product description'}
+       ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q7.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating flockmtl...
+Evaluating Q7 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  flockmtl: ✅ Completed
+    Q7: ✅ 2.30s, 25 rows
