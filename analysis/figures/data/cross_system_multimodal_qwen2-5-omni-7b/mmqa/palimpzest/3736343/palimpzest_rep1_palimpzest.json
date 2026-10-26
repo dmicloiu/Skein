@@ -1,0 +1,16 @@
+{
+  "Q7": {
+    "query_id": 7,
+    "status": "success",
+    "execution_time": 1093.2702412605286,
+    "token_usage": 2275485.0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 1072,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 0.006802721088435374,
+    "recall": 1.0,
+    "f1_score": 0.013513513513513513
+  }
+}

@@ -1,0 +1,1 @@
+{"thread_count":1,"threads":{"70369493142496":{"0x1e":{"llm_filter":{"api_calls":200,"api_duration_ms":10889.756,"execution_time_ms":10916.17,"input_tokens":115922,"model_name":"Qwen/Qwen2.5-Omni-7B","output_tokens":1602,"provider":"openai","registration_order":1,"total_tokens":117524}}}}}

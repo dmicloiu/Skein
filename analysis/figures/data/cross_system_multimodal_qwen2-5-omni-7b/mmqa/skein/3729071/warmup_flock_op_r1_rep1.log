@@ -1,0 +1,209 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: mmqa
+Model: Qwen/Qwen2.5-Omni-7B
+Queries: 1, 2a, 2b, 3a, 3f, 4, 5, 6a, 6b, 6c, 7
+Scale factor: 25
+
+============================================================
+Running benchmarks for use case: mmqa
+============================================================
+
+--- Running flockmtl ---
+
+Running 11 queries for flockmtl
+WITH extracted AS (
+    SELECT title,
+           llm_complete(
+               {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+               {'prompt': 'Who directed this movie? Return only the director name.',
+                'context_columns': [{'data': text, 'name': 'movie description'}]}
+           ) AS director
+    FROM ben_piazza_text_data
+)
+SELECT e.director
+FROM ben_piazza AS b
+JOIN extracted AS e ON b.Title = e.title
+WHERE b.Role = 'Bob Whitewood';
+SELECT t.ID, i.image_filename AS image_id
+FROM ap_warrior AS t
+JOIN images AS i ON llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does the image show the logo of the horse racetrack named in the Track field?',
+     'context_columns': [
+         {'data': t.Track, 'name': 'horse racetrack', 'type': 'text'},
+         {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+     ]});
+WITH matches AS (
+    SELECT t.ID, i.image_filename AS image_id, i.image_filepath
+    FROM ap_warrior AS t
+    JOIN images AS i ON llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the image show the logo of the horse racetrack named in the Track field?',
+         'context_columns': [
+             {'data': t.Track, 'name': 'horse racetrack', 'type': 'text'},
+             {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+         ]})
+)
+SELECT ID, image_id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'What is the color of the logo in this image? Return only the color.',
+            'context_columns': [{'data': image_filepath, 'name': 'logo image', 'type': 'image'}]}
+       ) AS color
+FROM matches;
+SELECT title
+FROM lizzy_caplan_text_data
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Is this a comedy movie?',
+     'context_columns': [
+         {'data': title, 'name': 'movie title'},
+         {'data': text, 'name': 'movie description'}
+     ]});
+SELECT title
+FROM lizzy_caplan_text_data
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Is this a romantic comedy movie?',
+     'context_columns': [
+         {'data': title, 'name': 'movie title'},
+         {'data': text, 'name': 'movie description'}
+     ]});
+WITH target_movies AS (
+    SELECT title, text
+    FROM lizzy_caplan_text_data
+    WHERE title IN (
+        'Orange County', 'Mean Girls', 'Love Is the Drug', 'Crashing', 'Cloverfield',
+        'My Best Friend''s Girl', 'Crossing Over', 'Hot Tub Time Machine',
+        'The Last Rites of Ransom Pride', '127 Hours', 'High Road', 'Save the Date',
+        'Bachelorette', '3, 2, 1... Frankie Go Boom', 'Queens of Country',
+        'Item 47', 'The Interview', 'The Night Before', 'Now You See Me 2',
+        'Allied', 'The Disaster Artist', 'Extinction',
+        'The People We Hate at the Wedding', 'Cobweb'
+    )
+),
+extracted AS (
+    SELECT title,
+           llm_complete(
+               {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+               {'prompt': 'List the genres of this movie, separated by commas. Return only the genre names.',
+                'context_columns': [{'data': text, 'name': 'movie description'}]}
+           ) AS genres
+    FROM target_movies
+),
+expanded AS (
+    SELECT title, trim(genre) AS genre
+    FROM extracted, UNNEST(string_split(genres, ',')) AS g(genre)
+)
+SELECT genre, string_agg(title, ', ' ORDER BY title) AS movies_in_genre
+FROM expanded
+GROUP BY genre;
+WITH target_movies AS (
+    SELECT title, text
+    FROM lizzy_caplan_text_data
+    WHERE title IN (
+        'Love Is the Drug', 'Crashing', 'Cloverfield', 'My Best Friend''s Girl',
+        'Hot Tub Time Machine', 'The Last Rites of Ransom Pride', 'Save the Date',
+        'Bachelorette', '3, 2, 1... Frankie Go Boom', 'Queens of Country',
+        'Item 47', 'The Night Before', 'Now You See Me 2', 'Allied',
+        'Extinction', 'Cobweb'
+    )
+),
+movie_context AS (
+    SELECT string_agg(
+        'Movie: ' || title || chr(10) || 'Description: ' || text,
+        chr(10) || chr(10) ORDER BY title
+    ) AS descriptions
+    FROM target_movies
+)
+SELECT llm_complete(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Who played a role in every movie listed here? Return only the actor name.',
+     'context_columns': [
+         {'data': descriptions, 'name': 'movie descriptions'}
+     ]}) AS _output
+FROM movie_context;
+SELECT Airlines
+FROM tampa_international_airport
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does this airline fly to Frankfurt?',
+     'context_columns': [
+         {'data': Airlines, 'name': 'airline'},
+         {'data': Destinations, 'name': 'destinations'}
+     ]});
+SELECT Airlines
+FROM tampa_international_airport
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does this airline fly to Germany?',
+     'context_columns': [
+         {'data': Airlines, 'name': 'airline'},
+         {'data': Destinations, 'name': 'destinations'}
+     ]});
+SELECT Airlines
+FROM tampa_international_airport
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does this airline fly to Europe?',
+     'context_columns': [
+         {'data': Airlines, 'name': 'airline'},
+         {'data': Destinations, 'name': 'destinations'}
+     ]});
+SELECT t.Airlines, i.image_filename AS image_id
+FROM tampa_international_airport AS t
+JOIN images AS i ON llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does the image show the logo of the airline named in the Airlines field?',
+     'context_columns': [
+         {'data': t.Airlines, 'name': 'airline', 'type': 'text'},
+         {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+     ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q2a.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q2b.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q3a.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q3f.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q5.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q6a.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q6b.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q6c.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/mmqa/raw_results/flockmtl/Q7.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/mmqa/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for mmqa ---
+Evaluating flockmtl...
+Evaluating Q1 ...
+Evaluating Q2a ...
+Evaluating Q2b ...
+Evaluating Q3a ...
+Evaluating Q3f ...
+Evaluating Q4 ...
+Evaluating Q5 ...
+Evaluating Q6a ...
+Evaluating Q6b ...
+Evaluating Q6c ...
+Evaluating Q7 ...
+[MMQAEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/mmqa/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MMQA:
+  flockmtl: ✅ Completed
+    Q1: ✅ 1.27s, 1 rows
+    Q2a: ✅ 3.40s, 5 rows
+    Q2b: ✅ 1.59s, 5 rows
+    Q3a: ✅ 0.48s, 11 rows
+    Q3f: ✅ 0.46s, 3 rows
+    Q4: ✅ 0.51s, 20 rows
+    Q5: ✅ 0.34s, 1 rows
+    Q6a: ✅ 0.38s, 1 rows
+    Q6b: ✅ 0.37s, 0 rows
+    Q6c: ✅ 0.38s, 0 rows
+    Q7: ✅ 8.74s, 5 rows
