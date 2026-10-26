@@ -1,0 +1,152 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: movie
+Model: Qwen/Qwen2.5-Omni-7B
+Queries: 1, 2, 3, 4, 5, 6, 7, 8
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running flockmtl ---
+
+Running 8 queries for flockmtl
+SELECT reviewId
+FROM reviews_2000 AS r
+WHERE llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'The following movie review is clearly positive.',
+       'context_columns': [{'data': r.reviewText, 'name': 'review'}]}
+  )
+LIMIT 5;
+SELECT reviewId
+FROM reviews_2000 AS r
+WHERE r.id = 'taken_3' AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'The following movie review is clearly positive.',
+       'context_columns': [{'data': r.reviewText, 'name': 'review'}]}
+  )
+LIMIT 5;
+SELECT COUNT(*) AS positive_review_counts
+FROM reviews_2000 AS r
+WHERE r.id == 'taken_3' AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'The following movie review is clearly positive.',
+       'context_columns': [{'data': r.reviewText, 'name': 'review'}]}
+  );
+WITH reviews AS MATERIALIZED (
+    SELECT reviewText
+    FROM reviews_2000
+    WHERE id = 'taken_3'
+),
+positive AS (
+    SELECT reviewText
+    FROM reviews
+    WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Is it a positive review?',
+         'context_columns': [{'data': reviewText, 'name': 'review'}]})
+)
+SELECT (SELECT COUNT(*) FROM positive)::DOUBLE /
+       NULLIF((SELECT COUNT(*) FROM reviews), 0) AS positive_reviews_ratio;
+SELECT r1.id as id, r1.reviewId as reviewId1, r2.reviewId as reviewId2
+FROM reviews_2000  AS r1
+JOIN reviews_2000  AS r2
+ON r1.id = r2.id AND r1.reviewId <> r2.reviewId
+WHERE r1.id = 'ant_man_and_the_wasp_quantumania' AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'These two movie reviews express the same sentiment - either both are positive or both are negative',
+       'context_columns': [
+           {'data': r1.reviewText, 'name': 'review1'},
+           {'data': r2.reviewText, 'name': 'review2'}
+       ]}
+  )
+LIMIT 10;
+SELECT r1.id as id, r1.reviewId as reviewId1, r2.reviewId as reviewId2
+FROM reviews_2000  AS r1
+JOIN reviews_2000  AS r2
+ON r1.id = r2.id AND r1.reviewId <> r2.reviewId
+WHERE r1.id = 'ant_man_and_the_wasp_quantumania' AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'These two movie reviews express opposite sentiments - one is positive and the other is negative',
+       'context_columns': [
+           {'data': r1.reviewText, 'name': 'review1'},
+           {'data': r2.reviewText, 'name': 'review2'}
+       ]}
+  )
+LIMIT 10;
+SELECT r1.id as id, r1.reviewId as reviewId1, r2.reviewId as reviewId2
+FROM reviews_2000  AS r1
+JOIN reviews_2000  AS r2
+ON r1.id = r2.id AND r1.reviewId <> r2.reviewId
+WHERE r1.id = 'ant_man_and_the_wasp_quantumania' AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'These two movie reviews express opposite sentiments - one is positive and the other is negative',
+       'context_columns': [
+           {'data': r1.reviewText, 'name': 'review1'},
+           {'data': r2.reviewText, 'name': 'review2'}
+       ]}
+  );
+WITH reviews AS MATERIALIZED (
+    SELECT reviewText
+    FROM reviews_2000
+    WHERE id = 'taken_3'
+),
+positive AS (
+    SELECT reviewText
+    FROM reviews
+    WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'The following movie review is clearly positive.',
+         'context_columns': [{'data': reviewText, 'name': 'review'}]})
+),
+counts AS (
+    SELECT (SELECT COUNT(*) FROM reviews) AS total,
+           (SELECT COUNT(*) FROM positive) AS positive_count
+)
+SELECT 'POSITIVE' AS scoreSentiment, positive_count AS count
+FROM counts
+WHERE positive_count > 0
+UNION ALL
+SELECT 'NEGATIVE' AS scoreSentiment, total - positive_count AS count
+FROM counts
+WHERE total > positive_count;
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q2.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q5.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q6.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q7.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/flockmtl/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for movie ---
+Evaluating flockmtl...
+Evaluating Q1 ...
+Evaluating Q2 ...
+Evaluating Q3 ...
+Evaluating Q4 ...
+Evaluating Q5 ...
+Evaluating Q6 ...
+Evaluating Q7 ...
+Evaluating Q8 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  flockmtl: ✅ Completed
+    Q1: ✅ 0.90s, 5 rows
+    Q2: ✅ 0.00s, 0 rows
+    Q3: ✅ 0.00s, 1 rows
+    Q4: ✅ 0.01s, 1 rows
+    Q5: ✅ 2.14s, 10 rows
+    Q6: ✅ 2.86s, 10 rows
+    Q7: ✅ 1.64s, 96 rows
+    Q8: ✅ 0.00s, 0 rows

@@ -1,0 +1,325 @@
+Multi-Modal Data Systems Benchmark
+Systems: palimpzest
+Use cases: movie
+Model: vllm/Qwen/Qwen2.5-Omni-7B
+Queries: 1, 2, 3, 4, 5, 6, 8
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: movie
+============================================================
+
+--- Running palimpzest ---
+
+Running 7 queries for palimpzest
+Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-Omni-7B, api_base=http://127.0.0.1:8000/v1
+
+  MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+⠧ LLMFilter (628d8408cc)            ━━━━╸  95% 19/20 0:00… 0:00… Cost: $0.0000 
+⠧ ProjectOp (081c6fbdd7)            ━━━━   83% 5/6   0:00… -:--… Cost: $0.0000 
+  LimitScanOp (4e6c9b751a)          ━━━━━ 100% 5/5   0:00… 0:00… Cost: $0.0000 
+Total time: 1.42s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 1077.0
+  Token usage: 1077.0 tokens, Cost: $0.0000
+
+  MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  NonLLMFilter (7f91b93b40)         ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  LLMFilter (628d8408cc)            ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+  ProjectOp (081c6fbdd7)            ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+⠋ LimitScanOp (4e6c9b751a)                  0% 0/5   0:00… -:--… Cost: $0.0000 
+Total time: 0.02s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 0.0
+  Token usage: 0.0 tokens, Cost: $0.0000
+
+  MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  NonLLMFilter (7f91b93b40)         ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  LLMFilter (628d8408cc)            ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+⠋ CountAggregateOp (831339c386)             0% 0/1   0:00… -:--… Cost: $0.0000 
+Total time: 0.02s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 0.0
+  Token usage: 0.0 tokens, Cost: $0.0000
+
+  MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  NonLLMFilter (7f91b93b40)         ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  LLMConvertBonded (03bfb12eab)     ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+  ProjectOp (320a06c8e9)            ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+⠋ AverageAggregateOp (ff7de7398f)           0% 0/1   0:00… -:--… Cost: $0.0000 
+Total time: 0.02s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 0.0
+  Token usage: 0.0 tokens, Cost: $0.0000
+
+1 JOINED
+2 JOINED
+3 JOINED
+4 JOINED
+5 JOINED
+6 JOINED
+7 JOINED
+8 JOINED
+9 JOINED
+10 JOINED
+11 JOINED
+12 JOINED
+13 JOINED
+14 JOINED
+15 JOINED
+16 JOINED
+17 JOINED
+18 JOINED
+19 JOINED
+20 JOINED
+21 JOINED
+22 JOINED
+23 JOINED
+24 JOINED
+25 JOINED
+26 JOINED
+27 JOINED
+28 JOINED
+29 JOINED
+30 JOINED
+31 JOINED
+32 JOINED
+33 JOINED
+34 JOINED
+35 JOINED
+36 JOINED
+37 JOINED
+38 JOINED
+39 JOINED
+40 JOINED
+41 JOINED
+42 JOINED
+43 JOINED
+44 JOINED
+45 JOINED
+46 JOINED
+47 JOINED
+48 JOINED
+49 JOINED
+50 JOINED
+51 JOINED
+52 JOINED
+53 JOINED
+54 JOINED
+55 JOINED
+56 JOINED
+57 JOINED
+58 JOINED
+59 JOINED
+60 JOINED
+61 JOINED
+62 JOINED
+63 JOINED
+64 JOINED
+65 JOINED
+66 JOINED
+67 JOINED
+68 JOINED
+69 JOINED
+70 JOINED
+71 JOINED
+72 JOINED
+73 JOINED
+74 JOINED
+75 JOINED
+76 JOINED
+77 JOINED
+78 JOINED
+79 JOINED
+80 JOINED
+81 JOINED
+82 JOINED
+83 JOINED
+84 JOINED
+85 JOINED
+86 JOINED
+87 JOINED
+88 JOINED
+89 JOINED
+90 JOINED
+91 JOINED
+92 JOINED
+93 JOINED
+94 JOINED
+95 JOINED
+96 JOINED
+97 JOINED
+98 JOINED
+99 JOINED
+100 JOINED
+⠦ MarshalAndScanDataOp (97d18a165f) ━━╸    50% 10/20 0:00… -:--… Cost: $0.0000 
+⠦ MarshalAndScanDataOp (26a513387d) ━━╸    50% 10/20 0:00… -:--… Cost: $0.0000 
+⠦ NestedLoopsJoin (fdbffacf2a)      ━      25% 100/… 0:00… -:--… Cost: $0.0000 
+⠦ ProjectOp (40e1c8e1f2)                    3%  10/… 0:00… -:--… Cost: $0.0000 
+  LimitScanOp (d9b175e09b)          ━━━━━ 100% 10/10 0:00… 0:00… Cost: $0.0000 
+Total time: 1.31s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 7715.0
+  Token usage: 7715.0 tokens, Cost: $0.0000
+
+1 JOINED
+2 JOINED
+3 JOINED
+4 JOINED
+5 JOINED
+6 JOINED
+7 JOINED
+8 JOINED
+9 JOINED
+10 JOINED
+11 JOINED
+12 JOINED
+13 JOINED
+14 JOINED
+15 JOINED
+16 JOINED
+17 JOINED
+18 JOINED
+19 JOINED
+20 JOINED
+21 JOINED
+22 JOINED
+23 JOINED
+24 JOINED
+25 JOINED
+26 JOINED
+27 JOINED
+28 JOINED
+29 JOINED
+30 JOINED
+31 JOINED
+32 JOINED
+33 JOINED
+34 JOINED
+35 JOINED
+36 JOINED
+37 JOINED
+38 JOINED
+39 JOINED
+40 JOINED
+41 JOINED
+42 JOINED
+43 JOINED
+44 JOINED
+45 JOINED
+46 JOINED
+47 JOINED
+48 JOINED
+49 JOINED
+50 JOINED
+51 JOINED
+52 JOINED
+53 JOINED
+54 JOINED
+55 JOINED
+56 JOINED
+57 JOINED
+58 JOINED
+59 JOINED
+60 JOINED
+61 JOINED
+62 JOINED
+63 JOINED
+64 JOINED
+65 JOINED
+66 JOINED
+67 JOINED
+68 JOINED
+69 JOINED
+70 JOINED
+71 JOINED
+72 JOINED
+73 JOINED
+74 JOINED
+75 JOINED
+76 JOINED
+77 JOINED
+78 JOINED
+79 JOINED
+80 JOINED
+81 JOINED
+82 JOINED
+83 JOINED
+84 JOINED
+85 JOINED
+86 JOINED
+87 JOINED
+88 JOINED
+89 JOINED
+90 JOINED
+91 JOINED
+92 JOINED
+93 JOINED
+94 JOINED
+95 JOINED
+96 JOINED
+97 JOINED
+98 JOINED
+99 JOINED
+100 JOINED
+⠴ MarshalAndScanDataOp (97d18a165f) ━━╸    50% 10/20 0:00… -:--… Cost: $0.0000 
+⠴ MarshalAndScanDataOp (26a513387d) ━━╸    50% 10/20 0:00… -:--… Cost: $0.0000 
+⠴ NestedLoopsJoin (a8db6d1556)      ━      25% 100/… 0:00… -:--… Cost: $0.0000 
+⠴ ProjectOp (40e1c8e1f2)                    3%  10/… 0:00… -:--… Cost: $0.0000 
+  LimitScanOp (d9b175e09b)          ━━━━━ 100% 10/10 0:00… 0:00… Cost: $0.0000 
+Total time: 1.27s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 7529.0
+  Token usage: 7529.0 tokens, Cost: $0.0000
+
+  MarshalAndScanDataOp (bbe87d81cc) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  NonLLMFilter (7f91b93b40)         ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  LLMConvertBonded (03bfb12eab)     ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+  ProjectOp (9201afeb8b)            ━━━━━   0% 0/0   0:00… -:--… Cost: $0.0000 
+⠋ ApplyGroupByOp (333b4268ae)               0% 0/1   0:00… -:--… Cost: $0.0000 
+Total time: 0.02s
+Total cost: $0.0000
+Input text tokens: 0.0, input image tokens: 0.0, input audio tokens: 0.0
+prompt token: 0.0, completion token: 0.0
+  Token usage: 0.0 tokens, Cost: $0.0000
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q2.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q5.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q6.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/movie/raw_results/palimpzest/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
+✓ palimpzest completed successfully
+
+--- Running evaluation for movie ---
+Evaluating palimpzest...
+Evaluating Q1 ...
+Evaluating Q2 ...
+Evaluating Q3 ...
+Evaluating Q4 ...
+Evaluating Q5 ...
+Evaluating Q6 ...
+Evaluating Q8 ...
+[MovieEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/movie/metrics/palimpzest.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MOVIE:
+  palimpzest: ✅ Completed
+    Q1: ✅ 1.58s, 5 rows, 1077.0 tokens
+    Q2: ✅ 0.09s, 0 rows
+    Q3: ✅ 0.08s, 0 rows
+    Q4: ✅ 0.06s, 0 rows
+    Q5: ✅ 1.36s, 10 rows, 7715.0 tokens
+    Q6: ✅ 1.32s, 10 rows, 7529.0 tokens
+    Q8: ✅ 0.07s, 0 rows

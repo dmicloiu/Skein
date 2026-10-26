@@ -1,0 +1,17 @@
+tag	query	status	execution_time_s	error
+warmup_flock_scalar_r1_rep1	Q1	success	1.823998289	
+warmup_flock_scalar_r1_rep1	Q2	success	0.003780577	
+warmup_flock_scalar_r1_rep1	Q3	success	0.02090589	
+warmup_flock_scalar_r1_rep1	Q4	success	0.014766544	
+warmup_flock_scalar_r1_rep1	Q5	success	20.108841425	
+warmup_flock_scalar_r1_rep1	Q6	success	20.173023337	
+warmup_flock_scalar_r1_rep1	Q7	success	19.042404357	
+warmup_flock_scalar_r1_rep1	Q8	success	0.005508091	
+flock_scalar_r1_rep1	Q1	success	104.028393459	
+flock_scalar_r1_rep1	Q2	success	5.929313353	
+flock_scalar_r1_rep1	Q3	success	5.945625147	
+flock_scalar_r1_rep1	Q4	success	6.24703358	
+flock_scalar_r1_rep1	Q5	success	105.962474337	
+flock_scalar_r1_rep1	Q6	success	105.351764593	
+flock_scalar_r1_rep1	Q7	success	3384.499695213	
+flock_scalar_r1_rep1	Q8	success	6.345092722	

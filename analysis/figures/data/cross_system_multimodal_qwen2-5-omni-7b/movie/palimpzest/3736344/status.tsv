@@ -1,0 +1,15 @@
+tag	query	status	execution_time_s	error
+warmup_palimpzest_rep1	Q1	success	1.5776112079620361	
+warmup_palimpzest_rep1	Q2	success	0.0948188304901123	
+warmup_palimpzest_rep1	Q3	success	0.07632946968078613	
+warmup_palimpzest_rep1	Q4	success	0.06429171562194824	
+warmup_palimpzest_rep1	Q5	success	1.3581595420837402	
+warmup_palimpzest_rep1	Q6	success	1.315298080444336	
+warmup_palimpzest_rep1	Q8	success	0.0691077709197998	
+palimpzest_rep1	Q1	success	0.8337409496307373	
+palimpzest_rep1	Q2	success	11.228605508804321	
+palimpzest_rep1	Q3	success	2.2732152938842773	
+palimpzest_rep1	Q4	success	3.1347837448120117	
+palimpzest_rep1	Q5	success	1.1694402694702148	
+palimpzest_rep1	Q6	success	1.6782481670379639	
+palimpzest_rep1	Q8	success	3.7337372303009033	
