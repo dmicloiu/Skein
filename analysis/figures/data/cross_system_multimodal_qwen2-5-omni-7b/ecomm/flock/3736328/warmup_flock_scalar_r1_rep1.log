@@ -1,0 +1,81 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: ecomm
+Model: Qwen/Qwen2.5-Omni-7B
+Queries: 10
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+WITH products AS (
+    SELECT s.id, s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+    WHERE s.baseColour IN ('Black', 'Blue', 'Red', 'White') AND s.price <= 1000
+),
+footwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the feet, such as shoes, sandals, or flip-flops?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+bottomwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the lower body, such as pants, shorts, or a skirt?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+topwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the upper body, such as a shirt, pullover, or hoodie, and require separate lower-body clothing?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+shoe_bottom AS (
+    SELECT f.id AS shoe_id, b.id AS bottom_id,
+           b.description AS bottom_description, b.local_image_path AS bottom_image
+    FROM footwear AS f
+    JOIN bottomwear AS b ON llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Do these products have the same primary base color and brand?',
+         'context_columns': [
+             {'data': f.description, 'name': 'first description', 'type': 'text'},
+             {'data': f.local_image_path, 'name': 'first image', 'type': 'image'},
+             {'data': b.description, 'name': 'second description', 'type': 'text'},
+             {'data': b.local_image_path, 'name': 'second image', 'type': 'image'}
+         ]})
+)
+SELECT sb.shoe_id::VARCHAR || '-' || sb.bottom_id::VARCHAR || '-' || t.id::VARCHAR AS id
+FROM shoe_bottom AS sb
+JOIN topwear AS t ON llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Do these products have the same primary base color and brand?',
+     'context_columns': [
+         {'data': sb.bottom_description, 'name': 'first description', 'type': 'text'},
+         {'data': sb.bottom_image, 'name': 'first image', 'type': 'image'},
+         {'data': t.description, 'name': 'second description', 'type': 'text'},
+         {'data': t.local_image_path, 'name': 'second image', 'type': 'image'}
+     ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q10.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating flockmtl...
+Evaluating Q10 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  flockmtl: ✅ Completed
+    Q10: ✅ 109.97s, 53 rows

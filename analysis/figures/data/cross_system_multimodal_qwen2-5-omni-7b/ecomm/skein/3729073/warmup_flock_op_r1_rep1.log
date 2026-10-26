@@ -1,0 +1,349 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: ecomm
+Model: Qwen/Qwen2.5-Omni-7B
+Queries: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running flockmtl ---
+
+Running 13 queries for flockmtl
+WITH products AS (
+    SELECT id,
+           productDisplayName || ' ' || productDescriptors.description.value AS description
+    FROM styles_details
+)
+SELECT id
+FROM products
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'The product is a backpack from Reebok.',
+     'context_columns': [
+         {'data': description, 'name': 'product description'}
+     ]});
+SELECT image_mapping.id AS id
+FROM styles_details
+JOIN image_mapping USING (id)
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'The image shows a pair of sports shoes featuring yellow and silver colors.',
+     'context_columns': [
+         {'data': local_image_path, 'name': 'product image', 'type': 'image'}
+     ]});
+WITH products AS (
+    SELECT id, productDisplayName || ' ' || productDescriptors.description.value AS description
+    FROM styles_details
+)
+SELECT id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'Extract the brand name from this product title and description. Return only the brand name.',
+            'context_columns': [{'data': description, 'name': 'product description'}]}
+       ) AS category
+FROM products;
+SELECT i.id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'Extract the primary color of the product in the image. Return only the base color.',
+            'context_columns': [{'data': i.local_image_path, 'name': 'product image', 'type': 'image'}]}
+       ) AS category
+FROM image_mapping AS i
+JOIN styles_details AS s ON s.id = i.id::BIGINT
+WHERE s.baseColour IN ('Black', 'Blue', 'Red', 'White', 'Orange', 'Green');
+WITH products AS (
+    SELECT id, productDisplayName || ' ' || productDescriptors.description.value AS description
+    FROM styles_details
+    WHERE masterCategory.typeName = 'Apparel'
+      AND subCategory.typeName NOT IN ('Saree', 'Apparel Set', 'Loungewear and Nightwear')
+)
+SELECT id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'Classify the product as exactly one of Dress, Bottomwear, Socks, Topwear, or Innerwear. Return only the category name.',
+            'context_columns': [{'data': description, 'name': 'product description'}]}
+       ) AS category
+FROM products;
+SELECT i.id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'Classify the pictured product as exactly one of Dress, Bottomwear, Socks, Topwear, or Innerwear. Return only the category name.',
+            'context_columns': [{'data': i.local_image_path, 'name': 'product image', 'type': 'image'}]}
+       ) AS category
+FROM image_mapping AS i
+JOIN styles_details AS s ON s.id = i.id::BIGINT
+WHERE s.masterCategory.typeName = 'Apparel'
+  AND s.subCategory.typeName NOT IN ('Saree', 'Apparel Set', 'Loungewear and Nightwear');
+-- SemBench e-commerce Q7: directed product self-join, including self-pairs.
+-- Preserve the benchmark's price <= 500 predicate and full n x n pair space.
+-- Project the nested description before the join so both context columns
+-- are ordinary left/right references for Skein's unkeyed-join rewrite.
+WITH product_selection AS (
+    SELECT id,
+           productDisplayName || ' - ' || productDescriptors.description.value
+               AS product_description
+    FROM styles_details
+    WHERE price <= 500
+)
+SELECT p1.id::VARCHAR || '-' || p2.id::VARCHAR AS id
+FROM product_selection AS p1
+JOIN product_selection AS p2
+  ON llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'You will be given two product descriptions. Do both product descriptions describe products of the same category from the same brand, e.g., both are t-shirts from Adidas?',
+       'context_columns': [
+           {'data': p1.product_description, 'name': 'first product description'},
+           {'data': p2.product_description, 'name': 'second product description'}
+       ]});
+WITH descriptions AS (
+    SELECT id,
+           productDisplayName || ' ' || productDescriptors.description.value AS description
+    FROM styles_details
+    WHERE character_length(productDescriptors.description.value) >= 3000
+)
+SELECT d.id::VARCHAR || '-' || i.id::VARCHAR AS id
+FROM descriptions AS d
+JOIN image_mapping AS i
+  ON llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'Does the product image fit the product description?',
+       'context_columns': [
+           {'data': d.description, 'name': 'product description', 'type': 'text'},
+           {'data': i.local_image_path, 'name': 'product image', 'type': 'image'}
+       ]});
+WITH selected_images AS (
+    SELECT s.id, i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i USING (id)
+    WHERE s.baseColour IN ('Black', 'Blue', 'Red', 'White', 'Orange', 'Green')
+      AND s.colour1 = '' AND s.colour2 = '' AND s.price < 800
+)
+SELECT i1.id::VARCHAR || '-' || i2.id::VARCHAR AS id
+FROM selected_images AS i1
+JOIN selected_images AS i2
+  ON i1.id <> i2.id
+ AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'Do the two images show objects of the same category and the same dominant surface color? Ignore logos, text, and printed graphics. Focus on the main object.',
+       'context_columns': [
+           {'data': i1.local_image_path, 'name': 'first product image', 'type': 'image'},
+           {'data': i2.local_image_path, 'name': 'second product image', 'type': 'image'}
+       ]});
+WITH products AS (
+    SELECT s.id, s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+    WHERE s.baseColour IN ('Black', 'Blue', 'Red', 'White') AND s.price <= 1000
+),
+footwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the feet, such as shoes, sandals, or flip-flops?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+bottomwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the lower body, such as pants, shorts, or a skirt?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+topwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the main product in the image belong on the upper body, such as a shirt, pullover, or hoodie, and require separate lower-body clothing?',
+         'context_columns': [{'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+shoe_bottom AS (
+    SELECT f.id AS shoe_id, b.id AS bottom_id,
+           b.description AS bottom_description, b.local_image_path AS bottom_image
+    FROM footwear AS f
+    JOIN bottomwear AS b ON llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Do these products have the same primary base color and brand?',
+         'context_columns': [
+             {'data': f.description, 'name': 'first description', 'type': 'text'},
+             {'data': f.local_image_path, 'name': 'first image', 'type': 'image'},
+             {'data': b.description, 'name': 'second description', 'type': 'text'},
+             {'data': b.local_image_path, 'name': 'second image', 'type': 'image'}
+         ]})
+)
+SELECT sb.shoe_id::VARCHAR || '-' || sb.bottom_id::VARCHAR || '-' || t.id::VARCHAR AS id
+FROM shoe_bottom AS sb
+JOIN topwear AS t ON llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Do these products have the same primary base color and brand?',
+     'context_columns': [
+         {'data': sb.bottom_description, 'name': 'first description', 'type': 'text'},
+         {'data': sb.bottom_image, 'name': 'first image', 'type': 'image'},
+         {'data': t.description, 'name': 'second description', 'type': 'text'},
+         {'data': t.local_image_path, 'name': 'second image', 'type': 'image'}
+     ]});
+WITH products AS (
+    SELECT s.id, s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path, s.price
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+),
+footwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Is the main product black footwear, such as shoes, sandals, or flip-flops?',
+         'context_columns': [
+             {'data': description, 'name': 'description', 'type': 'text'},
+             {'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+bottomwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Is the main product black lower-body clothing, such as pants, shorts, or a skirt, excluding swimwear?',
+         'context_columns': [
+             {'data': description, 'name': 'description', 'type': 'text'},
+             {'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+topwear AS (
+    SELECT * FROM products WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Is the main product black upper-body clothing that requires separate lower-body clothing, excluding swimwear?',
+         'context_columns': [
+             {'data': description, 'name': 'description', 'type': 'text'},
+             {'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+accessories AS (
+    SELECT * FROM products WHERE price <= 500 AND llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Is the main product an accessory such as a watch, jewellery, or a bag?',
+         'context_columns': [
+             {'data': description, 'name': 'description', 'type': 'text'},
+             {'data': local_image_path, 'name': 'image', 'type': 'image'}]})
+),
+shoe_accessory AS (
+    SELECT f.id AS shoe_id, a.id AS accessory_id,
+           a.description AS accessory_description, a.local_image_path AS accessory_image
+    FROM footwear AS f JOIN accessories AS a ON llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Are these two products from the same brand?',
+         'context_columns': [
+             {'data': f.description, 'name': 'first description', 'type': 'text'},
+             {'data': f.local_image_path, 'name': 'first image', 'type': 'image'},
+             {'data': a.description, 'name': 'second description', 'type': 'text'},
+             {'data': a.local_image_path, 'name': 'second image', 'type': 'image'}]})
+),
+bottom_top AS (
+    SELECT b.id AS bottom_id, t.id AS top_id,
+           b.description AS bottom_description, b.local_image_path AS bottom_image
+    FROM bottomwear AS b JOIN topwear AS t ON llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Are these two products from the same brand?',
+         'context_columns': [
+             {'data': b.description, 'name': 'first description', 'type': 'text'},
+             {'data': b.local_image_path, 'name': 'first image', 'type': 'image'},
+             {'data': t.description, 'name': 'second description', 'type': 'text'},
+             {'data': t.local_image_path, 'name': 'second image', 'type': 'image'}]})
+)
+SELECT sa.shoe_id::VARCHAR || '-' || bt.bottom_id::VARCHAR || '-' ||
+       bt.top_id::VARCHAR || '-' || sa.accessory_id::VARCHAR AS id
+FROM shoe_accessory AS sa
+JOIN bottom_top AS bt ON llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Are these two products from the same brand?',
+     'context_columns': [
+         {'data': sa.accessory_description, 'name': 'first description', 'type': 'text'},
+         {'data': sa.accessory_image, 'name': 'first image', 'type': 'image'},
+         {'data': bt.bottom_description, 'name': 'second description', 'type': 'text'},
+         {'data': bt.bottom_image, 'name': 'second image', 'type': 'image'}]});
+WITH products AS (
+    SELECT s.id, s.id::VARCHAR AS id_text,
+           s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+    WHERE s.masterCategory.typeName IN ('Accessories', 'Apparel', 'Footwear')
+),
+filtered AS (
+    SELECT * FROM products
+    WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the product description identify an Adidas or Puma product?',
+         'context_columns': [{'data': description, 'name': 'product description'}]})
+)
+SELECT llm_complete(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Using the product ID, description, and image, return a single-line JSON object with keys id (integer), brand (lowercase), category (one of accessories, apparel, footwear), in that order, with no spaces.',
+     'context_columns': [
+         {'data': id_text, 'name': 'product id', 'type': 'text'},
+         {'data': description, 'name': 'product description', 'type': 'text'},
+         {'data': local_image_path, 'name': 'product image', 'type': 'image'}
+     ]}) AS id
+FROM filtered;
+WITH products AS (
+    SELECT s.id, s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+)
+SELECT id
+FROM products
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does this product match a mens running shirt with a round neck and short sleeves, blue or black rather than white or green, suitable for warm-weather outdoor running, and with a striped design?',
+     'context_columns': [
+         {'data': description, 'name': 'product description', 'type': 'text'},
+         {'data': local_image_path, 'name': 'product image', 'type': 'image'}
+     ]});
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q2.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q5.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q6.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q7.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q8.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q9.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q10.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q11.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q12.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q13.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating flockmtl...
+Evaluating Q1 ...
+Evaluating Q2 ...
+Evaluating Q3 ...
+Evaluating Q4 ...
+Evaluating Q5 ...
+Evaluating Q6 ...
+Evaluating Q7 ...
+Evaluating Q8 ...
+Evaluating Q9 ...
+Evaluating Q10 ...
+Evaluating Q11 ...
+Evaluating Q12 ...
+Evaluating Q13 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  flockmtl: ✅ Completed
+    Q1: ✅ 1.81s, 7 rows
+    Q10: ✅ 40.14s, 14 rows
+    Q11: ✅ 49.74s, 0 rows
+    Q12: ✅ 6.15s, 19 rows
+    Q13: ✅ 12.72s, 8 rows
+    Q2: ✅ 12.49s, 6 rows
+    Q3: ✅ 0.80s, 50 rows
+    Q4: ✅ 10.29s, 42 rows
+    Q5: ✅ 0.55s, 29 rows
+    Q6: ✅ 6.93s, 29 rows
+    Q7: ✅ 1.63s, 16 rows
+    Q8: ✅ 0.01s, 0 rows
+    Q9: ✅ 13.32s, 16 rows

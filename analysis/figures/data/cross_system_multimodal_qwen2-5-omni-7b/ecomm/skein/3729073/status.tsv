@@ -1,0 +1,27 @@
+tag	query	status	execution_time_s	error
+warmup_flock_op_r1_rep1	Q1	success	1.80500446	
+warmup_flock_op_r1_rep1	Q2	success	12.48621115	
+warmup_flock_op_r1_rep1	Q3	success	0.798375968	
+warmup_flock_op_r1_rep1	Q4	success	10.293732406	
+warmup_flock_op_r1_rep1	Q5	success	0.550531481	
+warmup_flock_op_r1_rep1	Q6	success	6.932272499	
+warmup_flock_op_r1_rep1	Q7	success	1.625900806	
+warmup_flock_op_r1_rep1	Q8	success	0.010490934	
+warmup_flock_op_r1_rep1	Q9	success	13.319752241	
+warmup_flock_op_r1_rep1	Q10	success	40.139532494	
+warmup_flock_op_r1_rep1	Q11	success	49.735521727	
+warmup_flock_op_r1_rep1	Q12	success	6.153972162	
+warmup_flock_op_r1_rep1	Q13	success	12.722630483	
+flock_op_r1_rep1	Q1	success	5.704425537	
+flock_op_r1_rep1	Q2	success	95.247270648	
+flock_op_r1_rep1	Q3	success	5.549553973	
+flock_op_r1_rep1	Q4	success	58.703125741	
+flock_op_r1_rep1	Q5	success	2.753353252	
+flock_op_r1_rep1	Q6	success	50.827684259	
+flock_op_r1_rep1	Q7	success	80.357474831	
+flock_op_r1_rep1	Q8	success	96.93114125	
+flock_op_r1_rep1	Q9	success	104.431747359	
+flock_op_r1_rep1	Q10	failed	None	Error: flock semantic operator: LLM request failed (http 0): Timeout was reached
+flock_op_r1_rep1	Q11	failed	None	Error: flock semantic operator: LLM request failed (http 0): Timeout was reached
+flock_op_r1_rep1	Q12	success	46.022831538	
+flock_op_r1_rep1	Q13	success	101.490071102	

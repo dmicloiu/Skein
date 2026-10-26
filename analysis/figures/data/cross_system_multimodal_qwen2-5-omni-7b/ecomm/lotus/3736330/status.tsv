@@ -1,0 +1,11 @@
+tag	query	status	execution_time_s	error
+warmup_lotus_rep1	Q1	success	1.0113844871520996	
+warmup_lotus_rep1	Q3	success	0.9984736442565918	
+warmup_lotus_rep1	Q5	success	0.462369441986084	
+warmup_lotus_rep1	Q6	success	16.72596549987793	
+warmup_lotus_rep1	Q12	success	11.647507429122925	
+lotus_rep1	Q1	success	3.8957924842834473	
+lotus_rep1	Q3	success	4.127092123031616	
+lotus_rep1	Q5	success	2.869816303253174	
+lotus_rep1	Q6	success	120.72466015815735	
+lotus_rep1	Q12	success	42.16545391082764	

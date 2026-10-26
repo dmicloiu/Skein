@@ -1,0 +1,102 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: ecomm
+Model: vllm/Qwen/Qwen2.5-Omni-7B
+Queries: 2, 4, 9
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running lotus ---
+Data already available at: /users/dmicloiu/projects/sembench/files/ecomm/source_data/fashion-dataset
+Skipping download and extraction.
+Creating /users/dmicloiu/projects/sembench/files/ecomm/data/fashion_product_images/styles.parquet
+Sample directory /users/dmicloiu/projects/sembench/files/ecomm/data/sf_50 already exists. Skipping sample creation.
+Using vLLM with custom configuration: model=hosted_vllm/Qwen/Qwen2.5-Omni-7B, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+2026-10-26 01:29:19,922 - INFO - Use pytorch device_name: cuda:0
+2026-10-26 01:29:19,922 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+2026-10-26 01:29:20,829 - INFO - Use pytorch device_name: cuda:0
+2026-10-26 01:29:20,829 - INFO - Load pretrained SentenceTransformer: clip-ViT-B-32
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+
+Running 3 queries for lotus
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:12<00:00,  3.95it/s]Filtering: 100%|██████████ 50/50 LM calls [00:12<00:00,  3.95it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 223960, completion token: 200
+total tokens: 224160
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Extracting:   0%|           0/42 LM calls [00:00<?, ?it/s]Extracting: 100%|██████████ 42/42 LM calls [00:10<00:00,  3.95it/s]Extracting: 100%|██████████ 42/42 LM calls [00:10<00:00,  3.95it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 190345, completion token: 312
+total tokens: 190657
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+2026-10-26 01:30:11,460 - WARNING - Do not reset the dataframe index to ensure proper functionality of get_vectors_from_index
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00,  2.35it/s]100%|██████████| 1/1 [00:00<00:00,  2.35it/s]
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 47.73it/s]
+2026-10-26 01:30:11,995 - INFO - Sampled 10 out of 100 helper join results.
+Running oracle for threshold learning:   0%|           0/10 LM calls [00:00<?, ?it/s]Running oracle for threshold learning: 100%|██████████ 10/10 LM calls [00:03<00:00,  3.24it/s]Running oracle for threshold learning: 100%|██████████ 10/10 LM calls [00:03<00:00,  3.24it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+2026-10-26 01:30:19,998 - INFO - Sample recall: 1.0
+2026-10-26 01:30:19,998 - INFO - Sample precision: 1.0
+2026-10-26 01:30:19,999 - INFO - Learned cascade thresholds: (1.0, 0)
+Mapping examples:   0%|           0/10 LM calls [00:00<?, ?it/s]Mapping examples: 100%|██████████ 10/10 LM calls [00:01<00:00,  5.59it/s]Mapping examples: 100%|██████████ 10/10 LM calls [00:01<00:00,  5.59it/s]
+2026-10-26 01:30:24,489 - WARNING - Do not reset the dataframe index to ensure proper functionality of get_vectors_from_index
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 48.24it/s]
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 53.13it/s]
+2026-10-26 01:30:24,544 - INFO - Sampled 10 out of 100 helper join results.
+Running oracle for threshold learning:   0%|           0/10 LM calls [00:00<?, ?it/s]Running oracle for threshold learning: 100%|██████████ 10/10 LM calls [00:01<00:00,  5.03it/s]Running oracle for threshold learning: 100%|██████████ 10/10 LM calls [00:01<00:00,  5.03it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+2026-10-26 01:30:31,684 - INFO - Sample recall: 1.0
+2026-10-26 01:30:31,684 - INFO - Sample precision: 1.0
+2026-10-26 01:30:31,684 - INFO - Learned cascade thresholds: (1.0, 0)
+2026-10-26 01:30:31,685 - INFO - Join Optimizer: plan cost analysis:
+2026-10-26 01:30:31,685 - INFO -     Search-Filter: 92 LLM calls.
+2026-10-26 01:30:31,685 - INFO -     Search-Filter: accept 8 helper positive results, 0 helper negative results.
+2026-10-26 01:30:31,685 - INFO -     Map-Search-Filter: 100 LLM calls.
+2026-10-26 01:30:31,685 - INFO -     Map-Search-Filter: accept 0 helper positive results, 0 helper negative results.
+2026-10-26 01:30:31,685 - INFO - Proceeding with Search-Filter
+Running predicate evals with oracle model:   0%|           0/92 LM calls [00:00<?, ?it/s]
+Filtering:   0%|           0/92 LM calls [00:00<?, ?it/s][A
+Filtering: 100%|██████████ 92/92 LM calls [00:12<00:00,  7.64it/s][AFiltering: 100%|██████████ 92/92 LM calls [00:12<00:00,  7.63it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Running predicate evals with oracle model: 100%|██████████ 92/92 LM calls [00:39<00:00,  2.34it/s]Running predicate evals with oracle model: 100%|██████████ 92/92 LM calls [00:39<00:00,  2.34it/s]
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 887708, completion token: 693
+total tokens: 888401
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q2.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q9.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating lotus...
+Evaluating Q2 ...
+Evaluating Q4 ...
+Evaluating Q9 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  lotus: ✅ Completed
+    Q2: ✅ 27.33s, 5 rows, 224160 tokens
+    Q4: ✅ 22.33s, 42 rows, 190657 tokens
+    Q9: ✅ 59.54s, 32 rows, 888401 tokens

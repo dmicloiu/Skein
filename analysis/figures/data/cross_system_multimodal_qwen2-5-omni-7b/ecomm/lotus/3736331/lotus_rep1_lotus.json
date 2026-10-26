@@ -1,0 +1,47 @@
+{
+  "Q2": {
+    "query_id": 2,
+    "status": "success",
+    "execution_time": 205.97395253181458,
+    "token_usage": 1819877,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 7,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "accuracy": 0.6666666666666666,
+    "metric_type": "f1-score",
+    "precision": 0.5714285714285714,
+    "recall": 0.8,
+    "f1_score": 0.6666666666666666
+  },
+  "Q4": {
+    "query_id": 4,
+    "status": "success",
+    "execution_time": 124.4715416431427,
+    "token_usage": 1120189,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 294,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "accuracy": 0.37912067105963165,
+    "metric_type": "adjusted-rand-index"
+  },
+  "Q9": {
+    "query_id": 9,
+    "status": "success",
+    "execution_time": 396.6533181667328,
+    "token_usage": 5617844,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 110,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "accuracy": 0.3333333333333333,
+    "metric_type": "f1-score",
+    "precision": 0.23636363636363636,
+    "recall": 0.5652173913043478,
+    "f1_score": 0.3333333333333333
+  }
+}

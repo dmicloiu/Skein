@@ -1,0 +1,27 @@
+{
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 3532.534800985,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792977119736244792,
+      "t_submit_ns": 1792977119736245048,
+      "t_done_ns": 1792980652271046033,
+      "row_count": 5648,
+      "throughput_rows_per_s": 1.598851906122802,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl/flock_scalar_r1_rep1/Q10",
+      "run_label": "flock_scalar_r1_rep1",
+      "duckdb_threads": 16
+    },
+    "row_count": 5648,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 1,
+    "accuracy": 0.0,
+    "metric_type": "f1-score",
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  }
+}

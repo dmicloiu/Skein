@@ -1,0 +1,52 @@
+{
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 1944.258172503,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792888876044017995,
+      "t_submit_ns": 1792888876044018315,
+      "t_done_ns": 1792890820302190818,
+      "row_count": 1166,
+      "throughput_rows_per_s": 0.5997145937151517,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl/flock_op_r1_rep1/Q10",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1166,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "accuracy": 0.013628620102214653,
+    "metric_type": "f1-score",
+    "precision": 0.00686106346483705,
+    "recall": 1.0,
+    "f1_score": 0.013628620102214653
+  },
+  "Q11": {
+    "query_id": 11,
+    "status": "success",
+    "execution_time": 557.774567453,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792890820393855401,
+      "t_submit_ns": 1792890820393855753,
+      "t_done_ns": 1792891378168423206,
+      "row_count": 0,
+      "throughput_rows_per_s": 0.0,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl/flock_op_r1_rep1/Q11",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 0,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "accuracy": 0.0,
+    "metric_type": "f1-score",
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  }
+}

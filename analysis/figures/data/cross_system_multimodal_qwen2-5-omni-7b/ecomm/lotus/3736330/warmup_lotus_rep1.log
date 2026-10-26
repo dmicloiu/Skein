@@ -1,0 +1,109 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: ecomm
+Model: vllm/Qwen/Qwen2.5-Omni-7B
+Queries: 1, 3, 5, 6, 12
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running lotus ---
+Data already available at: /users/dmicloiu/projects/sembench/files/ecomm/source_data/fashion-dataset
+Skipping download and extraction.
+Creating /users/dmicloiu/projects/sembench/files/ecomm/data/fashion_product_images/styles.parquet
+Sample directory /users/dmicloiu/projects/sembench/files/ecomm/data/sf_50 already exists. Skipping sample creation.
+Using vLLM with custom configuration: model=hosted_vllm/Qwen/Qwen2.5-Omni-7B, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+2026-10-25 02:40:22,249 - INFO - Use pytorch device_name: cuda:0
+2026-10-25 02:40:22,249 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+2026-10-25 02:40:23,166 - INFO - Use pytorch device_name: cuda:0
+2026-10-25 02:40:23,166 - INFO - Load pretrained SentenceTransformer: clip-ViT-B-32
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+
+Running 5 queries for lotus
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 61.13it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 61.12it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+2026-10-25 02:40:25,575 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+2026-10-25 02:40:25,576 - INFO - 	 Failed to parse : defaulting to True
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 19986, completion token: 180
+total tokens: 20166
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Extracting:   0%|           0/50 LM calls [00:00<?, ?it/s]Extracting: 100%|██████████ 50/50 LM calls [00:00<00:00, 51.37it/s]Extracting: 100%|██████████ 50/50 LM calls [00:00<00:00, 51.35it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 20636, completion token: 423
+total tokens: 21059
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Mapping:   0%|           0/29 LM calls [00:00<?, ?it/s]Mapping: 100%|██████████ 29/29 LM calls [00:00<00:00, 65.47it/s]Mapping: 100%|██████████ 29/29 LM calls [00:00<00:00, 65.45it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 16834, completion token: 87
+total tokens: 16921
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Mapping:   0%|           0/29 LM calls [00:00<?, ?it/s]Mapping: 100%|██████████ 29/29 LM calls [00:07<00:00,  3.92it/s]Mapping: 100%|██████████ 29/29 LM calls [00:07<00:00,  3.91it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 132644, completion token: 87
+total tokens: 132731
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 351.95it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 351.59it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Extracting:   0%|           0/18 LM calls [00:00<?, ?it/s]Extracting: 100%|██████████ 18/18 LM calls [00:05<00:00,  3.22it/s]Extracting: 100%|██████████ 18/18 LM calls [00:05<00:00,  3.22it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:198: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/sem_ops/sem_extract.py:142: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '13112' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  new_df.loc[indices[i], key] = value
+Warning: No pricing found for model 'vllm/Qwen/Qwen2.5-Omni-7B', cost calculation skipped
+prompt token: 120340, completion token: 649
+total tokens: 120989
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q5.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q6.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q12.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating lotus...
+Evaluating Q1 ...
+Evaluating Q3 ...
+Evaluating Q5 ...
+Evaluating Q6 ...
+Evaluating Q12 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  lotus: ✅ Completed
+    Q1: ✅ 1.01s, 17 rows, 20166 tokens
+    Q12: ✅ 11.65s, 18 rows, 120989 tokens
+    Q3: ✅ 1.00s, 50 rows, 21059 tokens
+    Q5: ✅ 0.46s, 29 rows, 16921 tokens
+    Q6: ✅ 16.73s, 29 rows, 132731 tokens
