@@ -1,0 +1,145 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: cars
+Model: Qwen/Qwen2.5-Omni-7B
+Queries: 1, 3, 4, 8, 10
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running flockmtl ---
+
+Running 5 queries for flockmtl
+SELECT DISTINCT car_id
+FROM car_complaints
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does this complaint say that the car was in a crash, accident, or collision?',
+     'context_columns': [{'data': summary, 'name': 'complaint'}]});
+SELECT c.vin
+FROM cars AS c
+JOIN car_images AS i USING (car_id)
+WHERE c.transmission = 'Manual'
+  AND llm_filter(
+      {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+      {'prompt': 'Does this image show a car or car part without visible damage?',
+       'context_columns': [{'data': i.image_path, 'name': 'car image', 'type': 'image'}]})
+LIMIT 10;
+WITH engine_complaints AS (
+    SELECT DISTINCT c.car_id, c.year
+    FROM cars AS c
+    JOIN car_complaints AS t USING (car_id)
+    WHERE llm_filter(
+        {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+        {'prompt': 'Does the complaint describe an engine problem or a problem connected to the engine?',
+         'context_columns': [{'data': t.summary, 'name': 'complaint'}]})
+)
+SELECT 2026 - AVG(year) AS average_age
+FROM engine_complaints;
+SELECT car_id
+FROM car_images
+WHERE llm_filter(
+    {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+    {'prompt': 'Does the image show both puncture damage and paint scratches on the car or its parts?',
+     'context_columns': [{'data': image_path, 'name': 'car image', 'type': 'image'}]})
+LIMIT 100;
+SELECT c.car_id,
+       llm_complete(
+           {'model_name': 'Qwen/Qwen2.5-Omni-7B'},
+           {'prompt': 'Classify the car complaint into exactly one category: ELECTRICAL SYSTEM, POWER TRAIN, ENGINE, STEERING, SERVICE BRAKES, STRUCTURE, AIR BAGS, ENGINE AND ENGINE COOLING, VEHICLE SPEED CONTROL, VISIBILITY/WIPER, FUEL/PROPULSION SYSTEM, FORWARD COLLISION AVOIDANCE, EXTERIOR LIGHTING, SUSPENSION, FUEL SYSTEM, VISIBILITY, WHEELS, SEAT BELTS, BACK OVER PREVENTION, TIRES, SEATS, LATCHES/LOCKS/LINKAGES, LANE DEPARTURE, EQUIPMENT. Return only the category name.',
+            'context_columns': [{'data': t.summary, 'name': 'complaint'}]}
+       ) AS problem_category
+FROM cars AS c
+JOIN car_complaints AS t USING (car_id);
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q8.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q10.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for cars ---
+Evaluating flockmtl...
+Evaluating Q1 ...
+        car_id
+2592     49236
+20151    76061
+40320   169716
+96055   142880
+99112   156133
+138108  264599
+156762    4816
+   car_id
+0   49236
+1   76061
+2  126037
+3  142880
+4  156133
+5  264599
+6    4816
+Evaluating Q3 ...
+Systems results sample for Q3:                  vin
+0  M309VNKWRB5X8J64F
+1  ZU9F8PMVT2468TUTS
+2  VUAMA7W5PV0TEB0DY
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Smaller:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Systems results sample for Q3:                  vin
+0  M309VNKWRB5X8J64F
+1  ZU9F8PMVT2468TUTS
+2  VUAMA7W5PV0TEB0DY
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Evaluating Q4 ...
+Evaluating Q8 ...
+Systems results sample for Q8:    car_id
+0  245230
+1  132692
+2   76061
+3   19411
+4     859
+5  110076
+6  279505
+7   96523
+Ground truth sample for Q8:        car_id
+17482     859
+Smaller:        car_id
+17482     859
+Systems results sample for Q8:    car_id
+0  245230
+1  132692
+2   76061
+3   19411
+4     859
+5  110076
+6  279505
+7   96523
+Ground truth sample for Q8:        car_id
+17482     859
+Evaluating Q10 ...
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  flockmtl: ✅ Completed
+    Q1: ✅ 1.95s, 7 rows
+    Q10: ✅ 1.27s, 100 rows
+    Q3: ✅ 1.66s, 3 rows
+    Q4: ✅ 1.23s, 1 rows
+    Q8: ✅ 0.82s, 8 rows

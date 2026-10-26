@@ -1,0 +1,28 @@
+{
+  "Q4": {
+    "query_id": 4,
+    "status": "success",
+    "execution_time": 703.912483215332,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 1,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.01300036285395558,
+    "absolute_error": 0.17533340837871947,
+    "mean_absolute_percentage_error": 1.300036285395558
+  },
+  "Q8": {
+    "query_id": 8,
+    "status": "success",
+    "execution_time": 299.86746644973755,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 100,
+    "model_name": "vllm/Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 0.05,
+    "recall": 0.05,
+    "f1_score": 0.05000000000000001
+  }
+}

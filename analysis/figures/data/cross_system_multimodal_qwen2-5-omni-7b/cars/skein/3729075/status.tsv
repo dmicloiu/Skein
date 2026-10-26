@@ -1,0 +1,11 @@
+tag	query	status	execution_time_s	error
+warmup_flock_op_r1_rep1	Q1	success	1.953183298	
+warmup_flock_op_r1_rep1	Q3	success	1.661229549	
+warmup_flock_op_r1_rep1	Q4	success	1.226984094	
+warmup_flock_op_r1_rep1	Q8	success	0.82161689	
+warmup_flock_op_r1_rep1	Q10	success	1.266805242	
+flock_op_r1_rep1	Q1	success	209.011367257	
+flock_op_r1_rep1	Q3	success	279.021805142	
+flock_op_r1_rep1	Q4	success	209.159485208	
+flock_op_r1_rep1	Q8	success	273.010513807	
+flock_op_r1_rep1	Q10	success	218.768078929	

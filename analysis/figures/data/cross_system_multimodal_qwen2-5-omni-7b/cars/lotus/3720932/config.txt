@@ -1,0 +1,9 @@
+date=2026-10-22T14:40:39+02:00 job=3720932 node=nid006780
+scenario=cars scale=19672 queries=1 3 4 8 10 warm_scale=100 warm_queries=1 3 4 8 10
+arms=lotus reps=1 in_flight=128 concurrency=128 scalar_batch=32
+model=Qwen/Qwen2.5-Omni-7B max_model_len=32768 vllm_extra_args=
+model_snapshot=ae9e1690543ffd5c0221dc27f79834d0294cba00 
+vllm=0.22.0
+flock_commit=7024338c01d2e161d4017ff66d380338bc45820a
+sembench_commit=10551191af814d14ff080291b1915baca8c1ad07 tracked_changes=43
+flock_ext=/users/dmicloiu/projects/flock/build/release/extension/flock/flock.duckdb_extension sha256=3cbde6db5d474721511f5a49d663d491a1bb13fd4b8923fbc40750614fa36bd4

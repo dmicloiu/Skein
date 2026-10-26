@@ -1,0 +1,67 @@
+Multi-Modal Data Systems Benchmark
+Systems: palimpzest
+Use cases: cars
+Model: vllm/Qwen/Qwen2.5-Omni-7B
+Queries: 4, 8
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running palimpzest ---
+Scaled data for sf=100 already exists, skipping preparation.
+
+Running 2 queries for palimpzest
+Creating vLLM model: model_id=hosted_vllm/Qwen/Qwen2.5-Omni-7B, api_base=http://127.0.0.1:8000/v1
+
+  MarshalAndScanDataOp (801aadbfdb) ━━━━━ 100% 100/… 0:00… 0:00… Cost: $0.0000 
+  LLMFilter (b1af0eec3a)            ━━━━━ 100% 100/… 0:00… 0:00… Cost: $0.0000 
+  ProjectOp (0079c76c3a)            ━━━━━ 100% 38/38 0:00… 0:00… Cost: $0.0000 
+  AverageAggregateOp (ff7de7398f)   ━━━━━ 100% 1/1   0:00… 0:00… Cost: $0.0000 
+Total time: 1.38s
+Total cost: $0.0000
+
+  MarshalAndScanDataOp (b2d4d2eb01) ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  LLMFilter (ae80db0820)            ━━━━━ 100% 20/20 0:00… 0:00… Cost: $0.0000 
+  ProjectOp (adce6446a8)            ━━━━━ 100% 5/5   0:00… 0:00… Cost: $0.0000 
+Total time: 1.81s
+Total cost: $0.0000
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/palimpzest/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/palimpzest/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/cars/metrics/palimpzest.json
+✓ palimpzest completed successfully
+
+--- Running evaluation for cars ---
+Evaluating palimpzest...
+Evaluating Q4 ...
+Evaluating Q8 ...
+Systems results sample for Q8:    car_id
+0   96523
+1  279505
+2     859
+3  132692
+4   76061
+Ground truth sample for Q8:        car_id
+17482     859
+Smaller:        car_id
+17482     859
+Systems results sample for Q8:    car_id
+0   96523
+1  279505
+2     859
+3  132692
+4   76061
+Ground truth sample for Q8:        car_id
+17482     859
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/cars/metrics/palimpzest.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  palimpzest: ✅ Completed
+    Q4: ✅ 1.64s, 1 rows
+    Q8: ✅ 1.83s, 5 rows

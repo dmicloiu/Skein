@@ -1,0 +1,5 @@
+tag	query	status	execution_time_s	error
+warmup_palimpzest_rep1	Q4	success	1.6350529193878174	
+warmup_palimpzest_rep1	Q8	success	1.829352855682373	
+palimpzest_rep1	Q4	success	703.912483215332	
+palimpzest_rep1	Q8	success	299.86746644973755	

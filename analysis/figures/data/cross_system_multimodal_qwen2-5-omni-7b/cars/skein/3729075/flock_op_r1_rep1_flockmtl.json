@@ -1,0 +1,117 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 209.011367257,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792778190187369604,
+      "t_submit_ns": 1792778190187370084,
+      "t_done_ns": 1792778399198737341,
+      "row_count": 1502,
+      "throughput_rows_per_s": 7.18621202144065,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/flock_op_r1_rep1/Q1",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1502,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 0.4986684420772304,
+    "recall": 0.7875920084121977,
+    "f1_score": 0.6106807990216063
+  },
+  "Q3": {
+    "query_id": 3,
+    "status": "success",
+    "execution_time": 279.021805142,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792778399296377402,
+      "t_submit_ns": 1792778399296377722,
+      "t_done_ns": 1792778678318182864,
+      "row_count": 10,
+      "throughput_rows_per_s": 0.035839492884474716,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/flock_op_r1_rep1/Q3",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 10,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "Q4": {
+    "query_id": 4,
+    "status": "success",
+    "execution_time": 209.159485208,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792778678501137682,
+      "t_submit_ns": 1792778678501138578,
+      "t_done_ns": 1792778887660623786,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.004781040644680989,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/flock_op_r1_rep1/Q4",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.009402049757888439,
+    "absolute_error": 0.12680364758398355,
+    "mean_absolute_percentage_error": 0.9402049757888439
+  },
+  "Q8": {
+    "query_id": 8,
+    "status": "success",
+    "execution_time": 273.010513807,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792778887873126426,
+      "t_submit_ns": 1792778887873126778,
+      "t_done_ns": 1792779160883640585,
+      "row_count": 100,
+      "throughput_rows_per_s": 0.3662862598423343,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/flock_op_r1_rep1/Q8",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 100,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 0.16,
+    "recall": 0.16,
+    "f1_score": 0.16
+  },
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 218.768078929,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792779160930218767,
+      "t_submit_ns": 1792779160930219119,
+      "t_done_ns": 1792779379698298048,
+      "row_count": 19657,
+      "throughput_rows_per_s": 89.85314537766533,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/flock_op_r1_rep1/Q10",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 19657,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 0.09667779188712194,
+    "recall": 0.0840545963341456,
+    "f1_score": 0.07999421117140156
+  }
+}
