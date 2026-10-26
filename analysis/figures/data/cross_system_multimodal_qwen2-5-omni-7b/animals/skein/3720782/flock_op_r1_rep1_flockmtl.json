@@ -1,0 +1,94 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 11.412704697,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792669604923408732,
+      "t_submit_ns": 1792669604923409596,
+      "t_done_ns": 1792669616336114293,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.08762164855302572,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q1",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.09090909090909091,
+    "absolute_error": 1.0,
+    "mean_absolute_percentage_error": 9.090909090909092
+  },
+  "Q3": {
+    "query_id": 3,
+    "status": "success",
+    "execution_time": 1.848759427,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792669616367986558,
+      "t_submit_ns": 1792669616367986974,
+      "t_done_ns": 1792669618216746401,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.5409032594482613,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q3",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "Q7": {
+    "query_id": 7,
+    "status": "success",
+    "execution_time": 11.804011964,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792669618245147384,
+      "t_submit_ns": 1792669618245147800,
+      "t_done_ns": 1792669630049159764,
+      "row_count": 5,
+      "throughput_rows_per_s": 0.4235847960209675,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q7",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 5,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 1.96720257,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1792669630212955807,
+      "t_submit_ns": 1792669630212956319,
+      "t_done_ns": 1792669632180158889,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.508336058141689,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q10",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "Qwen/Qwen2.5-Omni-7B",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}
