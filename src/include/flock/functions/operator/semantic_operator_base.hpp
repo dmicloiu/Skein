@@ -45,6 +45,7 @@ struct CompletedBatch {
     std::vector<RowData> rows;      // rows[i] <-> row_ids[i] <-> items[i]
     LLMResponse response;           // raw HTTP result; parsed once, in Drain
     size_t endpoint_index = 0;      // router slot (already released on completion)
+    bool proxy = false;
 };
 
 // Per-thread sink state. Touched by exactly one DuckDB thread, so it is
@@ -97,6 +98,9 @@ public:
     // Served-model id stamped into body["model"]. Set ONCE before any Sink (like
     // render_prompt); empty -> omitted from the body.
     std::string served_model;
+    // Optional score-only first stage for filters. Empty disables the cascade.
+    std::string proxy_served_model;
+    RenderFn render_proxy_prompt;
     // Routing key for StickyByPrefix: a per-query-stable string so a query's batches
     // co-locate on one endpoint for vLLM prefix-cache reuse. Set ONCE before any
     // Sink; empty -> SubmitBatch falls back to a leading slice of the prompt.
@@ -143,7 +147,7 @@ public:
 private:
     // Completion callback body. Runs on the ILLMClient IO thread; keep cheap.
     void OnBatchComplete(uint64_t submit_generation, size_t endpoint_index, std::vector<uint64_t> row_ids,
-                         std::vector<RowData> rows, LLMResponse response);
+                         std::vector<RowData> rows, LLMResponse response, bool proxy);
     // Merge local.pending into the global buffer, then coalesce + submit as many
     // full batches as the cap allows. Returns BLOCKED (and records resume_idx)
     // iff a full batch is ready but the cap is saturated.
@@ -151,10 +155,11 @@ private:
                                             duckdb::InterruptState& interrupt);
     // Build the /v1/completions JSON body for a batch: ONE multi-row prompt
     std::string BuildPayload(const std::string& prompt, const nlohmann::json& image_columns,
-                             size_t batch_rows) const;
+                             size_t batch_rows, bool proxy) const;
     // Render the batch's single prompt, choose an endpoint, build the payload,
     // and Submit (all OUTSIDE the lock).
-    void SubmitBatch(std::vector<PendingRequest> batch);
+    void SubmitBatch(std::vector<PendingRequest> batch, bool proxy);
+    std::vector<std::vector<PendingRequest>> TakeReadyMainBatches();
     // Monotonically record the in-flight peak (test instrumentation).
     void NoteInFlight(size_t now_in_flight);
 
@@ -169,6 +174,7 @@ private:
     //     Critical sections move buffers and adjust counters ONLY,
     //     router->Choose, client->Submit, or Callback(). ---
     std::deque<PendingRequest> pending;   // global FIFO
+    std::deque<PendingRequest> pending_main;
     std::queue<CompletedBatch> completed; // drained by the source phase
     bool input_exhausted = false;
     // Our OWN blocked-task lists (not StateWithBlockableTasks::blocked_tasks):
@@ -189,6 +195,7 @@ private:
     // dependencies
     std::shared_ptr<ILLMClient> client;
     std::shared_ptr<EndpointRouter> router;
+    std::shared_ptr<EndpointRouter> proxy_router;
     SemanticParams cfg;
 };
 

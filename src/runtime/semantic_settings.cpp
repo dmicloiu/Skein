@@ -10,6 +10,7 @@
 #include "flock/runtime/extension_state.h"
 
 #include <nlohmann/json.hpp>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -164,6 +165,23 @@ void RegisterSemanticSettings(DBConfig& config) {
     config.AddExtensionOption(semantic_option::kMaxOutputTokens, "Max output tokens requested per LLM call.",
                               LogicalType::BIGINT, Value::BIGINT(SemanticDefaults::kMaxOutputTokens), nullptr,
                               SetScope::SESSION);
+
+    config.AddExtensionOption(semantic_option::kFilterProxyModel,
+                              "Optional registered model used to score semantic filter rows before the main model.",
+                              LogicalType::VARCHAR, Value(SemanticDefaults::kFilterProxyModel), nullptr,
+                              SetScope::SESSION);
+    config.AddExtensionOption(semantic_option::kFilterProxyEndpoint,
+                              "Proxy model's OpenAI-compatible chat-completions endpoint URL.",
+                              LogicalType::VARCHAR, Value(SemanticDefaults::kFilterProxyEndpoint), nullptr,
+                              SetScope::SESSION);
+    config.AddExtensionOption(semantic_option::kFilterProxyNegativeThreshold,
+                              "Proxy scores at or below this value resolve to false.", LogicalType::DOUBLE,
+                              Value::DOUBLE(SemanticDefaults::kFilterProxyNegativeThreshold), nullptr,
+                              SetScope::SESSION);
+    config.AddExtensionOption(semantic_option::kFilterProxyPositiveThreshold,
+                              "Proxy scores at or above this value resolve to true.", LogicalType::DOUBLE,
+                              Value::DOUBLE(SemanticDefaults::kFilterProxyPositiveThreshold), nullptr,
+                              SetScope::SESSION);
 }
 
 SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& model_name) {
@@ -183,6 +201,19 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
         params.response_format = context.TryGetCurrentSetting(semantic_option::kResponseFormat, v)
                                          ? v.ToString()
                                          : std::string(SemanticDefaults::kResponseFormat);
+    }
+    {
+        Value v;
+        params.filter_proxy_model = context.TryGetCurrentSetting(semantic_option::kFilterProxyModel, v)
+                                            ? v.ToString() : std::string(SemanticDefaults::kFilterProxyModel);
+        params.filter_proxy_endpoint = context.TryGetCurrentSetting(semantic_option::kFilterProxyEndpoint, v)
+                                            ? v.ToString() : std::string(SemanticDefaults::kFilterProxyEndpoint);
+        params.filter_proxy_negative_threshold =
+                context.TryGetCurrentSetting(semantic_option::kFilterProxyNegativeThreshold, v)
+                        ? v.GetValue<double>() : SemanticDefaults::kFilterProxyNegativeThreshold;
+        params.filter_proxy_positive_threshold =
+                context.TryGetCurrentSetting(semantic_option::kFilterProxyPositiveThreshold, v)
+                        ? v.GetValue<double>() : SemanticDefaults::kFilterProxyPositiveThreshold;
     }
 
     // Overlay any model_args overrides (highest precedence).
@@ -217,6 +248,14 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
         throw duckdb::InvalidInputException(
                 "semantic_response_format='free_form' requires semantic_batch_size=1, got " +
                 std::to_string(params.batch_size));
+    }
+    if (!std::isfinite(params.filter_proxy_negative_threshold) ||
+        !std::isfinite(params.filter_proxy_positive_threshold) ||
+        params.filter_proxy_negative_threshold < -1.0 ||
+        params.filter_proxy_positive_threshold > 2.0 ||
+        params.filter_proxy_negative_threshold >= params.filter_proxy_positive_threshold) {
+        throw duckdb::InvalidInputException(
+                "semantic filter proxy thresholds must satisfy -1 <= negative < positive <= 2");
     }
     if (params.in_flight_cap < 1) {
         throw duckdb::InvalidInputException("semantic in_flight_cap must be >= 1, got " +

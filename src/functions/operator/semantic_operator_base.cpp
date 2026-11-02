@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
@@ -223,8 +224,9 @@ void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
     static std::mutex mu;
     std::lock_guard<std::mutex> guard(mu);
     for (size_t i = 0; i < batch.rows.size(); ++i) {
-        std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"v\":%s}\n",
-                     static_cast<unsigned long long>(batch.row_ids[i]), i, items[i].dump().c_str());
+        std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"stage\":\"%s\",\"v\":%s}\n",
+                     static_cast<unsigned long long>(batch.row_ids[i]), i,
+                     batch.proxy ? "proxy" : "main", items[i].dump().c_str());
     }
     std::fflush(out);
 }
@@ -235,6 +237,10 @@ SemGlobalSinkState::SemGlobalSinkState(std::shared_ptr<ILLMClient> client,
                                        std::shared_ptr<EndpointRouter> router, SemanticParams cfg)
     : generation(NextGeneration()), client(std::move(client)), router(std::move(router)),
       cfg(std::move(cfg)) {
+    if (!this->cfg.filter_proxy_endpoint.empty()) {
+        proxy_router = std::make_shared<EndpointRouter>(
+                std::vector<std::string>{this->cfg.filter_proxy_endpoint}, EndpointRouter::Strategy::Single);
+    }
 }
 
 SemGlobalSinkState::~SemGlobalSinkState() {
@@ -255,7 +261,8 @@ void SemGlobalSinkState::NoteInFlight(size_t now_in_flight) {
 }
 
 std::string SemGlobalSinkState::BuildPayload(const std::string& prompt,
-                                              const nlohmann::json& image_columns, size_t batch_rows) const {
+                                              const nlohmann::json& image_columns, size_t batch_rows,
+                                              bool proxy) const {
     // ONE multi-row prompt -> ONE /v1/chat/completions request (flock's
     // BatchAndComplete strategy). The single completion returns an "items" array
     // of batch_rows elements, realigned with the rows in ParseItems.
@@ -266,10 +273,13 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt,
     // flock's openai adapter message shape.)
     body["messages"] = nlohmann::json::array(
             {{{"role", "user"}, {"content", BuildChatContent(prompt, image_columns)}}});
-    if (!served_model.empty()) {
-        body["model"] = served_model;
+    const auto& model = proxy ? proxy_served_model : served_model;
+    if (!model.empty()) {
+        body["model"] = model;
     }
-    body["max_tokens"] = cfg.max_output_tokens;
+    // Decimal scores need more output tokens than the boolean main-model path.
+    body["max_tokens"] = proxy ? std::max<uint64_t>(cfg.max_output_tokens, batch_rows * 8 + 16)
+                                 : cfg.max_output_tokens;
     if (SemIgnoreEos()) {
         body["ignore_eos"] = true;
     }
@@ -278,8 +288,11 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt,
     // reproducible and matches the scalar arm (which pins temperature via
     // model_parameters). temperature=0 -> greedy, so top_p/top_k are no-ops.
     body["temperature"] = 0.0;
-    if (cfg.response_format == "json_schema" && response_schema) {
-        nlohmann::json rf = response_schema(batch_rows);
+    if (cfg.response_format == "json_schema" && (proxy || response_schema)) {
+        nlohmann::json rf = proxy
+                ? SemanticOperatorBase::ItemsResponseFormat("proxy_scores",
+                        {{"type", "number"}, {"minimum", 0.0}, {"maximum", 1.0}}, batch_rows)
+                : response_schema(batch_rows);
         if (!rf.is_null()) {
             body["response_format"] = std::move(rf);
         }
@@ -287,7 +300,7 @@ std::string SemGlobalSinkState::BuildPayload(const std::string& prompt,
     return body.dump();
 }
 
-void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
+void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch, bool proxy) {
     if (batch.empty()) {
         return;
     }
@@ -303,7 +316,7 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     }
     // Pack the whole batch into ONE multi-row prompt (render hook is read-only
     // after setup, so it is lock-free here).
-    const std::string prompt = render_prompt(rows);
+    const std::string prompt = proxy ? render_proxy_prompt(rows) : render_prompt(rows);
     const nlohmann::json image_columns = render_media ? render_media(rows) : nlohmann::json::array();
     // Routing key for StickyByPrefix. Prefer the operator-supplied sticky_key (the
     // query-stable template head). Fall back to a bounded leading slice of the
@@ -311,8 +324,9 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     // excluding the variable per-row tail; keep that slice short so it never
     // reaches the tail and scatters a query's batches across endpoints.
     const std::string key = sticky_key.empty() ? prompt.substr(0, kStickyPrefixBytes) : sticky_key;
-    EndpointRouter::Pick pick = router->Choose(key);
-    std::string payload = BuildPayload(prompt, image_columns, rows.size());
+    auto& target_router = proxy ? proxy_router : router;
+    EndpointRouter::Pick pick = target_router->Choose(key);
+    std::string payload = BuildPayload(prompt, image_columns, rows.size(), proxy);
     const uint64_t gen = generation.load(std::memory_order_acquire);
     const size_t endpoint_index = pick.index;
     const std::string request_id = "sem-batch-" + std::to_string(row_ids.front());
@@ -320,10 +334,27 @@ void SemGlobalSinkState::SubmitBatch(std::vector<PendingRequest> batch) {
     // Move the carry-over into the callback; it fires at most once on the IO
     // thread. The captured `gen` is the generation guard's left-hand side.
     client->Submit(pick.url, payload, gen, request_id,
-                   [this, gen, endpoint_index, ids = std::move(row_ids),
+                   [this, gen, endpoint_index, proxy, ids = std::move(row_ids),
                     rws = std::move(rows)](LLMResponse resp) mutable {
-                       OnBatchComplete(gen, endpoint_index, std::move(ids), std::move(rws), std::move(resp));
+                       OnBatchComplete(gen, endpoint_index, std::move(ids), std::move(rws), std::move(resp), proxy);
                    });
+}
+
+std::vector<std::vector<PendingRequest>> SemGlobalSinkState::TakeReadyMainBatches() {
+    std::vector<std::vector<PendingRequest>> ready;
+    auto guard = Lock();
+    while (!pending_main.empty() && in_flight.load(std::memory_order_relaxed) < cfg.in_flight_cap) {
+        const size_t take = std::min<size_t>(cfg.batch_size, pending_main.size());
+        std::vector<PendingRequest> batch;
+        batch.reserve(take);
+        for (size_t i = 0; i < take; ++i) {
+            batch.push_back(std::move(pending_main.front()));
+            pending_main.pop_front();
+        }
+        NoteInFlight(in_flight.fetch_add(1, std::memory_order_relaxed) + 1);
+        ready.push_back(std::move(batch));
+    }
+    return ready;
 }
 
 SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, idx_t resume_idx,
@@ -365,7 +396,7 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
     }
     // Submit OUTSIDE the lock.
     for (auto& batch : to_submit) {
-        SubmitBatch(std::move(batch));
+        SubmitBatch(std::move(batch), !proxy_served_model.empty());
     }
     return must_block ? SinkResultType::BLOCKED : SinkResultType::NEED_MORE_INPUT;
 }
@@ -466,7 +497,7 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
         }
     }
     for (auto& batch : to_submit) {
-        SubmitBatch(std::move(batch));
+        SubmitBatch(std::move(batch), !proxy_served_model.empty());
     }
     for (auto& is : to_wake) {
         is.Callback();
@@ -476,7 +507,7 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
 
 void SemGlobalSinkState::OnBatchComplete(uint64_t submit_generation, size_t endpoint_index,
                                          std::vector<uint64_t> row_ids, std::vector<RowData> rows,
-                                         LLMResponse response) {
+                                         LLMResponse response, bool proxy) {
     // Defense-in-depth, not the UAF guard (the client's drain is authoritative
     // and per-query generations never collide); a cheap no-op for a cancelled gen.
     // TODO: this skips router->OnComplete below (leaks the endpoint counter)
@@ -492,9 +523,10 @@ void SemGlobalSinkState::OnBatchComplete(uint64_t submit_generation, size_t endp
         cb.rows = std::move(rows);
         cb.response = std::move(response);
         cb.endpoint_index = endpoint_index;
+        cb.proxy = proxy;
         completed.push(std::move(cb));
         in_flight.fetch_sub(1, std::memory_order_relaxed);
-        router->OnComplete(endpoint_index);
+        (proxy ? proxy_router : router)->OnComplete(endpoint_index);
         // Splice out blocked tasks; one completion wakes BOTH a cap-blocked
         // Sink and an empty-blocked Drain, each re-checks and re-blocks if it
         // still cannot make progress.
@@ -515,12 +547,15 @@ void SemGlobalSinkState::OnBatchComplete(uint64_t submit_generation, size_t endp
 
 SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_fn,
                                            InterruptState& interrupt) {
+    for (auto& ready : TakeReadyMainBatches()) {
+        SubmitBatch(std::move(ready), false);
+    }
     CompletedBatch batch;
     {
         auto guard = Lock();
         if (completed.empty()) {
             // Terminate ONLY once the sink is finalized AND nothing is in flight:
-            if (in_flight.load(std::memory_order_relaxed) > 0 || !input_exhausted) {
+            if (in_flight.load(std::memory_order_relaxed) > 0 || !input_exhausted || !pending_main.empty()) {
                 blocked_sources.push_back(interrupt);
                 return SourceResultType::BLOCKED;
             }
@@ -544,8 +579,35 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     } else {
         items = ParseItems(batch);
     }
-    for (size_t i = 0; i < batch.rows.size(); ++i) {
-        parse_fn(items[i], batch.rows[i], out);
+    if (batch.proxy) {
+        std::vector<PendingRequest> uncertain;
+        for (size_t i = 0; i < batch.rows.size(); ++i) {
+            if (!items[i].is_number()) {
+                throw std::runtime_error("flock semantic proxy: score must be a number in [0, 1]");
+            }
+            const double score = items[i].get<double>();
+            if (!std::isfinite(score) || score < 0.0 || score > 1.0) {
+                throw std::runtime_error("flock semantic proxy: score must be a number in [0, 1]");
+            }
+            if (score <= cfg.filter_proxy_negative_threshold) {
+                parse_fn(false, batch.rows[i], out);
+            } else if (score >= cfg.filter_proxy_positive_threshold) {
+                parse_fn(true, batch.rows[i], out);
+            } else {
+                uncertain.push_back({batch.row_ids[i], std::move(batch.rows[i])});
+            }
+        }
+        if (!uncertain.empty()) {
+            auto guard = Lock();
+            for (auto& req : uncertain) pending_main.push_back(std::move(req));
+        }
+        for (auto& ready : TakeReadyMainBatches()) {
+            SubmitBatch(std::move(ready), false);
+        }
+    } else {
+        for (size_t i = 0; i < batch.rows.size(); ++i) {
+            parse_fn(items[i], batch.rows[i], out);
+        }
     }
     DumpVerdicts(batch, items);  // no-op unless FLOCK_VERDICT_DUMP is set (diagnostics)
     return SourceResultType::HAVE_MORE_OUTPUT;

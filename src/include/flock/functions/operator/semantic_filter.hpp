@@ -59,9 +59,11 @@ public:
                       duckdb::unique_ptr<duckdb::Expression> residual, bool invert,
                       duckdb::vector<duckdb::idx_t> output_projection,
                       std::vector<SemContextColumn> context_columns, std::string prompt_template,
-                      std::string tuple_format, std::string served_model, std::string sticky_key);
+                      std::string tuple_format, std::string served_model, std::string sticky_key,
+                      std::string proxy_served_model = "");
 
     std::string RenderPrompt(const std::vector<RowData>& batch) const override;
+    std::string RenderProxyPrompt(const std::vector<RowData>& batch) const;
     nlohmann::json RenderMedia(const std::vector<RowData>& batch) const override;
     void ParseAndEmit(const nlohmann::json& element, const RowData& row, duckdb::DataChunk& out) const override;
 
@@ -97,6 +99,7 @@ private:
     std::string tuple_format_;
     std::string served_model_;
     std::string sticky_key_;
+    std::string proxy_served_model_;
 };
 
 }  // namespace flock

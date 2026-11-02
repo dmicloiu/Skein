@@ -25,6 +25,12 @@ struct SemanticDefaults {
     static constexpr int64_t kCoalesceMaxAgeMs = 500;
     static constexpr const char* kResponseFormat = "json_schema";
     static constexpr int64_t kMaxOutputTokens = 16;
+    // Empty disables the experimental two-model filter cascade.
+    static constexpr const char* kFilterProxyModel = "";
+    static constexpr const char* kFilterProxyEndpoint = "";
+    // Safe calibration mode: a score in [0,1] always goes to the main model.
+    static constexpr double kFilterProxyNegativeThreshold = -1.0;
+    static constexpr double kFilterProxyPositiveThreshold = 2.0;
 
     // Guardrail thresholds: when the resolved in_flight_cap AND batch_size both
     // exceed these, ResolveSemanticParams emits a warning (it never errors).
@@ -44,17 +50,24 @@ inline constexpr const char* kBatchSize = "semantic_batch_size";
 inline constexpr const char* kCoalesceMaxAgeMs = "semantic_coalesce_max_age_ms";
 inline constexpr const char* kResponseFormat = "semantic_response_format";
 inline constexpr const char* kMaxOutputTokens = "semantic_max_output_tokens";
+inline constexpr const char* kFilterProxyModel = "semantic_filter_proxy_model";
+inline constexpr const char* kFilterProxyEndpoint = "semantic_filter_proxy_endpoint";
+inline constexpr const char* kFilterProxyNegativeThreshold = "semantic_filter_proxy_negative_threshold";
+inline constexpr const char* kFilterProxyPositiveThreshold = "semantic_filter_proxy_positive_threshold";
 }  // namespace semantic_option
 
-// The model-scoped semantic knobs, resolved for one operator invocation.
-// rewrite_enabled / endpoints / routing are intentionally absent: they are not
-// model-scoped (read directly from the SET surface / live router where needed).
+// Semantic settings resolved for one operator invocation. The dispatch knobs
+// can be overridden by model_args; proxy settings come from the session only.
 struct SemanticParams {
     uint64_t in_flight_cap;
     uint64_t batch_size;  // rows per multi-row prompt
     uint64_t coalesce_max_age_ms;
     uint64_t max_output_tokens;
     std::string response_format;  // "json_schema" | "free_form"
+    std::string filter_proxy_model;  // empty disables proxy scoring
+    std::string filter_proxy_endpoint;  // separate proxy vLLM /chat/completions URL
+    double filter_proxy_negative_threshold = SemanticDefaults::kFilterProxyNegativeThreshold;
+    double filter_proxy_positive_threshold = SemanticDefaults::kFilterProxyPositiveThreshold;
 };
 
 // Split SemanticDefaults::kEndpoints into the router's initial endpoint list.
@@ -62,7 +75,7 @@ struct SemanticParams {
 // default router and an explicit `SET semantic_endpoints=<default>` agree.
 std::vector<std::string> DefaultEndpointList();
 
-// Register all eight semantic_* options as native DuckDB extension options.
+// Register semantic_* options as native DuckDB extension options.
 // Call once from LoadInternal, after flock::Config::Configure(loader).
 void RegisterSemanticSettings(duckdb::DBConfig& config);
 

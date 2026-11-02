@@ -34,6 +34,7 @@
 #include <memory>
 #include <mutex>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -158,6 +159,42 @@ private:
     std::string last_payload_;
 };
 
+class ProxyFakeClient : public ILLMClient {
+public:
+    LLMRequestHandle Submit(const std::string& endpoint, const std::string& payload, uint64_t,
+                            const std::string&, LLMOnDone on_done) override {
+        const auto body = nlohmann::json::parse(payload);
+        const bool proxy = body.at("model") == "cheap";
+        if (proxy) proxy_endpoints.push_back(endpoint);
+        else main_endpoints.push_back(endpoint);
+        const std::string prompt = body.at("messages")[0].at("content")[0].at("text");
+        std::istringstream rows(prompt);
+        std::string value;
+        nlohmann::json items = nlohmann::json::array();
+        while (std::getline(rows, value, ',')) {
+            if (value.empty()) continue;
+            const int row = std::stoi(value);
+            items.push_back(proxy ? nlohmann::json(row <= 1 ? 0.01 : row == 2 ? 0.5 : 0.99)
+                                  : nlohmann::json(row == 2));
+            if (!proxy) main_rows.push_back(row);
+        }
+        if (proxy) {
+            EXPECT_EQ(body.at("response_format").at("json_schema").at("name"), "proxy_scores");
+        }
+        LLMResponse response;
+        response.ok = true;
+        response.http_status = 200;
+        response.body = nlohmann::json{{"choices", nlohmann::json::array(
+                {{{"message", {{"content", nlohmann::json{{"items", items}}.dump()}}}}})}}.dump();
+        on_done(std::move(response));
+        return {1};
+    }
+    void CancelByGeneration(uint64_t) override {}
+    std::vector<int> main_rows;
+    std::vector<std::string> proxy_endpoints;
+    std::vector<std::string> main_endpoints;
+};
+
 // Build chunks of single-column BIGINT rows holding [0, total).
 std::vector<std::unique_ptr<DataChunk>> BuildBigintChunks(int64_t total, idx_t chunk_size) {
     const duckdb::vector<LogicalType> types{LogicalType::BIGINT};
@@ -227,6 +264,59 @@ std::vector<int64_t> DriveFilter(PhysicalSemFilter& op, const std::vector<DataCh
         break;
     }
     return out_values;
+}
+
+TEST(SemFilter, ProxyCascadeRoutesOnlyUncertainRowsToMainModel) {
+    auto fake = std::make_shared<ProxyFakeClient>();
+    auto cfg = MakeParams(1, 3);
+    cfg.filter_proxy_model = "cheap";
+    cfg.filter_proxy_endpoint = "http://localhost:8001/v1/chat/completions";
+    cfg.filter_proxy_negative_threshold = 0.05;
+    cfg.filter_proxy_positive_threshold = 0.95;
+    SemGlobalSinkState state(fake, MakeRouter(), cfg);
+    state.served_model = "main";
+    state.proxy_served_model = "cheap";
+    state.render_prompt = [](const std::vector<RowData>& rows) {
+        std::string text;
+        for (const auto& row : rows) {
+            if (!text.empty()) text += ',';
+            text += std::to_string(row.values[0].GetValue<int64_t>());
+        }
+        return text;
+    };
+    state.render_proxy_prompt = state.render_prompt;
+    state.response_schema = [](size_t n) {
+        return SemanticOperatorBase::ItemsResponseFormat("filter_results", {{"type", "boolean"}}, n);
+    };
+
+    auto chunks = BuildBigintChunks(4, 4); // 0 and 1 share the negative score.
+    SemLocalSinkState local;
+    auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+    InterruptState interrupt(signal);
+    EXPECT_EQ(state.SinkChunk(local, *chunks[0], interrupt), SinkResultType::NEED_MORE_INPUT);
+    EXPECT_EQ(state.FinalizeFlush(interrupt), SinkFinalizeType::READY);
+
+    std::vector<int64_t> result;
+    for (;;) {
+        DataChunk out;
+        out.Initialize(duckdb::Allocator::DefaultAllocator(), {LogicalType::BIGINT});
+        const auto parse = [](const nlohmann::json& verdict, const RowData& row, DataChunk& chunk) {
+            if (verdict.get<bool>()) {
+                chunk.SetValue(0, chunk.size(), row.values[0]);
+                chunk.SetCardinality(chunk.size() + 1);
+            }
+        };
+        const auto status = state.Drain(out, parse, interrupt);
+        if (status == SourceResultType::FINISHED) break;
+        ASSERT_NE(status, SourceResultType::BLOCKED);
+        for (idx_t i = 0; i < out.size(); ++i) result.push_back(out.GetValue(0, i).GetValue<int64_t>());
+    }
+    std::sort(result.begin(), result.end());
+    EXPECT_EQ(result, (std::vector<int64_t>{2, 3}));
+    EXPECT_EQ(fake->main_rows, (std::vector<int>{2}));
+    EXPECT_EQ(fake->proxy_endpoints, (std::vector<std::string>{
+            "http://localhost:8001/v1/chat/completions", "http://localhost:8001/v1/chat/completions"}));
+    EXPECT_EQ(fake->main_endpoints, (std::vector<std::string>{"http://localhost:8000/v1"}));
 }
 
 // A logical child with caller-set bindings/types, to compare LogicalSemFilter and

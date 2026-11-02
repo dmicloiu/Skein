@@ -85,6 +85,20 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
     const std::string served_model = model_details.model;
 
     SemanticParams params = ResolveSemanticParams(context, model_details.model_name);
+    std::string proxy_served_model;
+    if (!params.filter_proxy_model.empty()) {
+        if (params.response_format != "json_schema") {
+            throw duckdb::InvalidInputException("semantic filter proxy requires semantic_response_format='json_schema'");
+        }
+        if (params.filter_proxy_endpoint.empty()) {
+            throw duckdb::InvalidInputException("semantic_filter_proxy_model requires semantic_filter_proxy_endpoint");
+        }
+        Model proxy(nlohmann::json{{"model_name", params.filter_proxy_model}});
+        proxy_served_model = proxy.GetModelDetails().model;
+        if (proxy_served_model == served_model) {
+            throw duckdb::InvalidInputException("semantic_filter_proxy_model must differ from the main model");
+        }
+    }
     auto& extension_state = ExtensionState::Get(context);
 
     auto context_columns = ExtractContextColumns(context, llm_call, "sem_filter");
@@ -109,7 +123,7 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
                                                extension_state.router, std::move(params), std::move(residual),
                                                invert, projection_map, std::move(context_columns),
                                                prompt_template, tuple_format, served_model,
-                                               std::move(rendered_head))
+                                               std::move(rendered_head), std::move(proxy_served_model))
                        .Cast<PhysicalSemFilter>();
     op.children.push_back(child_plan);
     return op;
@@ -125,13 +139,14 @@ PhysicalSemFilter::PhysicalSemFilter(duckdb::PhysicalPlan& physical_plan, duckdb
                                      duckdb::unique_ptr<Expression> residual, bool invert,
                                      duckdb::vector<idx_t> output_projection,
                                      std::vector<SemContextColumn> context_columns, std::string prompt_template,
-                                     std::string tuple_format, std::string served_model, std::string sticky_key)
+                                     std::string tuple_format, std::string served_model, std::string sticky_key,
+                                     std::string proxy_served_model)
     : SemanticOperatorBase(physical_plan, duckdb::PhysicalOperatorType::EXTENSION, std::move(types),
                            estimated_cardinality, std::move(client), std::move(router), std::move(cfg)),
       residual_(std::move(residual)), invert_(invert), output_projection_(std::move(output_projection)),
       context_columns_(std::move(context_columns)), prompt_template_(std::move(prompt_template)),
       tuple_format_(std::move(tuple_format)), served_model_(std::move(served_model)),
-      sticky_key_(std::move(sticky_key)) {
+      sticky_key_(std::move(sticky_key)), proxy_served_model_(std::move(proxy_served_model)) {
 }
 
 std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) const {
@@ -147,6 +162,15 @@ std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) c
     }
     return std::get<0>(
             PromptManager::Render(prompt_template_, columns, ScalarFunctionType::FILTER, tuple_format_));
+}
+
+std::string PhysicalSemFilter::RenderProxyPrompt(const std::vector<RowData>& batch) const {
+    const auto columns = BuildContextColumnsJson(context_columns_, batch);
+    return "For each row below, estimate the probability from 0 to 1 that the criterion is true. "
+           "Judge each row independently. Return a JSON object with an items array containing exactly " +
+           std::to_string(batch.size()) + " numeric scores in row order. A score of 0 means certainly false "
+           "and 1 means certainly true.\nCriterion: " + prompt_template_ + "\n\n" +
+           PromptManager::ConstructInputTuples(columns, tuple_format_);
 }
 
 nlohmann::json PhysicalSemFilter::RenderMedia(const std::vector<RowData>& batch) const {
@@ -218,6 +242,12 @@ duckdb::unique_ptr<duckdb::GlobalSinkState> PhysicalSemFilter::GetGlobalSinkStat
     auto state = CreateGlobalSinkState();  // binds render_prompt to this operator
     state->served_model = served_model_;
     state->sticky_key = sticky_key_;
+    state->proxy_served_model = proxy_served_model_;
+    if (!proxy_served_model_.empty()) {
+        state->render_proxy_prompt = [this](const std::vector<RowData>& batch) {
+            return RenderProxyPrompt(batch);
+        };
+    }
     return std::move(state);
 }
 
