@@ -198,6 +198,29 @@ void DumpPrompt(const std::string& prompt) {
     });
 }
 
+// Stable diagnostic key for checking that two separate verdict-dump runs
+// assigned the same query-local row ID to the same input row. Length framing
+// avoids ambiguity when column values contain separators.
+uint64_t RowFingerprint(const RowData& row) {
+    uint64_t hash = 1469598103934665603ULL;
+    const auto add = [&hash](const std::string& value) {
+        const uint64_t length = value.size();
+        for (unsigned shift = 0; shift < 64; shift += 8) {
+            hash ^= static_cast<unsigned char>((length >> shift) & 0xff);
+            hash *= 1099511628211ULL;
+        }
+        for (unsigned char byte : value) {
+            hash ^= byte;
+            hash *= 1099511628211ULL;
+        }
+    };
+    for (const auto& value : row.values) {
+        add(value.type().ToString());
+        add(value.IsNull() ? "<NULL>" : value.ToString());
+    }
+    return hash;
+}
+
 // Optional per-row verdict dump for prompt-degradation diagnostics
 // (env FLOCK_VERDICT_DUMP=<path>). One JSONL line per row: the query-global
 // row_id (== table scan order at threads=1), the row's 0-based position within
@@ -224,8 +247,9 @@ void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
     static std::mutex mu;
     std::lock_guard<std::mutex> guard(mu);
     for (size_t i = 0; i < batch.rows.size(); ++i) {
-        std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"stage\":\"%s\",\"v\":%s}\n",
+        std::fprintf(out, "{\"id\":%llu,\"pos\":%zu,\"row_hash\":%llu,\"stage\":\"%s\",\"v\":%s}\n",
                      static_cast<unsigned long long>(batch.row_ids[i]), i,
+                     static_cast<unsigned long long>(RowFingerprint(batch.rows[i])),
                      batch.proxy ? "proxy" : "main", items[i].dump().c_str());
     }
     std::fflush(out);
@@ -579,6 +603,7 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     } else {
         items = ParseItems(batch);
     }
+    DumpVerdicts(batch, items);  // before proxy rows move into the main queue
     if (batch.proxy) {
         std::vector<PendingRequest> uncertain;
         for (size_t i = 0; i < batch.rows.size(); ++i) {
@@ -609,7 +634,6 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
             parse_fn(items[i], batch.rows[i], out);
         }
     }
-    DumpVerdicts(batch, items);  // no-op unless FLOCK_VERDICT_DUMP is set (diagnostics)
     return SourceResultType::HAVE_MORE_OUTPUT;
 }
 

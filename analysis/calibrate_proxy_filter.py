@@ -13,11 +13,12 @@ import argparse
 from bisect import bisect_left, bisect_right
 import json
 import math
+import random
 from pathlib import Path
 
 
-def read_dump(path: Path, want_scores: bool) -> dict[int, float | bool]:
-    rows: dict[int, float | bool] = {}
+def read_dump(path: Path, want_scores: bool) -> dict[int, tuple[float | bool, int | None]]:
+    rows: dict[int, tuple[float | bool, int | None]] = {}
     with path.open() as handle:
         for line in handle:
             record = json.loads(line)
@@ -38,7 +39,7 @@ def read_dump(path: Path, want_scores: bool) -> dict[int, float | bool]:
             row_id = int(record["id"])
             if row_id in rows:
                 raise ValueError(f"Duplicate row ID {row_id} in {path}")
-            rows[row_id] = value
+            rows[row_id] = (value, record.get("row_hash"))
     if not rows:
         raise ValueError(f"No {'proxy scores' if want_scores else 'main labels'} found in {path}")
     return rows
@@ -89,22 +90,56 @@ def calibrate(scores: list[float], labels: list[bool],
     }
 
 
+def evaluate(scores: list[float], labels: list[bool],
+             negative: float, positive: float) -> dict:
+    predicted = [False if score <= negative else True if score >= positive else label
+                 for score, label in zip(scores, labels)]
+    tp = sum(p and label for p, label in zip(predicted, labels))
+    fp = sum(p and not label for p, label in zip(predicted, labels))
+    positives = sum(labels)
+    main_rows = sum(negative < score < positive for score in scores)
+    return {
+        "heldout_rows": len(scores),
+        "heldout_main_model_fraction": main_rows / len(scores),
+        "heldout_precision_vs_main": tp / (tp + fp) if tp + fp else 1.0,
+        "heldout_recall_vs_main": tp / positives if positives else 1.0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--proxy-dump", type=Path, required=True)
     parser.add_argument("--main-dump", type=Path, required=True)
     parser.add_argument("--precision-target", type=float, default=0.95)
     parser.add_argument("--recall-target", type=float, default=0.95)
+    parser.add_argument("--train-fraction", type=float, default=0.2,
+                        help="Fraction used to choose thresholds; remaining rows are held out")
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     if not 0 < args.precision_target <= 1 or not 0 < args.recall_target <= 1:
         parser.error("precision and recall targets must be in (0, 1]")
+    if not 0 < args.train_fraction < 1:
+        parser.error("train fraction must be in (0, 1)")
     scores = read_dump(args.proxy_dump, True)
     labels = read_dump(args.main_dump, False)
     if scores.keys() != labels.keys():
         parser.error("Proxy and main dumps have different row IDs; use identical input and SET threads=1")
+    mismatched = [row_id for row_id in scores if scores[row_id][1] is not None
+                  and labels[row_id][1] is not None and scores[row_id][1] != labels[row_id][1]]
+    if mismatched:
+        parser.error(f"Input rows differ for {len(mismatched)} row IDs; use a stable input order")
     ids = sorted(scores)
-    print(json.dumps(calibrate([scores[i] for i in ids], [labels[i] for i in ids],
-                               args.precision_target, args.recall_target), indent=2))
+    if len(ids) < 2:
+        parser.error("At least two rows are needed for calibration and holdout")
+    random.Random(args.seed).shuffle(ids)
+    split = max(1, min(len(ids) - 1, round(len(ids) * args.train_fraction)))
+    train_ids, heldout_ids = ids[:split], ids[split:]
+    result = calibrate([scores[i][0] for i in train_ids], [labels[i][0] for i in train_ids],
+                       args.precision_target, args.recall_target)
+    result.update(evaluate([scores[i][0] for i in heldout_ids], [labels[i][0] for i in heldout_ids],
+                           result["semantic_filter_proxy_negative_threshold"],
+                           result["semantic_filter_proxy_positive_threshold"]))
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
