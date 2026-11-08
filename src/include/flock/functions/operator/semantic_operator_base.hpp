@@ -6,6 +6,7 @@
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/execution/physical_operator_states.hpp"
 #include "duckdb/parallel/interrupt.hpp"
+#include "flock/functions/operator/proxy_stage.hpp"
 #include "flock/runtime/endpoint_router.h"
 #include "flock/runtime/llm_client.h"
 #include "flock/runtime/pending_request.h"
@@ -17,7 +18,11 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <queue>
+#include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace flock {
@@ -36,6 +41,11 @@ namespace flock {
 
 // PROMPT SLIMMING -> default includes the original flock meta-prompt
 bool SemPromptSlim();
+
+// URL for an image context value as sent in chat payloads: http(s):// and data:
+// URLs pass through, a local path becomes a base64 data URL (MIME type from the
+// column's type or the file extension). Throws if the file cannot be read.
+std::string ImageDataUrl(const nlohmann::json& column, const std::string& path);
 
 // A coalesced batch that has returned from the LLM, awaiting parse + emit by
 // the source phase. Carries everything Drain needs to realign the response
@@ -101,6 +111,15 @@ public:
     // Optional score-only first stage for filters. Empty disables the cascade.
     std::string proxy_served_model;
     RenderFn render_proxy_prompt;
+    // Optional buffered embedding proxy (kinds "embedding" / "lotus"). Set ONCE
+    // before any Sink; null -> rows stream to the main model as before. When set,
+    // Sink only buffers; FinalizeFlush plans (ProxyStage::Plan) and the policy
+    // then decides which units reach the main model. Never set together with
+    // proxy_served_model (the LLM-scored cascade).
+    std::shared_ptr<ProxyStage> proxy_stage;
+    // Main-model element -> boolean verdict, fed to the proxy policy. Required
+    // when proxy_stage is set (the filter binds PhysicalSemFilter::ParseVerdict).
+    std::function<bool(const nlohmann::json&)> verdict_of;
     // Routing key for StickyByPrefix: a per-query-stable string so a query's batches
     // co-locate on one endpoint for vLLM prefix-cache reuse. Set ONCE before any
     // Sink; empty -> SubmitBatch falls back to a leading slice of the prompt.
@@ -160,6 +179,12 @@ private:
     // and Submit (all OUTSIDE the lock).
     void SubmitBatch(std::vector<PendingRequest> batch, bool proxy);
     std::vector<std::vector<PendingRequest>> TakeReadyMainBatches();
+    // Embedding proxy: queue a policy step (sends -> pending_main, resolutions ->
+    // pending_emit). Caller holds Lock().
+    void ApplyProxyStepLocked(const ProxyStep& step);
+    // Embedding proxy: move up to one vector of decided rows into `out`.
+    // Returns true iff it emitted anything or rows remain queued.
+    bool EmitDecided(duckdb::DataChunk& out, const ParseFn& parse_fn);
     // Monotonically record the in-flight peak (test instrumentation).
     void NoteInFlight(size_t now_in_flight);
 
@@ -177,6 +202,16 @@ private:
     std::deque<PendingRequest> pending_main;
     std::queue<CompletedBatch> completed; // drained by the source phase
     bool input_exhausted = false;
+    // Embedding proxy state. proxy_rows / unit_rows / row_unit_by_id are written
+    // once in FinalizeFlush (before input_exhausted) and read-only afterwards.
+    bool proxy_planned = false;
+    std::vector<PendingRequest> proxy_rows;
+    std::vector<std::vector<size_t>> unit_rows;           // unit -> row positions
+    std::unordered_map<uint64_t, size_t> row_unit_by_id;  // row_id -> unit
+    std::deque<std::pair<size_t, bool>> pending_emit;     // (row position, verdict), guarded by Lock()
+    std::unique_ptr<ProxyPolicy> policy;                  // guarded by policy_mu
+    std::mutex policy_mu;
+    std::atomic<bool> proxy_stats_printed{false};
     // Our OWN blocked-task lists (not StateWithBlockableTasks::blocked_tasks):
     // we splice them out under the lock and fire Callback() AFTER releasing, so
     // no foreign synchronization primitive is ever held under our lock.

@@ -72,6 +72,40 @@ int64_t ReadIntSetting(ClientContext& context, const char* name, int64_t fallbac
     return fallback;
 }
 
+double ReadDoubleSetting(ClientContext& context, const char* name, double fallback) {
+    Value v;
+    if (context.TryGetCurrentSetting(name, v)) {
+        return v.GetValue<double>();
+    }
+    return fallback;
+}
+
+std::string ReadStringSetting(ClientContext& context, const char* name, const char* fallback) {
+    Value v;
+    if (context.TryGetCurrentSetting(name, v)) {
+        return v.ToString();
+    }
+    return fallback;
+}
+
+void OnSetFilterProxyKind(ClientContext&, SetScope, Value& parameter) {
+    const std::string kind = parameter.ToString();
+    if (kind != "llm" && kind != "embedding" && kind != "lotus") {
+        throw duckdb::InvalidInputException(
+                "semantic_filter_proxy_kind must be 'llm', 'embedding' or 'lotus', got '%s'", kind);
+    }
+}
+
+void AddDoubleOption(DBConfig& config, const char* name, const char* description, double value) {
+    config.AddExtensionOption(name, description, LogicalType::DOUBLE, Value::DOUBLE(value), nullptr,
+                              SetScope::SESSION);
+}
+
+void AddIntOption(DBConfig& config, const char* name, const char* description, int64_t value) {
+    config.AddExtensionOption(name, description, LogicalType::BIGINT, Value::BIGINT(value), nullptr,
+                              SetScope::SESSION);
+}
+
 // --- set_option callbacks (plain function pointers -- no captures) ----------
 
 void OnSetEndpoints(ClientContext& context, SetScope, Value& parameter) {
@@ -182,6 +216,42 @@ void RegisterSemanticSettings(DBConfig& config) {
                               "Proxy scores at or above this value resolve to true.", LogicalType::DOUBLE,
                               Value::DOUBLE(SemanticDefaults::kFilterProxyPositiveThreshold), nullptr,
                               SetScope::SESSION);
+
+    // --- embedding proxy ("embedding" / "lotus" kinds) ---
+    config.AddExtensionOption(semantic_option::kFilterProxyKind,
+                              "Proxy kind: llm (small chat model scores) | embedding (CLIP top-k, reject-only) | "
+                              "lotus (CLIP + LOTUS-style learned cascade).",
+                              LogicalType::VARCHAR, Value(SemanticDefaults::kFilterProxyKind), OnSetFilterProxyKind,
+                              SetScope::SESSION);
+    config.AddExtensionOption(semantic_option::kFilterProxyTemplate,
+                              "Embedding proxy text template; '{}' is replaced by the row's text values.",
+                              LogicalType::VARCHAR, Value(SemanticDefaults::kFilterProxyTemplate), nullptr,
+                              SetScope::SESSION);
+    AddIntOption(config, semantic_option::kFilterProxyKMin, "Embedding proxy: minimum candidates per group sent "
+                 "to the main model.", SemanticDefaults::kFilterProxyKMin);
+    AddDoubleOption(config, semantic_option::kFilterProxyKFrac, "Embedding proxy: window = max(k_min, "
+                    "ceil(k_frac * group size)).", SemanticDefaults::kFilterProxyKFrac);
+    AddIntOption(config, semantic_option::kFilterProxyGap, "Embedding proxy: a TRUE at rank r extends the window "
+                 "to r + gap.", SemanticDefaults::kFilterProxyGap);
+    AddDoubleOption(config, semantic_option::kFilterProxyAuditNear, "Embedding proxy: audit rate for ranks "
+                    "(k, 2k].", SemanticDefaults::kFilterProxyAuditNear);
+    AddDoubleOption(config, semantic_option::kFilterProxyAuditFar, "Embedding proxy: audit rate for ranks > 2k.",
+                    SemanticDefaults::kFilterProxyAuditFar);
+    AddIntOption(config, semantic_option::kFilterProxyMinRows, "Embedding proxy: inputs with fewer rows run "
+                 "exactly.", SemanticDefaults::kFilterProxyMinRows);
+    AddIntOption(config, semantic_option::kFilterProxySeed, "Embedding proxy: random seed (audit / sampling).",
+                 SemanticDefaults::kFilterProxySeed);
+    AddDoubleOption(config, semantic_option::kFilterProxyLotusRecall, "LOTUS-style proxy: recall target.",
+                    SemanticDefaults::kFilterProxyLotusRecall);
+    AddDoubleOption(config, semantic_option::kFilterProxyLotusPrecision, "LOTUS-style proxy: precision target.",
+                    SemanticDefaults::kFilterProxyLotusPrecision);
+    AddDoubleOption(config, semantic_option::kFilterProxyLotusFailureProb, "LOTUS-style proxy: failure "
+                    "probability.", SemanticDefaults::kFilterProxyLotusFailureProb);
+    AddDoubleOption(config, semantic_option::kFilterProxyLotusSampleFrac, "LOTUS-style proxy: sample size as a "
+                    "fraction of pairs (with replacement).", SemanticDefaults::kFilterProxyLotusSampleFrac);
+    AddIntOption(config, semantic_option::kFilterProxyLotusSampleRange, "LOTUS-style proxy: samples are drawn "
+                 "from the first N pairs (cascade_IS_max_sample_range).",
+                 SemanticDefaults::kFilterProxyLotusSampleRange);
 }
 
 SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& model_name) {
@@ -214,6 +284,54 @@ SemanticParams ResolveSemanticParams(ClientContext& context, const std::string& 
         params.filter_proxy_positive_threshold =
                 context.TryGetCurrentSetting(semantic_option::kFilterProxyPositiveThreshold, v)
                         ? v.GetValue<double>() : SemanticDefaults::kFilterProxyPositiveThreshold;
+    }
+    params.filter_proxy_kind =
+            ReadStringSetting(context, semantic_option::kFilterProxyKind, SemanticDefaults::kFilterProxyKind);
+    params.filter_proxy_template = ReadStringSetting(context, semantic_option::kFilterProxyTemplate,
+                                                     SemanticDefaults::kFilterProxyTemplate);
+    const int64_t k_min = ReadIntSetting(context, semantic_option::kFilterProxyKMin, SemanticDefaults::kFilterProxyKMin);
+    const int64_t gap = ReadIntSetting(context, semantic_option::kFilterProxyGap, SemanticDefaults::kFilterProxyGap);
+    const int64_t min_rows =
+            ReadIntSetting(context, semantic_option::kFilterProxyMinRows, SemanticDefaults::kFilterProxyMinRows);
+    const int64_t seed = ReadIntSetting(context, semantic_option::kFilterProxySeed, SemanticDefaults::kFilterProxySeed);
+    const int64_t sample_range = ReadIntSetting(context, semantic_option::kFilterProxyLotusSampleRange,
+                                                SemanticDefaults::kFilterProxyLotusSampleRange);
+    if (k_min < 1 || gap < 0 || min_rows < 0 || seed < 0 || sample_range < 1) {
+        throw duckdb::InvalidInputException(
+                "semantic filter proxy: k_min >= 1, gap >= 0, min_rows >= 0, seed >= 0, lotus_sample_range >= 1");
+    }
+    params.filter_proxy_k_min = static_cast<uint64_t>(k_min);
+    params.filter_proxy_gap = static_cast<uint64_t>(gap);
+    params.filter_proxy_min_rows = static_cast<uint64_t>(min_rows);
+    params.filter_proxy_seed = static_cast<uint64_t>(seed);
+    params.filter_proxy_lotus_sample_range = static_cast<uint64_t>(sample_range);
+    params.filter_proxy_k_frac =
+            ReadDoubleSetting(context, semantic_option::kFilterProxyKFrac, SemanticDefaults::kFilterProxyKFrac);
+    params.filter_proxy_audit_near = ReadDoubleSetting(context, semantic_option::kFilterProxyAuditNear,
+                                                       SemanticDefaults::kFilterProxyAuditNear);
+    params.filter_proxy_audit_far = ReadDoubleSetting(context, semantic_option::kFilterProxyAuditFar,
+                                                      SemanticDefaults::kFilterProxyAuditFar);
+    params.filter_proxy_lotus_recall = ReadDoubleSetting(context, semantic_option::kFilterProxyLotusRecall,
+                                                         SemanticDefaults::kFilterProxyLotusRecall);
+    params.filter_proxy_lotus_precision = ReadDoubleSetting(context, semantic_option::kFilterProxyLotusPrecision,
+                                                            SemanticDefaults::kFilterProxyLotusPrecision);
+    params.filter_proxy_lotus_failure_prob = ReadDoubleSetting(
+            context, semantic_option::kFilterProxyLotusFailureProb, SemanticDefaults::kFilterProxyLotusFailureProb);
+    params.filter_proxy_lotus_sample_frac = ReadDoubleSetting(context, semantic_option::kFilterProxyLotusSampleFrac,
+                                                              SemanticDefaults::kFilterProxyLotusSampleFrac);
+    for (double f : {params.filter_proxy_k_frac, params.filter_proxy_audit_near, params.filter_proxy_audit_far,
+                     params.filter_proxy_lotus_sample_frac}) {
+        if (!std::isfinite(f) || f < 0.0 || f > 1.0) {
+            throw duckdb::InvalidInputException(
+                    "semantic filter proxy: k_frac, audit_near, audit_far and lotus_sample_frac must be in [0, 1]");
+        }
+    }
+    for (double f : {params.filter_proxy_lotus_recall, params.filter_proxy_lotus_precision,
+                     params.filter_proxy_lotus_failure_prob}) {
+        if (!std::isfinite(f) || f <= 0.0 || f > 1.0) {
+            throw duckdb::InvalidInputException(
+                    "semantic filter proxy: lotus recall, precision and failure_prob must be in (0, 1]");
+        }
     }
 
     // Overlay any model_args overrides (highest precedence).

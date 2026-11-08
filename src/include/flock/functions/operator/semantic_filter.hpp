@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -60,7 +61,7 @@ public:
                       duckdb::vector<duckdb::idx_t> output_projection,
                       std::vector<SemContextColumn> context_columns, std::string prompt_template,
                       std::string tuple_format, std::string served_model, std::string sticky_key,
-                      std::string proxy_served_model = "");
+                      std::string proxy_served_model = "", std::shared_ptr<ProxyStage> proxy_stage = nullptr);
 
     std::string RenderPrompt(const std::vector<RowData>& batch) const override;
     std::string RenderProxyPrompt(const std::vector<RowData>& batch) const;
@@ -100,6 +101,7 @@ private:
     std::string served_model_;
     std::string sticky_key_;
     std::string proxy_served_model_;
+    std::shared_ptr<ProxyStage> proxy_stage_;  // embedding proxy ("embedding" / "lotus"); null = off
 };
 
 }  // namespace flock

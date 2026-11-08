@@ -79,6 +79,17 @@ if(FLOCK_OPERATOR_TSAN)
 else()
     add_test(NAME flock_semantic_operator_tests COMMAND flock_semantic_operator_tests)
 endif()
+# -- Embedding-proxy decision policies (pure logic: no DuckDB, no I/O) --------
+add_executable(flock_proxy_policy_tests
+    ${PROJECT_SOURCE_DIR}/src/functions/operator/proxy_policy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/proxy_policy_test.cpp)
+target_include_directories(flock_proxy_policy_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/include)
+target_link_libraries(flock_proxy_policy_tests PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    nlohmann_json::nlohmann_json)
+add_test(NAME flock_proxy_policy_tests COMMAND flock_proxy_policy_tests)
+
 # -- Semantic filter operator tests (LogicalSemFilter / CreatePlan / PhysicalSemFilter)
 #
 # Unlike flock_semantic_operator_tests above, the filter operator pulls in the

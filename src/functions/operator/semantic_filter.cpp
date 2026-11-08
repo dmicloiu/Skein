@@ -7,12 +7,14 @@
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "flock/functions/llm_function_bind_data.hpp"
+#include "flock/functions/operator/embedding_proxy.hpp"
 #include "flock/model_manager/model.hpp"
 #include "flock/prompt_manager/prompt_manager.hpp"
 #include "flock/runtime/extension_state.h"
 #include "flock/runtime/semantic_settings.h"
 
 #include <cctype>
+#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -70,6 +72,63 @@ duckdb::unique_ptr<Expression> CombineConjunction(duckdb::vector<duckdb::unique_
     return std::move(conjunction);
 }
 
+// Build the embedding proxy stage for this filter, or null (with a note on
+// stderr) when the filter does not fit it: the proxy can only reject, so a
+// negated filter (where a rejected row would be EMITTED) runs exactly, and the
+// ranking needs exactly one image column plus optional text columns.
+std::shared_ptr<ProxyStage> MakeEmbeddingProxyStage(const SemanticParams& params,
+                                                    const std::vector<SemContextColumn>& columns,
+                                                    const std::string& prompt_template, bool invert) {
+    const auto skip = [](const std::string& why) -> std::shared_ptr<ProxyStage> {
+        std::fprintf(stderr, "[flock proxy] disabled for this filter: %s\n", why.c_str());
+        return nullptr;
+    };
+    if (params.filter_proxy_endpoint.empty()) {
+        throw duckdb::InvalidInputException("semantic_filter_proxy_kind='%s' requires semantic_filter_proxy_endpoint",
+                                            params.filter_proxy_kind);
+    }
+    if (invert) {
+        return skip("NOT llm_filter (a pruned row would be emitted)");
+    }
+    EmbeddingProxyConfig cfg;
+    size_t images = 0;
+    for (const auto& column : columns) {
+        const std::string type = column.metadata.value("type", std::string("tabular"));
+        if (type.compare(0, 5, "image") == 0) {
+            ++images;
+            cfg.image_index = column.data_index;
+            cfg.image_column = column.metadata;
+        } else if (type == "audio") {
+            return skip("audio context column");
+        } else {
+            cfg.text_indices.push_back(column.data_index);
+        }
+    }
+    if (images != 1) {
+        return skip("needs exactly one image context column, found " + std::to_string(images));
+    }
+    cfg.kind = params.filter_proxy_kind;
+    cfg.endpoint = params.filter_proxy_endpoint;
+    cfg.model = params.filter_proxy_model;
+    cfg.text_template = params.filter_proxy_template;
+    cfg.fallback_text = prompt_template;
+    cfg.min_rows = params.filter_proxy_min_rows;
+    cfg.max_in_flight = params.in_flight_cap;
+    cfg.topk.k_min = params.filter_proxy_k_min;
+    cfg.topk.k_frac = params.filter_proxy_k_frac;
+    cfg.topk.gap = params.filter_proxy_gap;
+    cfg.topk.audit_near = params.filter_proxy_audit_near;
+    cfg.topk.audit_far = params.filter_proxy_audit_far;
+    cfg.topk.seed = params.filter_proxy_seed;
+    cfg.lotus.recall_target = params.filter_proxy_lotus_recall;
+    cfg.lotus.precision_target = params.filter_proxy_lotus_precision;
+    cfg.lotus.failure_probability = params.filter_proxy_lotus_failure_prob;
+    cfg.lotus.sampling_percentage = params.filter_proxy_lotus_sample_frac;
+    cfg.lotus.max_sample_range = params.filter_proxy_lotus_sample_range;
+    cfg.lotus.seed = params.filter_proxy_seed;
+    return std::make_shared<EmbeddingProxyStage>(std::move(cfg));
+}
+
 }  // namespace
 
 duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& context,
@@ -86,7 +145,8 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
 
     SemanticParams params = ResolveSemanticParams(context, model_details.model_name);
     std::string proxy_served_model;
-    if (!params.filter_proxy_model.empty()) {
+    const bool embedding_proxy = !params.filter_proxy_model.empty() && params.filter_proxy_kind != "llm";
+    if (!params.filter_proxy_model.empty() && !embedding_proxy) {
         if (params.response_format != "json_schema") {
             throw duckdb::InvalidInputException("semantic filter proxy requires semantic_response_format='json_schema'");
         }
@@ -102,6 +162,11 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
     auto& extension_state = ExtensionState::Get(context);
 
     auto context_columns = ExtractContextColumns(context, llm_call, "sem_filter");
+
+    std::shared_ptr<ProxyStage> proxy_stage;
+    if (embedding_proxy) {
+        proxy_stage = MakeEmbeddingProxyStage(params, context_columns, prompt_template, invert);
+    }
 
     // Sticky key: the per-query-stable template head. Rendering with no tuples
     // leaves the {{TUPLES}} block untouched, yielding the same head for every batch.
@@ -123,7 +188,8 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
                                                extension_state.router, std::move(params), std::move(residual),
                                                invert, projection_map, std::move(context_columns),
                                                prompt_template, tuple_format, served_model,
-                                               std::move(rendered_head), std::move(proxy_served_model))
+                                               std::move(rendered_head), std::move(proxy_served_model),
+                                               std::move(proxy_stage))
                        .Cast<PhysicalSemFilter>();
     op.children.push_back(child_plan);
     return op;
@@ -140,13 +206,14 @@ PhysicalSemFilter::PhysicalSemFilter(duckdb::PhysicalPlan& physical_plan, duckdb
                                      duckdb::vector<idx_t> output_projection,
                                      std::vector<SemContextColumn> context_columns, std::string prompt_template,
                                      std::string tuple_format, std::string served_model, std::string sticky_key,
-                                     std::string proxy_served_model)
+                                     std::string proxy_served_model, std::shared_ptr<ProxyStage> proxy_stage)
     : SemanticOperatorBase(physical_plan, duckdb::PhysicalOperatorType::EXTENSION, std::move(types),
                            estimated_cardinality, std::move(client), std::move(router), std::move(cfg)),
       residual_(std::move(residual)), invert_(invert), output_projection_(std::move(output_projection)),
       context_columns_(std::move(context_columns)), prompt_template_(std::move(prompt_template)),
       tuple_format_(std::move(tuple_format)), served_model_(std::move(served_model)),
-      sticky_key_(std::move(sticky_key)), proxy_served_model_(std::move(proxy_served_model)) {
+      sticky_key_(std::move(sticky_key)), proxy_served_model_(std::move(proxy_served_model)),
+      proxy_stage_(std::move(proxy_stage)) {
 }
 
 std::string PhysicalSemFilter::RenderPrompt(const std::vector<RowData>& batch) const {
@@ -243,6 +310,8 @@ duckdb::unique_ptr<duckdb::GlobalSinkState> PhysicalSemFilter::GetGlobalSinkStat
     state->served_model = served_model_;
     state->sticky_key = sticky_key_;
     state->proxy_served_model = proxy_served_model_;
+    state->proxy_stage = proxy_stage_;
+    state->verdict_of = [](const nlohmann::json& element) { return ParseVerdict(element); };
     if (!proxy_served_model_.empty()) {
         state->render_proxy_prompt = [this](const std::vector<RowData>& batch) {
             return RenderProxyPrompt(batch);

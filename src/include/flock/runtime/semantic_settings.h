@@ -31,6 +31,24 @@ struct SemanticDefaults {
     // Safe calibration mode: a score in [0,1] always goes to the main model.
     static constexpr double kFilterProxyNegativeThreshold = -1.0;
     static constexpr double kFilterProxyPositiveThreshold = 2.0;
+    // Proxy kind: "llm" (scored by a small chat model, thresholds above),
+    // "embedding" (CLIP-style embeddings, reject-only per-group top-k) or
+    // "lotus" (embeddings + LOTUS-style learned cascade with auto-accept).
+    static constexpr const char* kFilterProxyKind = "llm";
+    static constexpr const char* kFilterProxyTemplate = "";
+    static constexpr int64_t kFilterProxyKMin = 5;
+    static constexpr double kFilterProxyKFrac = 0.0;
+    static constexpr int64_t kFilterProxyGap = 2;
+    static constexpr double kFilterProxyAuditNear = 0.25;
+    static constexpr double kFilterProxyAuditFar = 0.01;
+    static constexpr int64_t kFilterProxyMinRows = 1000;
+    static constexpr int64_t kFilterProxySeed = 42;
+    // LOTUS CascadeArgs as used by the sembench LOTUS runner.
+    static constexpr double kFilterProxyLotusRecall = 0.8;
+    static constexpr double kFilterProxyLotusPrecision = 0.8;
+    static constexpr double kFilterProxyLotusFailureProb = 0.2;
+    static constexpr double kFilterProxyLotusSampleFrac = 0.1;
+    static constexpr int64_t kFilterProxyLotusSampleRange = 200;
 
     // Guardrail thresholds: when the resolved in_flight_cap AND batch_size both
     // exceed these, ResolveSemanticParams emits a warning (it never errors).
@@ -54,6 +72,20 @@ inline constexpr const char* kFilterProxyModel = "semantic_filter_proxy_model";
 inline constexpr const char* kFilterProxyEndpoint = "semantic_filter_proxy_endpoint";
 inline constexpr const char* kFilterProxyNegativeThreshold = "semantic_filter_proxy_negative_threshold";
 inline constexpr const char* kFilterProxyPositiveThreshold = "semantic_filter_proxy_positive_threshold";
+inline constexpr const char* kFilterProxyKind = "semantic_filter_proxy_kind";
+inline constexpr const char* kFilterProxyTemplate = "semantic_filter_proxy_template";
+inline constexpr const char* kFilterProxyKMin = "semantic_filter_proxy_k_min";
+inline constexpr const char* kFilterProxyKFrac = "semantic_filter_proxy_k_frac";
+inline constexpr const char* kFilterProxyGap = "semantic_filter_proxy_gap";
+inline constexpr const char* kFilterProxyAuditNear = "semantic_filter_proxy_audit_near";
+inline constexpr const char* kFilterProxyAuditFar = "semantic_filter_proxy_audit_far";
+inline constexpr const char* kFilterProxyMinRows = "semantic_filter_proxy_min_rows";
+inline constexpr const char* kFilterProxySeed = "semantic_filter_proxy_seed";
+inline constexpr const char* kFilterProxyLotusRecall = "semantic_filter_proxy_lotus_recall";
+inline constexpr const char* kFilterProxyLotusPrecision = "semantic_filter_proxy_lotus_precision";
+inline constexpr const char* kFilterProxyLotusFailureProb = "semantic_filter_proxy_lotus_failure_prob";
+inline constexpr const char* kFilterProxyLotusSampleFrac = "semantic_filter_proxy_lotus_sample_frac";
+inline constexpr const char* kFilterProxyLotusSampleRange = "semantic_filter_proxy_lotus_sample_range";
 }  // namespace semantic_option
 
 // Semantic settings resolved for one operator invocation. The dispatch knobs
@@ -68,6 +100,20 @@ struct SemanticParams {
     std::string filter_proxy_endpoint;  // separate proxy vLLM /chat/completions URL
     double filter_proxy_negative_threshold = SemanticDefaults::kFilterProxyNegativeThreshold;
     double filter_proxy_positive_threshold = SemanticDefaults::kFilterProxyPositiveThreshold;
+    std::string filter_proxy_kind = SemanticDefaults::kFilterProxyKind;
+    std::string filter_proxy_template = SemanticDefaults::kFilterProxyTemplate;
+    uint64_t filter_proxy_k_min = SemanticDefaults::kFilterProxyKMin;
+    double filter_proxy_k_frac = SemanticDefaults::kFilterProxyKFrac;
+    uint64_t filter_proxy_gap = SemanticDefaults::kFilterProxyGap;
+    double filter_proxy_audit_near = SemanticDefaults::kFilterProxyAuditNear;
+    double filter_proxy_audit_far = SemanticDefaults::kFilterProxyAuditFar;
+    uint64_t filter_proxy_min_rows = SemanticDefaults::kFilterProxyMinRows;
+    uint64_t filter_proxy_seed = SemanticDefaults::kFilterProxySeed;
+    double filter_proxy_lotus_recall = SemanticDefaults::kFilterProxyLotusRecall;
+    double filter_proxy_lotus_precision = SemanticDefaults::kFilterProxyLotusPrecision;
+    double filter_proxy_lotus_failure_prob = SemanticDefaults::kFilterProxyLotusFailureProb;
+    double filter_proxy_lotus_sample_frac = SemanticDefaults::kFilterProxyLotusSampleFrac;
+    uint64_t filter_proxy_lotus_sample_range = SemanticDefaults::kFilterProxyLotusSampleRange;
 };
 
 // Split SemanticDefaults::kEndpoints into the router's initial endpoint list.

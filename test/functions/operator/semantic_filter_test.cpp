@@ -5,6 +5,7 @@
 
 #include "flock/functions/input_parser.hpp"
 #include "flock/functions/operator/semantic_filter.hpp"
+#include "flock/functions/operator/embedding_proxy.hpp"
 #include "flock/model_manager/model.hpp"
 #include "flock/prompt_manager/prompt_manager.hpp"
 #include "flock/runtime/endpoint_router.h"
@@ -34,6 +35,7 @@
 #include <memory>
 #include <mutex>
 #include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -317,6 +319,335 @@ TEST(SemFilter, ProxyCascadeRoutesOnlyUncertainRowsToMainModel) {
     EXPECT_EQ(fake->proxy_endpoints, (std::vector<std::string>{
             "http://localhost:8001/v1/chat/completions", "http://localhost:8001/v1/chat/completions"}));
     EXPECT_EQ(fake->main_endpoints, (std::vector<std::string>{"http://localhost:8000/v1"}));
+}
+
+// ---- Embedding proxy: engine wiring (scripted stage + policy) ----------------
+
+// Policy over 4 units: asks unit 0, auto-accepts unit 3; once unit 0 is
+// answered asks unit 1; unit 2 is never asked (rejected).
+class ScriptedPolicy : public ProxyPolicy {
+public:
+    ProxyStep Start() override {
+        ProxyStep step;
+        step.send = {0};
+        step.resolve = {{3, true}};
+        return step;
+    }
+    ProxyStep OnVerdict(size_t unit, bool verdict) override {
+        ProxyStep step;
+        step.resolve = {{unit, verdict}};
+        if (unit == 0) step.send = {1};
+        verdicts.emplace_back(unit, verdict);
+        return step;
+    }
+    std::string Stats() const override { return "{}"; }
+    std::vector<std::pair<size_t, bool>> verdicts;
+};
+
+// Rows i and i+1 (i even) form one unit: unit = value / 2.
+class ScriptedStage : public ProxyStage {
+public:
+    explicit ScriptedStage(bool exact) : exact_(exact) {}
+    ProxyPlan Plan(const std::vector<PendingRequest>& rows, ILLMClient&, uint64_t) override {
+        ProxyPlan plan;
+        planned_rows = rows.size();
+        if (exact_) {
+            plan.info = "exact (scripted)";
+            return plan;
+        }
+        for (const auto& r : rows) plan.row_unit.push_back(static_cast<size_t>(r.row.values[0].GetValue<int64_t>() / 2));
+        plan.num_units = 4;
+        auto policy = std::make_unique<ScriptedPolicy>();
+        policy_view = policy.get();
+        plan.policy = std::move(policy);
+        return plan;
+    }
+    size_t planned_rows = 0;
+    ScriptedPolicy* policy_view = nullptr;
+
+private:
+    bool exact_;
+};
+
+// Main model: TRUE only for value 0. Records the values it was asked about.
+class ValueFakeClient : public ILLMClient {
+public:
+    LLMRequestHandle Submit(const std::string&, const std::string& payload, uint64_t, const std::string&,
+                            LLMOnDone on_done) override {
+        const auto body = nlohmann::json::parse(payload);
+        const std::string prompt = body.at("messages")[0].at("content")[0].at("text");
+        std::istringstream rows(prompt);
+        std::string value;
+        nlohmann::json items = nlohmann::json::array();
+        while (std::getline(rows, value, ',')) {
+            if (value.empty()) continue;
+            asked.push_back(std::stoi(value));
+            items.push_back(std::stoi(value) == 0);
+        }
+        LLMResponse response;
+        response.ok = true;
+        response.http_status = 200;
+        response.body = nlohmann::json{{"choices", nlohmann::json::array(
+                {{{"message", {{"content", nlohmann::json{{"items", items}}.dump()}}}}})}}.dump();
+        on_done(std::move(response));
+        return {1};
+    }
+    void CancelByGeneration(uint64_t) override {}
+    std::vector<int> asked;
+};
+
+std::vector<int64_t> RunProxyEngine(const std::shared_ptr<ProxyStage>& stage, const std::shared_ptr<ILLMClient>& client,
+                                    int64_t rows) {
+    SemGlobalSinkState state(client, MakeRouter(), MakeParams(2, 1));
+    state.served_model = "main";
+    state.proxy_stage = stage;
+    state.verdict_of = [](const nlohmann::json& e) { return PhysicalSemFilter::ParseVerdict(e); };
+    state.render_prompt = [](const std::vector<RowData>& batch) {
+        std::string text;
+        for (const auto& row : batch) text += std::to_string(row.values[0].GetValue<int64_t>()) + ",";
+        return text;
+    };
+    state.response_schema = [](size_t n) {
+        return SemanticOperatorBase::ItemsResponseFormat("filter_results", {{"type", "boolean"}}, n);
+    };
+    auto chunks = BuildBigintChunks(rows, 3);
+    SemLocalSinkState local;
+    auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+    InterruptState interrupt(signal);
+    for (auto& chunk : chunks) {
+        EXPECT_EQ(state.SinkChunk(local, *chunk, interrupt), SinkResultType::NEED_MORE_INPUT);
+    }
+    state.MergeLocal(local);
+    // The exact fallback flushes through the ordinary path, which returns
+    // BLOCKED at the in-flight cap; retry like DuckDB does after the wakeup.
+    for (;;) {
+        auto finalize_signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
+        InterruptState finalize_interrupt(finalize_signal);
+        if (state.FinalizeFlush(finalize_interrupt) != SinkFinalizeType::BLOCKED) {
+            break;
+        }
+        finalize_signal->Await();
+    }
+    std::vector<int64_t> result;
+    for (int guard = 0; guard < 1000; ++guard) {
+        DataChunk out;
+        out.Initialize(duckdb::Allocator::DefaultAllocator(), {LogicalType::BIGINT});
+        const auto parse = [](const nlohmann::json& verdict, const RowData& row, DataChunk& chunk) {
+            if (PhysicalSemFilter::ParseVerdict(verdict)) {
+                chunk.SetValue(0, chunk.size(), row.values[0]);
+                chunk.SetCardinality(chunk.size() + 1);
+            }
+        };
+        const auto status = state.Drain(out, parse, interrupt);
+        for (idx_t i = 0; i < out.size(); ++i) result.push_back(out.GetValue(0, i).GetValue<int64_t>());
+        if (status == SourceResultType::FINISHED) break;
+        EXPECT_NE(status, SourceResultType::BLOCKED);
+        if (status == SourceResultType::BLOCKED) break;
+    }
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
+TEST(SemFilter, EmbeddingProxyEngineFollowsPolicy) {
+    auto stage = std::make_shared<ScriptedStage>(false);
+    auto client = std::make_shared<ValueFakeClient>();
+    const auto result = RunProxyEngine(stage, client, 8);
+    EXPECT_EQ(stage->planned_rows, 8u);  // everything buffered before planning
+    // One representative row per asked unit: unit 0 (row 0), then unit 1 (row 2).
+    EXPECT_EQ(client->asked, (std::vector<int>{0, 2}));
+    // Unit 0 TRUE -> rows 0, 1; unit 1 FALSE; unit 2 rejected; unit 3 auto-accepted -> rows 6, 7.
+    EXPECT_EQ(result, (std::vector<int64_t>{0, 1, 6, 7}));
+    ASSERT_NE(stage->policy_view, nullptr);
+    EXPECT_EQ(stage->policy_view->verdicts.size(), 2u);
+}
+
+TEST(SemFilter, EmbeddingProxyExactFallbackAsksEveryRow) {
+    auto stage = std::make_shared<ScriptedStage>(true);
+    auto client = std::make_shared<ValueFakeClient>();
+    const auto result = RunProxyEngine(stage, client, 8);
+    std::sort(client->asked.begin(), client->asked.end());
+    EXPECT_EQ(client->asked, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
+    EXPECT_EQ(result, (std::vector<int64_t>{0}));
+}
+
+TEST(SemFilter, EmbeddingProxyEmitsMoreThanOneVector) {
+    // Auto-accepting a unit with > STANDARD_VECTOR_SIZE rows must span Drain calls.
+    class BigStage : public ProxyStage {
+    public:
+        ProxyPlan Plan(const std::vector<PendingRequest>& rows, ILLMClient&, uint64_t) override {
+            class AcceptAll : public ProxyPolicy {
+                ProxyStep Start() override { return {{}, {{0, true}}}; }
+                ProxyStep OnVerdict(size_t, bool) override { return {}; }
+                std::string Stats() const override { return "{}"; }
+            };
+            ProxyPlan plan;
+            plan.row_unit.assign(rows.size(), 0);
+            plan.num_units = 1;
+            plan.policy = std::make_unique<AcceptAll>();
+            return plan;
+        }
+    };
+    auto client = std::make_shared<ValueFakeClient>();
+    const int64_t n = STANDARD_VECTOR_SIZE * 2 + 5;
+    const auto result = RunProxyEngine(std::make_shared<BigStage>(), client, n);
+    EXPECT_EQ(result.size(), static_cast<size_t>(n));
+    EXPECT_TRUE(client->asked.empty());
+}
+
+// ---- Embedding proxy: EmbeddingProxyStage against a fake /v1/embeddings ------
+
+// Texts and images get fixed 3-d vectors; image files hold one letter, so the
+// data URL ends with its base64 ("A" -> "QQ==").
+class EmbeddingFakeClient : public ILLMClient {
+public:
+    explicit EmbeddingFakeClient(bool fail = false) : fail_(fail) {}
+    LLMRequestHandle Submit(const std::string& endpoint, const std::string& payload, uint64_t, const std::string&,
+                            LLMOnDone on_done) override {
+        endpoints.push_back(endpoint);
+        const auto body = nlohmann::json::parse(payload);
+        EXPECT_EQ(body.at("model"), "clip");
+        nlohmann::json data = nlohmann::json::array();
+        if (body.contains("input")) {
+            size_t i = 0;
+            for (const auto& text : body.at("input")) {
+                texts.push_back(text.get<std::string>());
+                data.push_back({{"index", i++}, {"embedding", TextVector(text.get<std::string>())}});
+            }
+        } else {
+            const std::string url = body.at("messages")[0].at("content")[0].at("image_url").at("url");
+            EXPECT_EQ(url.rfind("data:image/png;base64,", 0), 0u);
+            data.push_back({{"index", 0}, {"embedding", ImageVector(url)}});
+        }
+        LLMResponse response;
+        response.ok = !fail_;
+        response.http_status = fail_ ? 500 : 200;
+        response.body = nlohmann::json{{"data", data}}.dump();
+        on_done(std::move(response));
+        return {1};
+    }
+    void CancelByGeneration(uint64_t) override {}
+    std::vector<std::string> endpoints;
+    std::vector<std::string> texts;
+
+private:
+    static std::vector<float> TextVector(const std::string& t) {
+        if (t == "logo of x") return {1.f, 0.f, 0.f};
+        if (t == "logo of y") return {0.f, 1.f, 0.f};
+        return {0.f, 0.f, 1.f};
+    }
+    static std::vector<float> ImageVector(const std::string& url) {
+        if (url.size() >= 4 && url.compare(url.size() - 4, 4, "QQ==") == 0) return {1.f, 0.2f, 0.f};  // A
+        if (url.size() >= 4 && url.compare(url.size() - 4, 4, "Qg==") == 0) return {0.2f, 1.f, 0.f};  // B
+        return {0.5f, 0.5f, 0.1f};                                                                  // C
+    }
+    bool fail_;
+};
+
+struct EmbeddingFixture {
+    std::vector<PendingRequest> rows;
+    std::vector<std::string> paths;
+    EmbeddingFixture() {
+        const auto dir = std::filesystem::temp_directory_path() / "flock_embedding_proxy_test";
+        std::filesystem::create_directories(dir);
+        for (const char* letter : {"A", "B", "C"}) {
+            const auto path = (dir / (std::string(letter) + ".png")).string();
+            std::ofstream(path, std::ios::binary) << letter;
+            paths.push_back(path);
+        }
+        uint64_t id = 0;
+        for (const char* airline : {"x", "y"}) {
+            for (const auto& path : paths) {
+                PendingRequest req;
+                req.row_id = id++;
+                req.row.values = {Value(airline), Value(path)};
+                rows.push_back(std::move(req));
+            }
+        }
+    }
+    EmbeddingProxyConfig Config(const std::string& kind = "embedding") const {
+        EmbeddingProxyConfig cfg;
+        cfg.kind = kind;
+        cfg.endpoint = "http://localhost:8001/v1/embeddings";
+        cfg.model = "clip";
+        cfg.text_template = "logo of {}";
+        cfg.image_index = 1;
+        cfg.image_column = {{"name", "logo"}, {"type", "image"}};
+        cfg.text_indices = {0};
+        cfg.min_rows = 1;
+        cfg.topk.k_min = 1;
+        cfg.topk.gap = 0;
+        cfg.topk.audit_near = 0.0;
+        cfg.topk.audit_far = 0.0;
+        return cfg;
+    }
+};
+
+TEST(SemFilter, EmbeddingProxyStageRanksPerGroup) {
+    EmbeddingFixture fx;
+    EmbeddingProxyStage stage(fx.Config());
+    EmbeddingFakeClient client;
+    auto plan = stage.Plan(fx.rows, client, 1);
+    ASSERT_NE(plan.policy, nullptr) << plan.info;
+    EXPECT_EQ(plan.num_units, 6u);
+    EXPECT_EQ(client.texts, (std::vector<std::string>{"logo of x", "logo of y"}));
+    EXPECT_EQ(client.endpoints.size(), 1u + 3u);  // one text batch + one request per distinct image
+    std::set<uint64_t> asked;
+    for (size_t unit : plan.policy->Start().send) {
+        for (size_t i = 0; i < plan.row_unit.size(); ++i) {
+            if (plan.row_unit[i] == unit) asked.insert(fx.rows[i].row_id);
+        }
+    }
+    // Top-1 per airline: x -> A (row 0), y -> B (row 4).
+    EXPECT_EQ(asked, (std::set<uint64_t>{0, 4}));
+}
+
+TEST(SemFilter, EmbeddingProxyStageDedupsIdenticalRows) {
+    EmbeddingFixture fx;
+    auto rows = fx.rows;
+    for (const auto& r : fx.rows) {
+        PendingRequest dup;
+        dup.row_id = r.row_id + 100;
+        dup.row = r.row;
+        rows.push_back(std::move(dup));
+    }
+    EmbeddingProxyStage stage(fx.Config());
+    EmbeddingFakeClient client;
+    auto plan = stage.Plan(rows, client, 1);
+    ASSERT_NE(plan.policy, nullptr);
+    EXPECT_EQ(plan.num_units, 6u);
+    for (size_t i = 0; i < fx.rows.size(); ++i) EXPECT_EQ(plan.row_unit[i], plan.row_unit[i + fx.rows.size()]);
+}
+
+TEST(SemFilter, EmbeddingProxyStageFallsBackToExact) {
+    EmbeddingFixture fx;
+    auto cfg = fx.Config();
+    cfg.min_rows = 100;
+    EmbeddingFakeClient client;
+    auto plan = EmbeddingProxyStage(cfg).Plan(fx.rows, client, 1);
+    EXPECT_EQ(plan.policy, nullptr);
+    EXPECT_NE(plan.info.find("min_rows"), std::string::npos);
+    EXPECT_TRUE(client.endpoints.empty());
+
+    EmbeddingFakeClient failing(true);
+    plan = EmbeddingProxyStage(fx.Config()).Plan(fx.rows, failing, 1);
+    EXPECT_EQ(plan.policy, nullptr);
+    EXPECT_NE(plan.info.find("embedding stage failed"), std::string::npos);
+}
+
+TEST(SemFilter, EmbeddingProxyStageLotusKind) {
+    EmbeddingFixture fx;
+    EmbeddingFakeClient client;
+    auto plan = EmbeddingProxyStage(fx.Config("lotus")).Plan(fx.rows, client, 1);
+    ASSERT_NE(plan.policy, nullptr);
+    EXPECT_NE(plan.policy->Stats().find("lotus_cascade"), std::string::npos);
+}
+
+TEST(SemFilter, EmbeddingProxyRenderText) {
+    EXPECT_EQ(EmbeddingProxyStage::RenderText("the logo of {}", {"Delta"}, "p"), "the logo of Delta");
+    EXPECT_EQ(EmbeddingProxyStage::RenderText("", {"Delta", "US"}, "p"), "Delta, US");
+    EXPECT_EQ(EmbeddingProxyStage::RenderText("logo", {"Delta"}, "p"), "logo Delta");
+    EXPECT_EQ(EmbeddingProxyStage::RenderText("", {}, "a zebra?"), "a zebra?");
+    EXPECT_EQ(EmbeddingProxyStage::RenderText("a zebra", {}, "p"), "a zebra");
 }
 
 // A logical child with caller-set bindings/types, to compare LogicalSemFilter and

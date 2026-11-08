@@ -115,3 +115,77 @@ join warm-up, use `WARM_SCALE=2000 WARM_QUERY=102` so the proxy and main JSON
 schemas compile before the timed query. The first pilot should use one
 repetition and inspect logs and result accuracy before the three-repetition
 runs.
+
+## Embedding proxy (v2): `embedding` and `lotus` kinds
+
+`semantic_filter_proxy_kind` selects the proxy. `llm` (default) is the
+LLM-scored cascade above. The two embedding kinds score each candidate with a
+CLIP-style embedding model served at an OpenAI-compatible **`/v1/embeddings`**
+endpoint (e.g. vLLM `--runner pooling` serving `clip-ViT-B-32/0_CLIPModel`).
+`semantic_filter_proxy_model` is then the served model id, sent verbatim (no
+`CREATE MODEL`), and `semantic_filter_proxy_endpoint` the full embeddings URL.
+
+```sql
+SET semantic_filter_proxy_kind = 'embedding';          -- or 'lotus'
+SET semantic_filter_proxy_model = 'clip';
+SET semantic_filter_proxy_endpoint = 'http://127.0.0.1:8001/v1/embeddings';
+SET semantic_filter_proxy_template = 'the logo of {}';  -- '{}' = the row's text values
+```
+
+**Applicability.** The filter needs exactly one `image` context column (plus
+any number of text columns). Negated filters (`NOT llm_filter`) and audio
+columns run exactly, since a pruned row would be emitted. Inputs with fewer than
+`min_rows` rows also run exactly, as do failed or timed-out embedding calls. Each
+case prints a `[flock proxy]` line on stderr.
+
+**How it runs.** The operator buffers its whole input. It then embeds each
+distinct rendered text and each distinct image once (text in batches of 64,
+images one request each as base64 data URLs; vLLM composites RGBA on white). A
+pair's score is the cosine similarity. Rows whose context values are identical
+form one *unit*: one main-model call, whose verdict covers all of the unit's
+rows. Units are grouped by rendered text (for example, one airline). Main-model
+requests then stream as decisions are made, and every unit that is never asked
+is rejected.
+
+* `embedding`: **reject-only** per-group top-k.
+  * Each group sends its top `k_min` units, or `ceil(k_frac * group size)` if
+    larger.
+  * A TRUE at rank r extends that group's window to r + `gap`.
+  * An audit samples `audit_near` of ranks (k, 2k] and `audit_far` of the ranks
+    beyond that, seeded by `seed`. An audited TRUE at depth d raises k to
+    d + `gap` for **every** group.
+  * Only the main model can accept a row.
+* `lotus` (ablation): a port of LOTUS's join cascade (`importance_sampling` +
+  `learn_cascade_thresholds`; the port reproduces LOTUS's thresholds on
+  reference inputs, see `proxy_policy_test.cpp`).
+  * Samples are pairs drawn with replacement from the first
+    `lotus_sample_range` pairs. Pair order is the order of the groups' first
+    appearance, then descending score inside each group.
+  * The main model answers the sampled units, and the learned thresholds then
+    decide the rest: score >= tau+ is **accepted without the main model**,
+    score <= tau- is rejected, and anything in between goes to the main model.
+    A sampled verdict in that middle band is reused.
+  * Differences from LOTUS: no Map-Search-Filter plan (LOTUS's alternative
+    plan, which needs an LLM map step); scores are CLIP cosine clipped to
+    [0, 1]; main-model calls are deduplicated by unit.
+
+| option | default |
+|---|---|
+| `semantic_filter_proxy_kind` | `llm` |
+| `semantic_filter_proxy_template` | `''` (raw text values; no text column -> the filter prompt) |
+| `semantic_filter_proxy_k_min` / `_k_frac` / `_gap` | 5 / 0.0 / 2 |
+| `semantic_filter_proxy_audit_near` / `_audit_far` | 0.25 / 0.01 |
+| `semantic_filter_proxy_min_rows` / `_seed` | 1000 / 42 |
+| `semantic_filter_proxy_lotus_{recall,precision,failure_prob}` | 0.8 / 0.8 / 0.2 (sembench LOTUS runner) |
+| `semantic_filter_proxy_lotus_{sample_frac,sample_range}` | 0.1 / 200 (LOTUS defaults) |
+
+**Run log.** Each proxied operator prints `[flock proxy] kind=... rows=...
+units=... groups=... images=... embed_s=...` after planning, and
+`[flock proxy] stats {...}` (sends per reason, audit hits, final k; tau+/tau-
+and auto-accept counts for `lotus`) when it finishes. Report the main-model
+fraction from these, not only the end-to-end time.
+
+**No recall guarantee.** With very rare positives (mmqa Q7: 5 in 40k pairs) a
+sample cannot certify recall. Treat k and the audit as engineering choices,
+validate them on queries they were not tuned on, and report the audit
+outcome.

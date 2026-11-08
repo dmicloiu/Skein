@@ -90,12 +90,7 @@ nlohmann::json BuildChatContent(const std::string& prompt, const nlohmann::json&
             if (data[row].is_null()) continue;
             const std::string path = data[row].get<std::string>();
             if (path.empty()) continue;
-            std::string url = path;
-            if (path.compare(0, 7, "http://") != 0 && path.compare(0, 8, "https://") != 0 &&
-                path.compare(0, 5, "data:") != 0) {
-                url = "data:" + ImageMimeType(column, path) + ";base64," +
-                      EncodeImageFile(path);
-            }
+            const std::string url = ImageDataUrl(column, path);
             content.push_back({{"type", "text"},
                                {"text", "Attachment " + name + ", row " + std::to_string(row + 1) + ":"}});
             content.push_back({{"type", "image_url"}, {"image_url", {{"url", url}, {"detail", detail}}}});
@@ -257,6 +252,14 @@ void DumpVerdicts(const CompletedBatch& batch, const nlohmann::json& items) {
 
 }  // namespace
 
+std::string ImageDataUrl(const nlohmann::json& column, const std::string& path) {
+    if (path.compare(0, 7, "http://") == 0 || path.compare(0, 8, "https://") == 0 ||
+        path.compare(0, 5, "data:") == 0) {
+        return path;
+    }
+    return "data:" + ImageMimeType(column, path) + ";base64," + EncodeImageFile(path);
+}
+
 SemGlobalSinkState::SemGlobalSinkState(std::shared_ptr<ILLMClient> client,
                                        std::shared_ptr<EndpointRouter> router, SemanticParams cfg)
     : generation(NextGeneration()), client(std::move(client)), router(std::move(router)),
@@ -392,6 +395,10 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
             pending.push_back(std::move(p));
         }
         local.pending.clear();
+        if (proxy_stage) {
+            // Embedding proxy: buffer everything; ranking needs the whole input.
+            return SinkResultType::NEED_MORE_INPUT;
+        }
 
         // Coalesce as many full batches as the cap allows, in submission order.
         // The read-check-of-in_flight and the increment are BOTH under the lock,
@@ -483,6 +490,60 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
     std::vector<std::vector<PendingRequest>> to_submit;
     std::vector<InterruptState> to_wake;
     bool must_block = false;
+    if (proxy_stage && !proxy_planned) {
+        if (!verdict_of) {
+            throw std::runtime_error("flock semantic proxy: verdict_of hook is not set");
+        }
+        std::vector<PendingRequest> rows;
+        {
+            auto guard = Lock();
+            proxy_planned = true;
+            rows.reserve(pending.size());
+            for (auto& p : pending) rows.push_back(std::move(p));
+            pending.clear();
+        }
+        // Blocking (embedding HTTP calls); Finalize runs on one thread and no row
+        // has been submitted yet, so nothing else waits on this state.
+        ProxyPlan plan = proxy_stage->Plan(rows, *client, generation.load(std::memory_order_acquire));
+        if (!plan.info.empty()) {
+            std::fprintf(stderr, "[flock proxy] %s\n", plan.info.c_str());
+        }
+        if (!plan.policy) {
+            // Exact fallback: hand the rows to the ordinary flush below.
+            auto guard = Lock();
+            for (auto& r : rows) pending.push_back(std::move(r));
+        } else {
+            if (plan.row_unit.size() != rows.size()) {
+                throw std::runtime_error("flock semantic proxy: plan does not cover every row");
+            }
+            ProxyStep step;
+            {
+                std::lock_guard<std::mutex> policy_guard(policy_mu);
+                policy = std::move(plan.policy);
+                step = policy->Start();
+            }
+            {
+                auto guard = Lock();
+                unit_rows.assign(plan.num_units, {});
+                for (size_t i = 0; i < rows.size(); ++i) {
+                    unit_rows.at(plan.row_unit[i]).push_back(i);
+                    row_unit_by_id[rows[i].row_id] = plan.row_unit[i];
+                }
+                proxy_rows = std::move(rows);
+                ApplyProxyStepLocked(step);
+                input_exhausted = true;
+                for (auto& is : blocked_sources) to_wake.push_back(is);
+                blocked_sources.clear();
+            }
+            for (auto& batch : TakeReadyMainBatches()) {
+                SubmitBatch(std::move(batch), false);
+            }
+            for (auto& is : to_wake) {
+                is.Callback();
+            }
+            return SinkFinalizeType::READY;
+        }
+    }
     {
         auto guard = Lock();
         // Submit ALL remaining rows -- including a trailing partial batch
@@ -574,14 +635,26 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
     for (auto& ready : TakeReadyMainBatches()) {
         SubmitBatch(std::move(ready), false);
     }
+    // Embedding proxy: rows already decided go out first, one vector at a time.
+    if (EmitDecided(out, parse_fn)) {
+        return SourceResultType::HAVE_MORE_OUTPUT;
+    }
     CompletedBatch batch;
     {
         auto guard = Lock();
         if (completed.empty()) {
+            if (!pending_emit.empty()) {
+                // Another source thread queued decided rows meanwhile.
+                return SourceResultType::HAVE_MORE_OUTPUT;
+            }
             // Terminate ONLY once the sink is finalized AND nothing is in flight:
             if (in_flight.load(std::memory_order_relaxed) > 0 || !input_exhausted || !pending_main.empty()) {
                 blocked_sources.push_back(interrupt);
                 return SourceResultType::BLOCKED;
+            }
+            if (policy && !proxy_stats_printed.exchange(true)) {
+                std::lock_guard<std::mutex> policy_guard(policy_mu);
+                std::fprintf(stderr, "[flock proxy] stats %s\n", policy->Stats().c_str());
             }
             return SourceResultType::FINISHED;
         }
@@ -629,12 +702,68 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
         for (auto& ready : TakeReadyMainBatches()) {
             SubmitBatch(std::move(ready), false);
         }
+    } else if (proxy_planned && policy) {
+        // Embedding proxy: the policy owns every resolution (a unit's verdict is
+        // emitted for all of its rows, possibly deferred, e.g. LOTUS sampling).
+        std::vector<ProxyStep> steps;
+        steps.reserve(batch.rows.size());
+        {
+            std::lock_guard<std::mutex> policy_guard(policy_mu);
+            for (size_t i = 0; i < batch.rows.size(); ++i) {
+                const size_t unit = row_unit_by_id.at(batch.row_ids[i]);
+                steps.push_back(policy->OnVerdict(unit, verdict_of(items[i])));
+            }
+        }
+        {
+            auto guard = Lock();
+            for (const auto& step : steps) ApplyProxyStepLocked(step);
+        }
+        for (auto& ready : TakeReadyMainBatches()) {
+            SubmitBatch(std::move(ready), false);
+        }
+        EmitDecided(out, parse_fn);
     } else {
         for (size_t i = 0; i < batch.rows.size(); ++i) {
             parse_fn(items[i], batch.rows[i], out);
         }
     }
     return SourceResultType::HAVE_MORE_OUTPUT;
+}
+
+void SemGlobalSinkState::ApplyProxyStepLocked(const ProxyStep& step) {
+    for (size_t unit : step.send) {
+        const auto& rep = proxy_rows[unit_rows.at(unit).front()];  // identical prompt for every row of the unit
+        PendingRequest req;
+        req.row_id = rep.row_id;
+        req.row = rep.row;
+        pending_main.push_back(std::move(req));
+    }
+    for (const auto& resolved : step.resolve) {
+        for (size_t pos : unit_rows.at(resolved.first)) {
+            pending_emit.emplace_back(pos, resolved.second);
+        }
+    }
+}
+
+bool SemGlobalSinkState::EmitDecided(DataChunk& out, const ParseFn& parse_fn) {
+    std::vector<std::pair<size_t, bool>> take;
+    {
+        auto guard = Lock();
+        if (pending_emit.empty()) return false;
+        // ParseAndEmit appends at most one row per element; leave room so `out`
+        // (STANDARD_VECTOR_SIZE) never overflows.
+        const size_t room = static_cast<size_t>(out.GetCapacity()) - static_cast<size_t>(out.size());
+        const size_t n = std::min(room, pending_emit.size());
+        take.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            take.push_back(pending_emit.front());
+            pending_emit.pop_front();
+        }
+    }
+    for (const auto& item : take) {
+        parse_fn(nlohmann::json(item.second), proxy_rows[item.first].row, out);
+    }
+    return true;
 }
 
 // =============================================================================
