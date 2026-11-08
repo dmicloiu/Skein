@@ -14,6 +14,13 @@
 # Default builds the sem_filter driver that analysis/slurm/sem_filter_ab_clariden.sh
 # (and the other *_clariden.sh experiments) depend on.
 #
+# FLOCK_SRC (default $HOME/projects/flock) selects the source tree, e.g. a git
+# worktree: FLOCK_SRC=$HOME/projects/flock-proxy-v2 builds into THAT tree's
+# build/release and never touches $HOME/projects/flock/build. vcpkg (its
+# prebuilt deps) always comes from $HOME/projects/flock/vcpkg; worktrees have none.
+# TARGET may list several targets ("flock_loadable_extension flock_proxy_policy_tests");
+# targets named *_tests are run after the build (the job fails if one fails).
+#
 # Must run INSIDE the NGC container (the EDF) because the toolchain (ninja, the
 # arm64 compilers) lives only there -- the login node has no ninja. CPU-only
 # build, no GPU requested (eases scheduling).
@@ -40,16 +47,21 @@
 # non-WASM builds (CMakeLists.txt:60-66), so no extra LOAD_TESTS flag is needed.
 # -----------------------------------------------------------------------------
 set -euo pipefail
-cd "$HOME/projects/flock"
+export FLOCK_SRC="${FLOCK_SRC:-$HOME/projects/flock}"
+[ -f "$FLOCK_SRC/extension_config.cmake" ] && [ -f "$FLOCK_SRC/duckdb/CMakeLists.txt" ] || {
+    echo "ERROR: FLOCK_SRC=$FLOCK_SRC is not a flock checkout with the duckdb submodule"; exit 1; }
+cd "$FLOCK_SRC"
 mkdir -p logs
 EDF="$HOME/projects/sembench/ngc-pytorch-vllm.toml"
 
 srun -ul --environment="$EDF" bash -c '
     set -euo pipefail
-    FLOCK="$HOME/projects/flock"; cd "$FLOCK"
-    # Which integration driver to build; override via the TARGET env var.
+    FLOCK="$FLOCK_SRC"; cd "$FLOCK"
+    VCPKG="$HOME/projects/flock/vcpkg"
+    # Which targets to build (space-separated); override via the TARGET env var.
     TARGET="${TARGET:-flock_sem_filter_vllm_integration}"
-    echo "building target: $TARGET"
+    echo "source tree: $FLOCK ($(git -C "$FLOCK" rev-parse --short HEAD 2>/dev/null || echo "?") on $(git -C "$FLOCK" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?"))"
+    echo "building targets: $TARGET"
 
     echo "==================== TOOLCHAIN ===================="
     cmake --version | head -1
@@ -59,7 +71,7 @@ srun -ul --environment="$EDF" bash -c '
     echo "==================== PREBUILT VCPKG DEPS (offline) ===================="
     # Populated on the login node (see header). No network here, so fail loudly
     # if the install step was skipped.
-    INST="$FLOCK/vcpkg/installed/arm64-linux"
+    INST="$VCPKG/installed/arm64-linux"
     [ -f "$INST/share/nlohmann_json/nlohmann_jsonConfig.cmake" ] || {
         echo "ERROR: vcpkg/installed/arm64-linux missing nlohmann_json -- run the"
         echo "       login-node install in this scripts header first."; exit 1; }
@@ -74,16 +86,18 @@ srun -ul --environment="$EDF" bash -c '
     # Toolchain file + triplet in CLASSIC mode (no manifest flags) puts
     # vcpkg/installed/arm64-linux on CMAKE_PREFIX_PATH; deps resolve with no network.
     cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_TOOLCHAIN_FILE="$FLOCK/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+        -DCMAKE_TOOLCHAIN_FILE="$VCPKG/scripts/buildsystems/vcpkg.cmake" \
         -DVCPKG_TARGET_TRIPLET=arm64-linux \
         -DEXTENSION_STATIC_BUILD=1 \
         -DDUCKDB_EXTENSION_CONFIGS="$FLOCK/extension_config.cmake" \
         -S duckdb -B build/release
 
     echo "==================== BUILD ===================="
-    cmake --build build/release --target "$TARGET" -j"$(nproc)"
+    # shellcheck disable=SC2086  # word-split the target list on purpose
+    cmake --build build/release --target $TARGET -j"$(nproc)"
 
-    echo "==================== PLACE BINARY ===================="
+    for TARGET in $TARGET; do
+    echo "==================== PLACE BINARY: $TARGET ===================="
     if [ "$TARGET" = "flock_loadable_extension" ]; then
         # The loadable target'\''s OUTPUT file is flock.duckdb_extension (name != the
         # target name), and cross_system_analysis_clariden.sh reads it IN PLACE via
@@ -93,6 +107,7 @@ srun -ul --environment="$EDF" bash -c '
         [ -f "$OUT_EXT" ] || { echo "ERROR: loadable not produced at $OUT_EXT"; exit 1; }
         ls -la "$OUT_EXT"
         file "$OUT_EXT" || true
+        sha256sum "$OUT_EXT"
         echo "DONE: loadable ready at $FLOCK/$OUT_EXT"
     else
         # Test drivers: output filename == target name. The experiment scripts expect
@@ -108,5 +123,13 @@ srun -ul --environment="$EDF" bash -c '
         ls -la "build/$TARGET"
         file "build/$TARGET" || true
         echo "DONE: driver ready at build/$TARGET"
+        case "$TARGET" in
+            *_tests)
+                echo "==================== RUN TESTS: $TARGET ===================="
+                # Run from the source root: some tests open relative paths / files.
+                "./build/$TARGET"
+                ;;
+        esac
     fi
+    done
 '
