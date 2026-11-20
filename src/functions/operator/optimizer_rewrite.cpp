@@ -8,6 +8,7 @@
 #include "duckdb/planner/expression/bound_operator_expression.hpp"
 #include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/planner/operator/logical_any_join.hpp"
+#include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/planner/operator/logical_cross_product.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_projection.hpp"
@@ -173,6 +174,114 @@ void TryRewriteFilter(duckdb::unique_ptr<LogicalOperator>& node) {
     node = std::move(current);
 }
 
+// DuckDB 2.0 folds a predicate that reads both join sides into an INNER
+// LogicalComparisonJoin as an "arbitrary" (non-comparison) JoinCondition, where
+// 1.5 left it in a FILTER above the join. A top-level llm_filter there would run as
+// a scalar inside the hash join, so pull it out: keep the key conditions (and any
+// other arbitrary condition) in the join, and stack LogicalSemFilters above it,
+// exactly the 1.5 plan shape. The join's projection maps may drop columns that
+// only the predicate reads, so widen them and let the top SemFilter restore the
+// join's original output.
+void TryRewriteJoinConditions(duckdb::unique_ptr<LogicalOperator>& node) {
+    auto& join = node->Cast<duckdb::LogicalComparisonJoin>();
+    if (join.join_type != duckdb::JoinType::INNER || join.children.size() != 2) {
+        return;
+    }
+    bool has_llm_call = false;
+    for (auto& cond : join.conditions) {
+        bool invert = false;
+        if (!cond.IsComparison() && ConjunctIsLLMCall(cond.GetJoinExpression(), invert)) {
+            has_llm_call = true;
+            break;
+        }
+    }
+    if (!has_llm_call) {
+        return;
+    }
+
+    const auto original_output = join.GetColumnBindings();
+
+    duckdb::vector<duckdb::unique_ptr<Expression>> llm_calls;
+    duckdb::vector<bool> inverts;
+    duckdb::vector<duckdb::JoinCondition> kept;
+    for (auto& cond : join.conditions) {
+        bool invert = false;
+        if (!cond.IsComparison() && ConjunctIsLLMCall(cond.GetJoinExpression(), invert)) {
+            llm_calls.push_back(UnwrapLLMCall(std::move(cond.JoinExpressionReference())));
+            inverts.push_back(invert);
+        } else {
+            kept.push_back(std::move(cond));
+        }
+    }
+
+    // Columns the llm calls read.
+    duckdb::vector<duckdb::ColumnBinding> needed;
+    for (auto& call : llm_calls) {
+        duckdb::ExpressionIterator::VisitExpression<duckdb::BoundColumnRefExpression>(
+            *call, [&](const duckdb::BoundColumnRefExpression& ref) { needed.push_back(ref.Binding()); });
+    }
+
+    duckdb::unique_ptr<LogicalOperator> below;
+    if (kept.empty()) {
+        // Only semantic predicates: a cross product outputs every column.
+        below = duckdb::make_uniq<duckdb::LogicalCrossProduct>(std::move(join.children[0]),
+                                                                std::move(join.children[1]));
+    } else {
+        join.conditions = std::move(kept);
+        // Keep every needed column in the join output.
+        auto widen = [&](duckdb::LogicalOperator& child, duckdb::vector<duckdb::ProjectionIndex>& map) {
+            if (map.empty()) {
+                return;  // empty map = all child columns pass through
+            }
+            const auto child_bindings = child.GetColumnBindings();
+            for (const auto& b : needed) {
+                for (idx_t i = 0; i < child_bindings.size(); ++i) {
+                    if (child_bindings[i] == b) {
+                        bool present = false;
+                        for (const auto& m : map) {
+                            present |= (m.GetIndex() == i);
+                        }
+                        if (!present) {
+                            map.push_back(duckdb::ProjectionIndex(i));
+                        }
+                    }
+                }
+            }
+        };
+        widen(*join.children[0], join.left_projection_map);
+        widen(*join.children[1], join.right_projection_map);
+        // The join's output changed: refresh its cached types to match.
+        join.ResolveOperatorTypes();
+        below = std::move(node);
+    }
+
+    // Top node restores the original output if the columns below differ.
+    duckdb::vector<duckdb::ProjectionIndex> projection_map;
+    const auto below_output = below->GetColumnBindings();
+    if (below_output != original_output) {
+        for (const auto& b : original_output) {
+            for (idx_t i = 0; i < below_output.size(); ++i) {
+                if (below_output[i] == b) {
+                    projection_map.push_back(duckdb::ProjectionIndex(i));
+                    break;
+                }
+            }
+        }
+    }
+
+    const idx_t call_count = llm_calls.size();
+    duckdb::unique_ptr<LogicalOperator> current = std::move(below);
+    for (idx_t i = 0; i < call_count; ++i) {
+        const bool is_top = (i + 1 == call_count);
+        duckdb::vector<duckdb::unique_ptr<Expression>> no_residuals;
+        current = duckdb::make_uniq<LogicalSemFilter>(std::move(current), std::move(llm_calls[i]),
+                                                      std::move(no_residuals),
+                                                      is_top ? projection_map : duckdb::vector<duckdb::ProjectionIndex>{},
+                                                      inverts[i]);
+    }
+    node = std::move(current);
+}
+
 // Skein may absorb CROSS JOIN ... WHERE llm_filter(left, right) into an
 // INNER LogicalAnyJoin. Only the bare semantic predicate (or its implicit
 // BOOLEAN cast) is supported here; extra predicates, NOT and OR are outside
@@ -265,7 +374,8 @@ void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
         TryRewriteFilter(node);
     } else if (node->type == LogicalOperatorType::LOGICAL_ANY_JOIN) {
         TryRewriteUnkeyedJoin(node);
-
+    } else if (node->type == LogicalOperatorType::LOGICAL_COMPARISON_JOIN) {
+        TryRewriteJoinConditions(node);
     } else if (node->type == LogicalOperatorType::LOGICAL_PROJECTION) {
         TryRewriteProjection(node);
     }
