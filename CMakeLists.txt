@@ -63,6 +63,10 @@ if(NOT EMSCRIPTEN)
     # Add the test directory if not on WASM
     enable_testing()
     add_subdirectory(test/unit)
-    add_subdirectory(test/runtime)
-    add_subdirectory(test/functions/operator)
+    if(NOT WIN32)
+        # Skein's runtime/operator C++ tests use POSIX sockets (mock vLLM server)
+        # and only run on Linux; the SQL tests in test/sql cover all platforms.
+        add_subdirectory(test/runtime)
+        add_subdirectory(test/functions/operator)
+    endif()
 endif()
