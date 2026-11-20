@@ -61,6 +61,10 @@ if(NOT EMSCRIPTEN)
     # Add the test directory if not on WASM
     enable_testing()
     add_subdirectory(test/unit)
-    add_subdirectory(test/runtime)
-    add_subdirectory(test/functions/operator)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Skein's runtime/operator C++ tests (mock vLLM server, Linux toolchain
+        # workarounds) only run on Linux.
+        add_subdirectory(test/runtime)
+        add_subdirectory(test/functions/operator)
+    endif()
 endif()
