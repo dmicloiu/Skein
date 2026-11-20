@@ -57,7 +57,7 @@ TEST_F(LLMReduceTest, SingleTupleWithLLMCall) {
 
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 1);
-    ASSERT_EQ(results->GetValue(0, 0).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), GetExpectedResponse());
 }
 
 // Test multiple tuples without GROUP BY: LLM is called once
@@ -80,7 +80,7 @@ TEST_F(LLMReduceTest, MultipleTuplesWithoutGroupBy) {
 
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 1);
-    ASSERT_EQ(results->GetValue(0, 0).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), GetExpectedResponse());
 }
 
 // Test GROUP BY with multiple tuples per group: LLM is called for each group
@@ -106,8 +106,8 @@ TEST_F(LLMReduceTest, GroupByWithMultipleTuplesPerGroup) {
 
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 2);
-    ASSERT_EQ(results->GetValue(1, 0).GetValue<std::string>(), GetExpectedResponse());
-    ASSERT_EQ(results->GetValue(1, 1).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(1, 0).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(1, 1).GetValue<std::string>(), GetExpectedResponse());
 }
 
 // Test GROUP BY with single tuple per group: LLM is still called (reduce always calls LLM)
@@ -132,9 +132,9 @@ TEST_F(LLMReduceTest, GroupByWithSingleTuplePerGroup) {
 
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 3);
-    ASSERT_EQ(results->GetValue(1, 0).GetValue<std::string>(), GetExpectedResponse());
-    ASSERT_EQ(results->GetValue(1, 1).GetValue<std::string>(), GetExpectedResponse());
-    ASSERT_EQ(results->GetValue(1, 2).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(1, 0).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(1, 1).GetValue<std::string>(), GetExpectedResponse());
+    ASSERT_EQ(results->Collection().GetValue(1, 2).GetValue<std::string>(), GetExpectedResponse());
 }
 
 // Test argument validation
