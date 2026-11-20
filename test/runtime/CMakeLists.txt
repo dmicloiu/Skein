@@ -125,7 +125,6 @@ target_link_libraries(flock_sem_filter_vllm_integration PRIVATE
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -153,7 +152,6 @@ target_link_libraries(flock_sem_extract_vllm_integration PRIVATE
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -178,8 +176,8 @@ add_executable(flock_semantic_config_tests
 target_include_directories(flock_semantic_config_tests PRIVATE
     ${PROJECT_SOURCE_DIR}/src/include)
 
-# GNU ld needs --start-group/--end-group for the circular deps; jemalloc is
-# only built on Linux. Same recipe as test/unit/CMakeLists.txt.
+# GNU ld needs --start-group/--end-group for the circular deps (jemalloc is
+# part of duckdb_static since DuckDB 1.5.x). Same recipe as test/unit/CMakeLists.txt.
 target_link_libraries(flock_semantic_config_tests PRIVATE
     GTest::gtest
     GTest::gmock
@@ -189,7 +187,6 @@ target_link_libraries(flock_semantic_config_tests PRIVATE
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
