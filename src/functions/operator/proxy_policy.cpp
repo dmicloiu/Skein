@@ -105,7 +105,7 @@ public:
 
     std::string Stats() const override {
         uint64_t max_window = 0;
-        for (auto w : window_) max_window = std::max(max_window, w);
+        for (auto w : window_) max_window = (std::max)(max_window, w);
         return nlohmann::json{{"mode", "embedding_topk"},
                               {"units", units_.size()},
                               {"groups", groups_.size()},
@@ -163,7 +163,7 @@ private:
 // LOTUS-style cascade policy (ablation)
 // =============================================================================
 
-double Clip01(double x) { return std::min(1.0, std::max(0.0, x)); }
+double Clip01(double x) { return (std::min)(1.0, (std::max)(0.0, x)); }
 
 class LotusPolicy : public ProxyPolicy {
 public:
@@ -328,7 +328,7 @@ double CalculateTauNeg(const std::vector<ScoredPair>& pairs, double tau_pos, dou
     double best = 0.0;
     for (auto it = pairs.rbegin(); it != pairs.rend(); ++it) {
         if (Recall(tau_pos, it->score, pairs) >= recall_target) {
-            best = found ? std::max(best, it->score) : it->score;
+            best = found ? (std::max)(best, it->score) : it->score;
             found = true;
         }
     }
@@ -384,7 +384,7 @@ std::pair<double, double> LotusLearnThresholds(const std::vector<double>& scores
     const double ub_z1 = Ub(m1, s1, n, options.failure_probability / 2.0);
     const double lb_z2 = Lb(m2, s2, n, options.failure_probability / 2.0);
     double corrected = (ub_z1 + lb_z2 == 0.0) ? 1.0 : ub_z1 / (ub_z1 + lb_z2);
-    corrected = std::min(1.0, corrected);
+    corrected = (std::min)(1.0, corrected);
     tau_neg = CalculateTauNeg(pairs, 1.0, corrected);
 
     double min_candidate = 1.0;
@@ -398,10 +398,10 @@ std::pair<double, double> LotusLearnThresholds(const std::vector<double>& scores
         MeanStd(z, mean, std_dev);
         const double p_l = Lb(mean, std_dev, static_cast<double>(z.size()), options.failure_probability / n);
         if (p_l > options.precision_target) {
-            min_candidate = std::min(min_candidate, candidate.score);
+            min_candidate = (std::min)(min_candidate, candidate.score);
         }
     }
-    return {std::max(tau_neg, min_candidate), tau_neg};
+    return {(std::max)(tau_neg, min_candidate), tau_neg};
 }
 
 std::unique_ptr<ProxyPolicy> MakeTopKPolicy(std::vector<ProxyUnit> units, const TopKOptions& options) {

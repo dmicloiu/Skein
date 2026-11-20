@@ -21,8 +21,8 @@ target_include_directories(flock_semantic_operator_tests PRIVATE
 
 # The test never opens a database or loads an extension. So we link
 # duckdb_static directly, WITHOUT duckdb_generated_extension_loader or the
-# bundled extensions. jemalloc is duckdb's allocator on Linux; keep it in the
-# group so duckdb_static's allocation symbols resolve.
+# bundled extensions. (jemalloc, duckdb's allocator on Linux, is part of
+# duckdb_static since DuckDB 1.5.x.)
 # The residual test opens an in-memory DuckDB for an ExpressionExecutor context,
 # which pulls duckdb_static's strong LogicalType::X constants; -fno-gnu-unique
 # makes our objects emit weak linkonce_odr for those, avoiding a multiple-def
@@ -35,7 +35,6 @@ target_link_libraries(flock_semantic_operator_tests PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     Threads::Threads)
@@ -119,12 +118,11 @@ target_link_libraries(flock_sem_filter_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -153,12 +151,11 @@ target_link_libraries(flock_sem_extract_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -187,12 +184,11 @@ target_link_libraries(flock_optimizer_rewrite_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -225,12 +221,11 @@ target_link_libraries(flock_sem_filter_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
@@ -261,12 +256,11 @@ target_link_libraries(flock_sem_extract_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl

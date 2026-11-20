@@ -1,6 +1,6 @@
 #define DUCKDB_EXTENSION_MAIN
 
-#include "flock_extension.hpp"
+#include "skein_extension.hpp"
 
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/extension_statement.hpp"
@@ -78,16 +78,16 @@ BoundStatement duck_bind(ClientContext& context, Binder& binder, OperatorExtensi
     }
 }
 
-void FlockExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
+void SkeinExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
 
-std::string FlockExtension::Name() { return "flock"; }
-std::string FlockExtension::Version() const { return "v0.4.0"; }
+std::string SkeinExtension::Name() { return "skein"; }
+std::string SkeinExtension::Version() const { return "v0.3.0"; }
 
 }// namespace duckdb
 
 extern "C" {
 
-DUCKDB_CPP_EXTENSION_ENTRY(flock, loader) {
+DUCKDB_CPP_EXTENSION_ENTRY(skein, loader) {
     duckdb::LoadInternal(loader);
 }
 }

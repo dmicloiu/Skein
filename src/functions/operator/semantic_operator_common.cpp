@@ -168,7 +168,7 @@ std::string RowMajorTuples(const nlohmann::json& columns) {
     for (int i = 0; i < n; ++i) {
         if (i % kChunkRows == 0) {
             out += "### Rows " + std::to_string(i + 1) + "-" +
-                   std::to_string(std::min(n, i + kChunkRows)) + "\n";
+                   std::to_string((std::min)(n, i + kChunkRows)) + "\n";
         }
         out += "{\"id\": " + std::to_string(i + 1);
         unsigned fallback_idx = 1;

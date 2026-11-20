@@ -16,7 +16,7 @@ target_compile_options(${PROJECT_NAME}_tests PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
 
 # GNU ld (Linux + MinGW) needs --start-group/--end-group for circular deps
-# jemalloc is only built on Linux
+# (jemalloc is part of duckdb_static since DuckDB 1.5.x, no separate target)
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE
     GTest::gtest
     GTest::gmock
@@ -26,7 +26,6 @@ target_link_libraries(${PROJECT_NAME}_tests PRIVATE
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>)
 

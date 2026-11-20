@@ -6,4 +6,4 @@ duckdb_extension_load(core_functions)
 duckdb_extension_load(json)
 
 # Extension from this repo
-duckdb_extension_load(flock SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR} LOAD_TESTS)
+duckdb_extension_load(skein SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR} LOAD_TESTS)

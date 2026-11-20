@@ -98,12 +98,13 @@ srun -ul --environment="$EDF" bash -c '
 
     for TARGET in $TARGET; do
     echo "==================== PLACE BINARY: $TARGET ===================="
-    if [ "$TARGET" = "flock_loadable_extension" ]; then
+    if [[ "$TARGET" == *_loadable_extension ]]; then
+        EXT_BASENAME="${TARGET%_loadable_extension}"   # flock or skein
         # The loadable target'\''s OUTPUT file is flock.duckdb_extension (name != the
         # target name), and cross_system_analysis_clariden.sh reads it IN PLACE via
         # FLOCK_EXTENSION_PATH -- so there is nothing to find-by-name or copy; just
         # verify the artifact exists where the experiment expects it.
-        OUT_EXT="build/release/extension/flock/flock.duckdb_extension"
+        OUT_EXT="build/release/extension/$EXT_BASENAME/$EXT_BASENAME.duckdb_extension"
         [ -f "$OUT_EXT" ] || { echo "ERROR: loadable not produced at $OUT_EXT"; exit 1; }
         ls -la "$OUT_EXT"
         file "$OUT_EXT" || true
