@@ -17,6 +17,8 @@ namespace flock {
 // a default here and both the router and the option pick it up.
 struct SemanticDefaults {
     static constexpr bool kRewriteEnabled = true;
+    // Stop a semantic filter early once it has emitted enough rows for a LIMIT above it.
+    static constexpr bool kLimitEarlyStop = true;
     static constexpr const char* kEndpoints = "http://localhost:8000/v1";
     static constexpr const char* kRouting = "round_robin";
     static constexpr int64_t kInFlightCap = 128;
@@ -61,6 +63,7 @@ struct SemanticDefaults {
 // ClientContext::TryGetCurrentSetting), so the two never drift.
 namespace semantic_option {
 inline constexpr const char* kRewriteEnabled = "semantic_rewrite_enabled";
+inline constexpr const char* kLimitEarlyStop = "semantic_limit_early_stop";
 inline constexpr const char* kEndpoints = "semantic_endpoints";
 inline constexpr const char* kRouting = "semantic_routing";
 inline constexpr const char* kInFlightCap = "semantic_in_flight_cap";

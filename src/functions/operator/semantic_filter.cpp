@@ -191,6 +191,7 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
                                                std::move(rendered_head), std::move(proxy_served_model),
                                                std::move(proxy_stage))
                        .Cast<PhysicalSemFilter>();
+    op.SetLimitHint(limit_hint);
     op.children.push_back(child_plan);
     return op;
 }
@@ -312,6 +313,11 @@ duckdb::unique_ptr<duckdb::GlobalSinkState> PhysicalSemFilter::GetGlobalSinkStat
     state->proxy_served_model = proxy_served_model_;
     state->proxy_stage = proxy_stage_;
     state->verdict_of = [](const nlohmann::json& element) { return ParseVerdict(element); };
+    if (limit_hint_ > 0 && !proxy_stage_ && proxy_served_model_.empty()) {
+        state->limit_rows = limit_hint_;
+        // An element yields an output row iff verdict XOR invert (as ParseAndEmit).
+        state->limit_emits = [this](const nlohmann::json& element) { return ParseVerdict(element) != invert_; };
+    }
     if (!proxy_served_model_.empty()) {
         state->render_proxy_prompt = [this](const std::vector<RowData>& batch) {
             return RenderProxyPrompt(batch);
