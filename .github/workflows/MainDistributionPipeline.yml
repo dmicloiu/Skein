@@ -32,3 +32,6 @@ jobs:
       extension_name: skein
       # The async LLM client needs threads + libcurl, which the WASM targets lack.
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
+      # Build the full platform matrix on every run (PRs default to a reduced set),
+      # matching what duckdb/community-extensions builds.
+      reduced_ci_mode: 'disabled'
