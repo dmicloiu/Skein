@@ -63,9 +63,9 @@ if(NOT EMSCRIPTEN)
     # Add the test directory if not on WASM
     enable_testing()
     add_subdirectory(test/unit)
-    if(NOT WIN32)
-        # Skein's runtime/operator C++ tests use POSIX sockets (mock vLLM server)
-        # and only run on Linux; the SQL tests in test/sql cover all platforms.
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Skein's runtime/operator C++ tests (mock vLLM server, Linux toolchain
+        # workarounds) only run on Linux; the SQL tests in test/sql cover all platforms.
         add_subdirectory(test/runtime)
         add_subdirectory(test/functions/operator)
     endif()
