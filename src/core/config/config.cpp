@@ -1,5 +1,8 @@
 #include "flock/core/config.hpp"
+
+#include <vector>
 #include "duckdb/common/file_system.hpp"
+#include "duckdb/main/extension_helper.hpp"
 #include "flock/secret_manager/secret_manager.hpp"
 #include <chrono>
 #include <thread>
@@ -41,13 +44,23 @@ void Config::SetupGlobalStorageLocation(duckdb::DatabaseInstance* db_instance) {
     return;
 #endif
     auto& fs = duckdb::FileSystem::GetFileSystem(*db_instance);
-    const std::string dir_path = get_global_storage_path().parent_path().string();
-    try {
-        if (!dir_path.empty() && !fs.DirectoryExists(dir_path)) {
-            fs.CreateDirectory(dir_path);
+    const auto dir = get_global_storage_path().parent_path();
+    // CreateDirectory is not recursive: on a fresh home (no ~/.duckdb yet) create
+    // every missing ancestor first, outermost to innermost.
+    std::vector<std::filesystem::path> missing;
+    for (auto p = dir; !p.empty() && p != p.root_path(); p = p.parent_path()) {
+        if (fs.DirectoryExists(p.string())) {
+            break;
         }
-    } catch (const std::exception& e) {
-        std::cerr << "Error creating directory " << dir_path << ": " << e.what() << std::endl;
+        missing.push_back(p);
+    }
+    for (auto it = missing.rbegin(); it != missing.rend(); ++it) {
+        try {
+            fs.CreateDirectory(it->string());
+        } catch (const std::exception& e) {
+            std::cerr << "Error creating directory " << it->string() << ": " << e.what() << std::endl;
+            return;
+        }
     }
 }
 
@@ -98,6 +111,18 @@ void Config::Configure(duckdb::ExtensionLoader& loader) {
     Registry::Register(loader);
     SecretManager::Register(loader);
     auto& db = loader.GetDatabaseInstance();
+    // The config tables use the JSON type. When extensions are linked statically
+    // (e.g. DuckDB's unittest runner) json is not necessarily loaded before us,
+    // and every CREATE TABLE would fail silently; make sure it is available.
+    if (!db.ExtensionIsLoaded("json") && !duckdb::ExtensionHelper::TryAutoLoadExtension(db, "json")) {
+#ifndef SKEIN_LOADABLE_BUILD
+        // Static builds only (ExtensionHelper::LoadExtension is not exported to loadable
+        // extensions): autoloading may be off, but a json linked into this binary can
+        // still be loaded directly.
+        duckdb::DuckDB handle(db);
+        duckdb::ExtensionHelper::LoadExtension(handle, "json");
+#endif
+    }
     const auto db_path = db.config.options.database_path;
     const std::string global_path = get_global_storage_path().string();
 

@@ -31,6 +31,8 @@ endif()
 # Build the DuckDB static and loadable extensions
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
+# Lets the sources tell the loadable build apart from the statically linked one.
+target_compile_definitions(${LOADABLE_EXTENSION_NAME} PRIVATE SKEIN_LOADABLE_BUILD)
 
 # Link the filesystem library for GCC < 9
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION
