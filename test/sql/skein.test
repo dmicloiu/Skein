@@ -22,6 +22,10 @@ Model not found
 statement ok
 CREATE SECRET (TYPE OPENAI, API_KEY 'sk-test');
 
+# A session-local model: does not depend on the global default-model storage.
+statement ok
+CREATE LOCAL MODEL('skein_test_model', 'gpt-4o', 'openai');
+
 statement ok
 CREATE TABLE docs(a VARCHAR, b VARCHAR, x INT);
 
@@ -30,13 +34,13 @@ INSERT INTO docs VALUES ('a1', 'b1', 1), ('a2', 'b2', 1);
 
 # WHERE llm_filter(...) becomes Skein's semantic filter operator.
 query II
-EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'gpt-4o'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
+EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
 ----
 physical_plan	<REGEX>:(?is).*extension.*
 
 # A two-sided llm_filter over a keyed join is pulled above the join.
 query II
-EXPLAIN SELECT d1.a, d2.b FROM docs d1 JOIN docs d2 ON d1.x = d2.x AND d1.b <> d2.b WHERE llm_filter({'model_name': 'gpt-4o'}, {'prompt': 'p', 'context_columns': [{'data': d1.a}, {'data': d2.a}]});
+EXPLAIN SELECT d1.a, d2.b FROM docs d1 JOIN docs d2 ON d1.x = d2.x AND d1.b <> d2.b WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': d1.a}, {'data': d2.a}]});
 ----
 physical_plan	<REGEX>:(?is).*extension.*
 
@@ -45,6 +49,6 @@ statement ok
 SET semantic_rewrite_enabled = false;
 
 query II
-EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'gpt-4o'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
+EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
 ----
 physical_plan	<!REGEX>:(?is).*extension.*
