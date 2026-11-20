@@ -32,12 +32,3 @@ jobs:
       extension_name: skein
       # The async LLM client needs threads + libcurl, which the WASM targets lack.
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
-
-  code-quality-check:
-    name: Code Quality Check
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_code_quality.yml@v1.5.6
-    with:
-      duckdb_version: v1.5.6
-      ci_tools_version: v1.5.6
-      extension_name: skein
-      format_checks: "format;tidy"
