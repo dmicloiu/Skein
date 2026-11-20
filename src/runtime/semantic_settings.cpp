@@ -168,6 +168,10 @@ void RegisterSemanticSettings(DBConfig& config) {
     config.AddExtensionOption(semantic_option::kRewriteEnabled,
                               "Enable the semantic-operator query rewrite for this session.", LogicalType::BOOLEAN,
                               Value::BOOLEAN(SemanticDefaults::kRewriteEnabled), nullptr, SetScope::SESSION);
+    config.AddExtensionOption(semantic_option::kLimitEarlyStop,
+                              "Let a semantic filter stop early once a LIMIT above it is satisfied.",
+                              LogicalType::BOOLEAN, Value::BOOLEAN(SemanticDefaults::kLimitEarlyStop), nullptr,
+                              SetScope::SESSION);
 
     // GLOBAL: mutates the single shared EndpointRouter, so SESSION scope would
     // misrepresent the blast radius.

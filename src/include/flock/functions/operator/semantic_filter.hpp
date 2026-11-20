@@ -33,6 +33,9 @@ public:
     duckdb::idx_t llm_call_index = 0;
     duckdb::vector<duckdb::ProjectionIndex> projection_map;
     bool invert = false;
+    // Output rows a LIMIT directly above needs (limit + offset); 0 = no LIMIT
+    // hint. Set by the optimizer rewrite (AttachLimitHints).
+    duckdb::idx_t limit_hint = 0;
 
     duckdb::vector<duckdb::ColumnBinding> GetColumnBindings() override;
     bool HasProjectionMap() const override {
@@ -80,6 +83,11 @@ public:
     // (json_schema path) or a free-text string / number (free_form fallback).
     static bool ParseVerdict(const nlohmann::json& element);
 
+    // LIMIT early stop (see SemGlobalSinkState::limit_rows). Ignored when a
+    // proxy is configured. 0 = off.
+    void SetLimitHint(duckdb::idx_t rows) { limit_hint_ = rows; }
+    duckdb::idx_t LimitHint() const { return limit_hint_; }
+
     // Accessors (resolved config; used by tests / EXPLAIN).
     const std::string& PromptTemplate() const { return prompt_template_; }
     const std::string& TupleFormat() const { return tuple_format_; }
@@ -102,6 +110,7 @@ private:
     std::string sticky_key_;
     std::string proxy_served_model_;
     std::shared_ptr<ProxyStage> proxy_stage_;  // embedding proxy ("embedding" / "lotus"); null = off
+    duckdb::idx_t limit_hint_ = 0;
 };
 
 }  // namespace flock

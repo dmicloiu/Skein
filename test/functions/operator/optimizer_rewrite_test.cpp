@@ -225,6 +225,84 @@ TEST(OptimizerRewrite, Case4_TwoCallsStack) {
     EXPECT_TRUE(sf[1]->projection_map.empty());   // bottom node passes all columns
 }
 
+// ===========================================================================
+// LIMIT early-stop hint.
+// ===========================================================================
+std::unique_ptr<LogicalOperator> PlanWith(const std::string& setting, const std::string& query) {
+    duckdb::Connection con(*g_db);
+    auto r = con.Query(setting);
+    EXPECT_FALSE(r->HasError()) << r->GetError();
+    return con.ExtractPlan(query);
+}
+
+TEST(OptimizerRewrite, Limit_HintOnFilter) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b") + " LIMIT 3");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 3u);
+}
+
+TEST(OptimizerRewrite, Limit_OffsetAdds) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b") + " LIMIT 3 OFFSET 2");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 5u);
+}
+
+TEST(OptimizerRewrite, Limit_ThroughJoinOutputProjection) {
+    // The movie Q5 shape: a self-join, the llm_filter over both sides, LIMIT on top.
+    auto plan = Plan("SELECT d1.a, d2.a FROM docs d1 JOIN docs d2 ON d1.x = d2.x AND d1.a <> d2.a WHERE " +
+                     LlmFilter("d1.b", "d2.b") + " LIMIT 10");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << PlanToString(*plan);
+    EXPECT_EQ(sf[0]->limit_hint, 10u) << PlanToString(*plan);
+}
+
+TEST(OptimizerRewrite, Limit_NoHintWithoutLimit) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 0u);
+}
+
+TEST(OptimizerRewrite, Limit_NoHintUnderOrderBy) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b") + " ORDER BY x LIMIT 3");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 0u);
+}
+
+TEST(OptimizerRewrite, Limit_NoHintUnderDistinct) {
+    auto plan = Plan("SELECT DISTINCT a FROM docs WHERE " + LlmFilter("a", "b") + " LIMIT 3");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 0u);
+}
+
+TEST(OptimizerRewrite, Limit_NoHintUnderAggregate) {
+    auto plan = Plan("SELECT count(*) FROM (SELECT a FROM docs WHERE " + LlmFilter("a", "b") + ") t LIMIT 3");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 0u);
+}
+
+TEST(OptimizerRewrite, Limit_StackedOnlyTopGetsHint) {
+    auto plan = Plan("SELECT a FROM docs WHERE " + LlmFilter("a", "b", "p1") + " AND " +
+                     LlmFilter("b", "a", "p2") + " LIMIT 4");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 2u);
+    EXPECT_EQ(sf[0]->limit_hint, 4u);  // top (pre-order first)
+    EXPECT_EQ(sf[1]->limit_hint, 0u);
+}
+
+TEST(OptimizerRewrite, Limit_FlagOffNoHint) {
+    auto plan = PlanWith("SET semantic_limit_early_stop=false;",
+                         "SELECT a FROM docs WHERE " + LlmFilter("a", "b") + " LIMIT 3");
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u);
+    EXPECT_EQ(sf[0]->limit_hint, 0u);
+}
+
 TEST(OptimizerRewrite, Case8_SubqueryInnerFilter) {
     auto plan = Plan("SELECT a FROM docs WHERE x IN (SELECT x FROM docs d2 WHERE " + LlmFilter("d2.a", "d2.b") + ")");
     auto sf = SemFiltersIn(*plan);

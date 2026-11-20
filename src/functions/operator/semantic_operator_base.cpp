@@ -432,8 +432,64 @@ SinkResultType SemGlobalSinkState::MergeAndCoalesce(SemLocalSinkState& local, id
     return must_block ? SinkResultType::BLOCKED : SinkResultType::NEED_MORE_INPUT;
 }
 
+bool SemGlobalSinkState::LimitReached() {
+    if (limit_rows == 0 || !limit_emits) {
+        return false;
+    }
+    if (limit_reached.load(std::memory_order_acquire)) {
+        return true;
+    }
+    // Claim the batches not yet counted under the lock; read them OUTSIDE it.
+    // References stay valid: OnBatchComplete only push_backs, and the source
+    // phase (the only pop_front) starts after Finalize.
+    std::vector<const CompletedBatch*> fresh;
+    {
+        auto guard = Lock();
+        for (; limit_scanned < completed.size(); ++limit_scanned) {
+            fresh.push_back(&completed[limit_scanned]);
+        }
+    }
+    uint64_t rows = 0;
+    for (const auto* batch : fresh) {
+        if (batch->proxy) {
+            continue;
+        }
+        nlohmann::json items;
+        try {
+            if (cfg.response_format == "free_form") {
+                items = nlohmann::json::array({ParseCompletionText(*batch)});
+            } else {
+                items = ParseItems(*batch);
+            }
+        } catch (...) {
+            // Count nothing; Drain parses this batch again and fails loudly there.
+            continue;
+        }
+        for (size_t i = 0; i < items.size() && i < batch->row_ids.size(); ++i) {
+            if (limit_emits(items[i])) {
+                ++rows;
+            }
+        }
+    }
+    const uint64_t total = limit_counted_rows.fetch_add(rows, std::memory_order_acq_rel) + rows;
+    if (total >= limit_rows) {
+        limit_reached.store(true, std::memory_order_release);
+        return true;
+    }
+    return false;
+}
+
 SinkResultType SemGlobalSinkState::SinkChunk(SemLocalSinkState& local, DataChunk& chunk,
                                              InterruptState& interrupt) {
+    // LIMIT early stop: enough output rows already came back -> read no more
+    // input. Checked per fresh chunk and on every BLOCKED resume (a completion
+    // wakes the blocked sink, so the count is re-checked as batches return).
+    if (LimitReached()) {
+        rows_dropped.fetch_add(local.pending.size(), std::memory_order_relaxed);
+        local.pending.clear();
+        local.next_row_idx = 0;
+        return SinkResultType::FINISHED;
+    }
     const idx_t cols = chunk.ColumnCount();
     // Residual pre-filter: drop rows failing the non-LLM conjuncts before the LLM
     // round-trip. Computed ONLY on a fresh chunk (next_row_idx == 0) and cached in
@@ -544,8 +600,14 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
             return SinkFinalizeType::READY;
         }
     }
+    const bool limit_stop = LimitReached();
     {
         auto guard = Lock();
+        if (limit_stop) {
+            // LIMIT already satisfied: drop the rows not yet sent.
+            rows_dropped.fetch_add(pending.size(), std::memory_order_relaxed);
+            pending.clear();
+        }
         // Submit ALL remaining rows -- including a trailing partial batch
         // (< batch_size) respecting the cap.
         // [TO DO] coalesce_max_age_ms is honored opportunistically here
@@ -574,6 +636,14 @@ SinkFinalizeType SemGlobalSinkState::FinalizeFlush(InterruptState& interrupt) {
         if (!must_block) {
             // Everything submitted; no more input will arrive. Outstanding
             // batches are already counted in in_flight, so Drain still waits.
+            if (limit_stop && !input_exhausted) {
+                std::fprintf(stderr,
+                             "[flock limit] early stop: %llu output rows counted (limit %llu), "
+                             "%llu rows not sent\n",
+                             static_cast<unsigned long long>(limit_counted_rows.load()),
+                             static_cast<unsigned long long>(limit_rows),
+                             static_cast<unsigned long long>(rows_dropped.load()));
+            }
             input_exhausted = true;
             for (auto& is : blocked_sources) {
                 to_wake.push_back(is);
@@ -609,7 +679,7 @@ void SemGlobalSinkState::OnBatchComplete(uint64_t submit_generation, size_t endp
         cb.response = std::move(response);
         cb.endpoint_index = endpoint_index;
         cb.proxy = proxy;
-        completed.push(std::move(cb));
+        completed.push_back(std::move(cb));
         in_flight.fetch_sub(1, std::memory_order_relaxed);
         (proxy ? proxy_router : router)->OnComplete(endpoint_index);
         // Splice out blocked tasks; one completion wakes BOTH a cap-blocked
@@ -659,7 +729,7 @@ SourceResultType SemGlobalSinkState::Drain(DataChunk& out, const ParseFn& parse_
             return SourceResultType::FINISHED;
         }
         batch = std::move(completed.front());
-        completed.pop();
+        completed.pop_front();
     }
     // Parse + emit OUTSIDE the lock. One batch per call; batch_size is bounded
     // well under STANDARD_VECTOR_SIZE, so a batch always fits in `out`.
