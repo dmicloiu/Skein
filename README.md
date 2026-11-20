@@ -1,8 +1,8 @@
 # Skein
 
-**Skein: a DuckDB extension for topology-aware semantic query processing over a co-located LLM**
+**Skein: topology-aware semantic query processing in DuckDB with local LLMs**
 
-Skein is a research fork of [Flock](https://github.com/dais-polymtl/flock), developed as part of an MSc thesis at ETH Zurich. It keeps Flock's SQL interface while adding asynchronous physical operators for semantic filtering and extraction over a local, OpenAI-compatible LLM server such as vLLM.
+Skein runs semantic filters and extractions (`llm_filter`, `llm_complete`) over text and image columns directly in SQL, against local, OpenAI-compatible LLM servers such as vLLM. It executes them as asynchronous physical operators, decoupled from DuckDB's morsel-driven parallel execution. Skein builds on [Flock](https://github.com/dais-polymtl/flock)'s SQL interface and model/prompt management, and was developed as part of an MSc thesis at ETH Zurich.
 
 ## What it does
 
@@ -11,7 +11,16 @@ Skein is a research fork of [Flock](https://github.com/dais-polymtl/flock), deve
 - **Topology-aware routing:** Distributes requests across co-located endpoints using `single`, `round_robin`, `sticky_by_prefix`, or `least_loaded` routing, supporting replicated deployments.
 - **Systematic evaluation:** Measures throughput and quality against Flock and other semantic query engines across model and deployment configurations. In the thesis experiments, Skein reached roughly 8× Flock's throughput with one morsel and roughly 2× with multiple morsels.
 
-Skein builds on Flock's model and prompt management. The extension is still named `flock` in the build and SQL interface.
+## Install
+
+Skein is distributed as a DuckDB community extension (DuckDB 2.0; a build for DuckDB 1.5 is also provided):
+
+```sql
+INSTALL skein FROM community;
+LOAD skein;
+```
+
+Skein registers the same SQL functions and secret types as Flock, so the two extensions cannot be loaded in the same session. Models and prompts are stored in `~/.duckdb/skein_storage/skein.db`.
 
 ## Build and explore
 
@@ -45,6 +54,6 @@ For audio, set `type` to `audio` and provide a registered `transcription_model`.
 
 The [Skein research overview](analysis/SKEIN.md) describes the architecture, thesis results, and reproducibility steps. Experiment scripts, figures, and data are under [`analysis/`](analysis/). The full raw runs and original analysis notes are preserved at the `thesis-submitted` tag.
 
-Operator and runtime tests are under [`test/`](test/). Once built, run the registered tests with `ctest --test-dir build/debug/extension/flock`.
+SQL tests are under [`test/sql/`](test/sql/) and run on every platform in CI. The C++ operator and runtime tests (Linux only) are under [`test/`](test/); once built, run them with `ctest --test-dir build/debug/extension/skein`.
 
 Skein retains Flock's [license](LICENSE).

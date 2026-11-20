@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cctype>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -343,6 +344,22 @@ TEST(OptimizerRewrite, Case12_WhereAboveJoin) {
     EXPECT_FALSE(HasScalarLlmFilter(*plan)) << PlanToString(*plan);
 }
 
+// DuckDB 2.0 folds the two-sided llm_filter into the comparison join as an
+// arbitrary condition; d2.a is read only by that predicate, so the join prunes it
+// unless the rewrite widens the projection map. The rewritten plan must still
+// output exactly what the scalar plan does.
+TEST(OptimizerRewrite, Case12_JoinConditionOutputMatchesScalar) {
+    const std::string q = "SELECT d1.a, d1.b, d2.b FROM docs d1 JOIN docs d2 "
+                          "ON d1.x = d2.x AND d1.b <> d2.b "
+                          "WHERE d1.x = 1 AND " +
+                          LlmFilter("d1.a", "d2.a");
+    auto plan = Plan(q);
+    auto scalar_plan = Plan(q, /*flag_off=*/true);
+    ASSERT_EQ(SemFiltersIn(*plan).size(), 1u) << PlanToString(*plan);
+    EXPECT_EQ(plan->types, scalar_plan->types) << PlanToString(*plan);
+    EXPECT_EQ(plan->GetColumnBindings().size(), scalar_plan->GetColumnBindings().size());
+}
+
 TEST(OptimizerRewrite, Unkeyed_CrossJoinWhere) {
     auto plan = Plan("SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
                      LlmFilter("d1.a", "d2.a"));
@@ -363,7 +380,12 @@ TEST(OptimizerRewrite, Unkeyed_PhysicalPlanEngagesOperator) {
                              LlmFilter("d1.a", "d2.a"));
     ASSERT_FALSE(explain->HasError()) << explain->GetError();
     ASSERT_EQ(explain->RowCount(), 1u);
-    const auto physical = explain->GetValue(1, 0).GetValue<std::string>();
+    // DuckDB 2.0 prints operator names as "Cross Product"; normalize to the
+    // physical-type spelling (CROSS_PRODUCT) so the checks hold in both formats.
+    auto physical = explain->Collection().GetValue(1, 0).GetValue<std::string>();
+    for (auto& ch : physical) {
+        ch = ch == ' ' ? '_' : static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    }
     EXPECT_NE(physical.find("CROSS_PRODUCT"), std::string::npos) << physical;
     EXPECT_NE(physical.find("EXTENSION"), std::string::npos) << physical;
     EXPECT_EQ(physical.find("BLOCKWISE_NL_JOIN"), std::string::npos) << physical;

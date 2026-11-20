@@ -27,11 +27,11 @@ public:
     LogicalSemFilter(duckdb::unique_ptr<duckdb::LogicalOperator> child,
                      duckdb::unique_ptr<duckdb::Expression> llm_call,
                      duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> residuals,
-                     duckdb::vector<duckdb::idx_t> projection_map, bool invert);
+                     duckdb::vector<duckdb::ProjectionIndex> projection_map, bool invert);
 
     // Index of the llm_call inside `expressions` (residuals follow it).
     duckdb::idx_t llm_call_index = 0;
-    duckdb::vector<duckdb::idx_t> projection_map;
+    duckdb::vector<duckdb::ProjectionIndex> projection_map;
     bool invert = false;
 
     duckdb::vector<duckdb::ColumnBinding> GetColumnBindings() override;

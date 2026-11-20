@@ -1,0 +1,54 @@
+# name: test/sql/skein.test
+# description: skein loads, its DDL parses, and its functions bind without a provider
+# group: [sql]
+
+require skein
+
+statement ok
+CREATE LOCAL PROMPT('ci_prompt', 'hello');
+
+statement error
+CREATE PROMPTT('ci_prompt', 'hello');
+----
+Unknown keyword: PROMPTT
+
+statement error
+SELECT llm_complete({'model_name': 'missing_model'}, {'prompt': 'x'});
+----
+Model not found
+
+# The semantic operators are planned without contacting any LLM: EXPLAIN only
+# binds and optimizes. A dummy secret satisfies the provider lookup at bind time.
+statement ok
+CREATE SECRET (TYPE OPENAI, API_KEY 'sk-test');
+
+# A session-local model: does not depend on the global default-model storage.
+statement ok
+CREATE LOCAL MODEL('skein_test_model', 'gpt-4o', 'openai');
+
+statement ok
+CREATE TABLE docs(a VARCHAR, b VARCHAR, x INT);
+
+statement ok
+INSERT INTO docs VALUES ('a1', 'b1', 1), ('a2', 'b2', 1);
+
+# WHERE llm_filter(...) becomes Skein's semantic filter operator.
+query II
+EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
+----
+physical_plan	<REGEX>:(?is).*extension.*
+
+# A two-sided llm_filter over a keyed join is pulled above the join.
+query II
+EXPLAIN SELECT d1.a, d2.b FROM docs d1 JOIN docs d2 ON d1.x = d2.x AND d1.b <> d2.b WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': d1.a}, {'data': d2.a}]});
+----
+physical_plan	<REGEX>:(?is).*extension.*
+
+# With the rewrite disabled, llm_filter stays a scalar function.
+statement ok
+SET semantic_rewrite_enabled = false;
+
+query II
+EXPLAIN SELECT a FROM docs WHERE llm_filter({'model_name': 'skein_test_model'}, {'prompt': 'p', 'context_columns': [{'data': a}]});
+----
+physical_plan	<!REGEX>:(?is).*extension.*

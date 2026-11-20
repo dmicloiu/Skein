@@ -139,7 +139,7 @@ std::vector<std::pair<long long, std::string>> RunPairs(duckdb::Connection& con,
         return pairs;
     }
     for (duckdb::idx_t r = 0; r < res->RowCount(); ++r) {
-        pairs.emplace_back(std::stoll(res->GetValue(0, r).ToString()), res->GetValue(1, r).ToString());
+        pairs.emplace_back(std::stoll(res->Collection().GetValue(0, r).ToString()), res->Collection().GetValue(1, r).ToString());
     }
     std::sort(pairs.begin(), pairs.end());
     return pairs;

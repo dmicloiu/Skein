@@ -10,7 +10,7 @@ void ScalarRegistry::RegisterLlmComplete(duckdb::ExtensionLoader& loader) {
     loader.RegisterFunction(duckdb::ScalarFunction("llm_complete",
                                                    {duckdb::LogicalType::ANY, duckdb::LogicalType::ANY},
                                                    duckdb::LogicalType::JSON(), LlmComplete::Execute,
-                                                   LlmComplete::Bind, nullptr, nullptr, nullptr,
+                                                   LlmComplete::Bind, nullptr, nullptr,
                                                    duckdb::LogicalType(duckdb::LogicalTypeId::INVALID),
                                                    duckdb::FunctionStability::VOLATILE));
 }

@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Set extension name here
-set(TARGET_NAME flock)
+set(TARGET_NAME skein)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
@@ -31,6 +31,8 @@ endif()
 # Build the DuckDB static and loadable extensions
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
+# Lets the sources tell the loadable build apart from the statically linked one.
+target_compile_definitions(${LOADABLE_EXTENSION_NAME} PRIVATE SKEIN_LOADABLE_BUILD)
 
 # Link the filesystem library for GCC < 9
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION
@@ -61,6 +63,10 @@ if(NOT EMSCRIPTEN)
     # Add the test directory if not on WASM
     enable_testing()
     add_subdirectory(test/unit)
-    add_subdirectory(test/runtime)
-    add_subdirectory(test/functions/operator)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Skein's runtime/operator C++ tests (mock vLLM server, Linux toolchain
+        # workarounds) only run on Linux; the SQL tests in test/sql cover all platforms.
+        add_subdirectory(test/runtime)
+        add_subdirectory(test/functions/operator)
+    endif()
 endif()

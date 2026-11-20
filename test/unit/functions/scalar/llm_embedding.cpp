@@ -83,7 +83,7 @@ TEST_F(LLMEmbeddingTest, LLMEmbeddingBasicUsage) {
     ASSERT_EQ(results->RowCount(), 1);
 
     // Check that we got a list back
-    auto result_value = results->GetValue(0, 0);
+    auto result_value = results->Collection().GetValue(0, 0);
     ASSERT_EQ(result_value.type().id(), duckdb::LogicalTypeId::LIST);
 }
 
@@ -99,7 +99,7 @@ TEST_F(LLMEmbeddingTest, LLMEmbeddingWithMultipleFields) {
     ASSERT_EQ(results->RowCount(), 1);
 
     // Check that we got a list back
-    auto result_value = results->GetValue(0, 0);
+    auto result_value = results->Collection().GetValue(0, 0);
     ASSERT_EQ(result_value.type().id(), duckdb::LogicalTypeId::LIST);
 }
 
@@ -120,8 +120,8 @@ TEST_F(LLMEmbeddingTest, Operation_BatchProcessing) {
     ASSERT_EQ(results->RowCount(), 2);
 
     // Verify both results are lists
-    auto result1 = results->GetValue(0, 0);
-    auto result2 = results->GetValue(0, 1);
+    auto result1 = results->Collection().GetValue(0, 0);
+    auto result2 = results->Collection().GetValue(0, 1);
     ASSERT_EQ(result1.type().id(), duckdb::LogicalTypeId::LIST);
     ASSERT_EQ(result2.type().id(), duckdb::LogicalTypeId::LIST);
 }
@@ -149,7 +149,7 @@ TEST_F(LLMEmbeddingTest, Operation_LargeInputSet_ProcessesCorrectly) {
 
     // Verify all results are lists
     for (size_t i = 0; i < input_count; i++) {
-        auto result = results->GetValue(0, i);
+        auto result = results->Collection().GetValue(0, i);
         ASSERT_EQ(result.type().id(), duckdb::LogicalTypeId::LIST);
     }
 }

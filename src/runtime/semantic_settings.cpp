@@ -153,7 +153,7 @@ nlohmann::json LookupModelArgs(const std::string& model_name) {
         if (!result || result->HasError() || result->RowCount() == 0) {
             return nlohmann::json::object();
         }
-        return nlohmann::json::parse(result->GetValue(0, 0).ToString());
+        return nlohmann::json::parse(result->Collection().GetValue(0, 0).ToString());
     } catch (...) {
         // Tables not configured, parse failure, etc. -> behave as "no overrides".
         return nlohmann::json::object();

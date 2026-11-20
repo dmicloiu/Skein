@@ -13,6 +13,8 @@
 #include "flock/runtime/llm_client.h"
 
 #include "duckdb.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
+#include "duckdb/parser/parser.hpp"
 #include "duckdb/common/allocator.hpp"
 #include "duckdb/common/helper.hpp"
 #include "duckdb/common/types/value.hpp"
@@ -331,9 +333,9 @@ TEST(SemExtract, ParseAndEmit_ProjectsRowWithStringColumn) {
 // 3. Bindings: LogicalSemExtract mirrors LogicalProjection's bindings + types.
 // ===========================================================================
 TEST(SemExtract, Bindings_MirrorLogicalProjection) {
-    duckdb::vector<duckdb::ColumnBinding> bindings{{1, 0}, {1, 1}};
+    duckdb::vector<duckdb::ColumnBinding> bindings{duckdb::ColumnBinding(duckdb::TableIndex(1), duckdb::ProjectionIndex(0)), duckdb::ColumnBinding(duckdb::TableIndex(1), duckdb::ProjectionIndex(1))};
     duckdb::vector<LogicalType> child_types{LogicalType::BIGINT, LogicalType::VARCHAR};
-    const idx_t table_index = 5;
+    const duckdb::TableIndex table_index(5);
 
     auto make_select_list = [] {
         duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> exprs;
@@ -664,8 +666,10 @@ TEST(SemExtract, CreatePlan_ResolvesConfig) {
             idx_t llm_idx = 0;
             bool found_llm = false;
             for (idx_t i = 0; i < proj.expressions.size(); ++i) {
-                if (proj.expressions[i]->expression_class == duckdb::ExpressionClass::BOUND_FUNCTION &&
-                    proj.expressions[i]->Cast<duckdb::BoundFunctionExpression>().function.name == "llm_complete") {
+                if (proj.expressions[i]->GetExpressionClass() == duckdb::ExpressionClass::BOUND_FUNCTION &&
+                    !duckdb::BoundCastExpression::IsCast(*proj.expressions[i]) &&
+                    proj.expressions[i]->Cast<duckdb::BoundFunctionExpression>().Function().GetName().GetIdentifierName() ==
+                            "llm_complete") {
                     llm_idx = i;
                     found_llm = true;
                 }
@@ -678,7 +682,9 @@ TEST(SemExtract, CreatePlan_ResolvesConfig) {
         return node;
     };
 
-    auto statements = con.context->ParseStatements(query);
+    duckdb::Parser parser(*con.context);
+    parser.ParseQuery(query);
+    auto statements = std::move(parser.statements);
     ASSERT_FALSE(statements.empty());
 
     PhysicalSemExtract* found = nullptr;

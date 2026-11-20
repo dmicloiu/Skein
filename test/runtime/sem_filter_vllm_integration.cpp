@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "row count failed: %s\n", res->GetError().c_str());
             return 1;
         }
-        rows_loaded = std::stoll(res->GetValue(0, 0).ToString());
+        rows_loaded = std::stoll(res->Collection().GetValue(0, 0).ToString());
     }
 
     const std::string timed =
@@ -354,7 +354,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
-    const long long passes = std::stoll(res->GetValue(0, 0).ToString());
+    const long long passes = std::stoll(res->Collection().GetValue(0, 0).ToString());
     const double rows_per_s = elapsed_s > 0.0 ? static_cast<double>(rows_loaded) / elapsed_s : 0.0;
 
     std::fprintf(stderr,

@@ -59,7 +59,7 @@ TEST_F(LLMFilterTest, LLMFilterBasicUsage) {
     auto con = Config::GetConnection();
     const auto results = con.Query("SELECT " + GetFunctionName() + "({'model_name': 'gpt-4o'}, {'prompt': 'Is this sentiment positive?', 'context_columns': [{'data': text}]}) AS filter_result FROM unnest(['I love this product!']) as tbl(text);");
     ASSERT_EQ(results->RowCount(), 1);
-    ASSERT_EQ(results->GetValue(0, 0).GetValue<std::string>(), "true");
+    ASSERT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), "true");
 }
 
 TEST_F(LLMFilterTest, LLMFilterWithoutContextColumns) {
@@ -72,7 +72,7 @@ TEST_F(LLMFilterTest, LLMFilterWithoutContextColumns) {
     auto con = Config::GetConnection();
     const auto results = con.Query("SELECT " + GetFunctionName() + "({'model_name': 'gpt-4o'}, {'prompt': 'Are you a Robot?'}) AS filter_result;");
     ASSERT_EQ(results->RowCount(), 1);
-    ASSERT_EQ(results->GetValue(0, 0).GetValue<std::string>(), "true");
+    ASSERT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), "true");
 }
 
 TEST_F(LLMFilterTest, LLMFilterWithMultipleRows) {
@@ -86,7 +86,7 @@ TEST_F(LLMFilterTest, LLMFilterWithMultipleRows) {
     const auto results = con.Query("SELECT " + GetFunctionName() + "({'model_name': 'gpt-4o'}, {'prompt': 'Is this a valid email address?', 'context_columns': [{'data': email}]}) AS filter_result FROM unnest(['test@example.com', 'invalid-email', 'user@domain.org']) as tbl(email);");
     ASSERT_EQ(results->RowCount(), 3);
     // Check first result
-    ASSERT_EQ(results->GetValue(0, 0).GetValue<std::string>(), "true");
+    ASSERT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), "true");
 }
 
 TEST_F(LLMFilterTest, ValidateArguments) {
@@ -104,7 +104,7 @@ TEST_F(LLMFilterTest, Operation_BatchProcessing) {
     const auto results = con.Query("SELECT " + GetFunctionName() + "({'model_name': 'gpt-4o'}, {'prompt': 'Is this review positive?', 'context_columns': [{'data': review}]}) AS result FROM unnest(['Great product!', 'Terrible quality']) as tbl(review);");
     ASSERT_TRUE(!results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 2);
-    EXPECT_EQ(results->GetValue(0, 0).GetValue<std::string>(), "true");
+    EXPECT_EQ(results->Collection().GetValue(0, 0).GetValue<std::string>(), "true");
 }
 
 TEST_F(LLMFilterTest, Operation_LargeInputSet_ProcessesCorrectly) {
@@ -124,7 +124,7 @@ TEST_F(LLMFilterTest, Operation_LargeInputSet_ProcessesCorrectly) {
 
     // Verify the first few results match expected
     for (size_t i = 0; i < std::min<size_t>(input_count, size_t(5)); i++) {
-        auto result_value = results->GetValue(0, i).GetValue<std::string>();
+        auto result_value = results->Collection().GetValue(0, i).GetValue<std::string>();
         auto expected_value = expected_response["items"][i].get<bool>() ? "true" : "false";
         EXPECT_EQ(result_value, expected_value);
     }

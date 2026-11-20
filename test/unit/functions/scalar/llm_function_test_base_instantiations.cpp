@@ -42,7 +42,7 @@ void LLMFunctionTestBase<FunctionClass>::TestValidateArguments() {
             auto prompt_type = duckdb::LogicalType::STRUCT({{"prompt", duckdb::LogicalType::VARCHAR}});
 
             chunk.Initialize(duckdb::Allocator::DefaultAllocator(), {model_type, prompt_type});
-            chunk.SetCardinality(1);
+            chunk.SetChildCardinality(1);
 
             // Basic validation test
             FunctionClass::ValidateArguments(chunk);
@@ -56,7 +56,7 @@ void LLMFunctionTestBase<FunctionClass>::TestValidateArguments() {
     {
         duckdb::DataChunk chunk;
         chunk.Initialize(duckdb::Allocator::DefaultAllocator(), {duckdb::LogicalType::VARCHAR});
-        chunk.SetCardinality(1);
+        chunk.SetChildCardinality(1);
 
         EXPECT_THROW(FunctionClass::ValidateArguments(chunk), std::runtime_error);
     }
