@@ -119,7 +119,7 @@ target_link_libraries(flock_sem_filter_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -153,7 +153,7 @@ target_link_libraries(flock_sem_extract_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -187,7 +187,7 @@ target_link_libraries(flock_optimizer_rewrite_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -225,7 +225,7 @@ target_link_libraries(flock_sem_filter_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -261,7 +261,7 @@ target_link_libraries(flock_sem_extract_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension

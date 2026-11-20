@@ -120,7 +120,7 @@ target_compile_options(flock_sem_filter_vllm_integration PRIVATE
 
 target_link_libraries(flock_sem_filter_vllm_integration PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -148,7 +148,7 @@ target_compile_options(flock_sem_extract_vllm_integration PRIVATE
 
 target_link_libraries(flock_sem_extract_vllm_integration PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension
@@ -184,7 +184,7 @@ target_link_libraries(flock_semantic_config_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
+    skein_extension
     duckdb_generated_extension_loader
     core_functions_extension
     json_extension

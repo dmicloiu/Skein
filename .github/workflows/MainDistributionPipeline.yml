@@ -29,7 +29,7 @@ jobs:
     with:
       duckdb_version: v1.5.1
       ci_tools_version: v1.5.1
-      extension_name: flock
+      extension_name: skein
 
   code-quality-check:
     name: Code Quality Check
@@ -37,5 +37,5 @@ jobs:
     with:
       duckdb_version: v1.5.1
       ci_tools_version: v1.5.1
-      extension_name: flock
+      extension_name: skein
       format_checks: "format;tidy"

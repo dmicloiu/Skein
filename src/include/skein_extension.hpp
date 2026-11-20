@@ -6,7 +6,7 @@
 
 namespace duckdb {
 
-class FlockExtension : public Extension {
+class SkeinExtension : public Extension {
 public:
     void Load(ExtensionLoader& db) override;
     std::string Name() override;
