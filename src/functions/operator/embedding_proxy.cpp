@@ -209,7 +209,7 @@ ProxyPlan EmbeddingProxyStage::Plan(const std::vector<PendingRequest>& rows, ILL
         std::vector<LLMResponse> responses;
         const auto text_payload = [&](size_t r) {
             nlohmann::json input = nlohmann::json::array();
-            for (size_t i = r * batch; i < std::min(group_texts.size(), (r + 1) * batch); ++i) {
+            for (size_t i = r * batch; i < (std::min)(group_texts.size(), (r + 1) * batch); ++i) {
                 input.push_back(group_texts[i]);
             }
             return nlohmann::json{{"model", cfg_.model}, {"input", input}, {"encoding_format", "float"}}.dump();
@@ -220,7 +220,7 @@ ProxyPlan EmbeddingProxyStage::Plan(const std::vector<PendingRequest>& rows, ILL
         }
         for (size_t r = 0; r < text_requests; ++r) {
             const size_t first = r * batch;
-            const size_t n = std::min(group_texts.size(), first + batch) - first;
+            const size_t n = (std::min)(group_texts.size(), first + batch) - first;
             auto part = ParseEmbeddings(responses[r], n);
             for (size_t i = 0; i < n; ++i) text_emb[first + i] = std::move(part[i]);
         }

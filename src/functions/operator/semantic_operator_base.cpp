@@ -823,7 +823,7 @@ bool SemGlobalSinkState::EmitDecided(DataChunk& out, const ParseFn& parse_fn) {
         // ParseAndEmit appends at most one row per element; leave room so `out`
         // (STANDARD_VECTOR_SIZE) never overflows.
         const size_t room = static_cast<size_t>(out.GetCapacity()) - static_cast<size_t>(out.size());
-        const size_t n = std::min(room, pending_emit.size());
+        const size_t n = (std::min)(room, pending_emit.size());
         take.reserve(n);
         for (size_t i = 0; i < n; ++i) {
             take.push_back(pending_emit.front());
