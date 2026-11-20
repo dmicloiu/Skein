@@ -13,13 +13,13 @@ std::string Config::get_schema_name() { return "flock_config"; }
 
 std::filesystem::path Config::get_global_storage_path() {
 #ifdef __EMSCRIPTEN__
-    return std::filesystem::path("opfs://flock_data/flock.db");
+    return std::filesystem::path("opfs://skein_data/skein.db");
 #else
     const auto& home = duckdb::FileSystem::GetHomeDirectory(nullptr);
     if (home.empty()) {
         throw std::runtime_error("Could not find home directory");
     }
-    return std::filesystem::path(home) / ".duckdb" / "flock_storage" / "flock.db";
+    return std::filesystem::path(home) / ".duckdb" / "skein_storage" / "skein.db";
 #endif
 }
 

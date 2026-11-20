@@ -81,7 +81,7 @@ BoundStatement duck_bind(ClientContext& context, Binder& binder, OperatorExtensi
 void SkeinExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
 
 std::string SkeinExtension::Name() { return "skein"; }
-std::string SkeinExtension::Version() const { return "v0.4.0"; }
+std::string SkeinExtension::Version() const { return "v0.3.0"; }
 
 }// namespace duckdb
 
