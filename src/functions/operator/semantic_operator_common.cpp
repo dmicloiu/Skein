@@ -24,9 +24,9 @@ namespace {
 Expression* FindStructField(const duckdb::BoundFunctionExpression& struct_expr, const LogicalType& struct_type,
                             const std::string& field_name) {
     const idx_t fields = StructType::GetChildCount(struct_type);
-    for (idx_t i = 0; i < fields && i < struct_expr.children.size(); ++i) {
-        if (StructType::GetChildName(struct_type, i) == field_name) {
-            return struct_expr.children[i].get();
+    for (idx_t i = 0; i < fields && i < struct_expr.GetChildren().size(); ++i) {
+        if (StructType::GetChildName(struct_type, i).GetIdentifierName() == field_name) {
+            return struct_expr.GetChildren()[i].get();
         }
     }
     return nullptr;
@@ -38,45 +38,45 @@ std::vector<SemContextColumn> ExtractContextColumns(duckdb::ClientContext& conte
                                                     const duckdb::BoundFunctionExpression& llm_call,
                                                     const char* fn_label) {
     const std::string label(fn_label);
-    if (llm_call.children.size() < 2) {
+    if (llm_call.GetChildren().size() < 2) {
         throw duckdb::InvalidInputException(label + ": llm call expects (model, prompt) arguments");
     }
-    auto& prompt_expr = *llm_call.children[1];
-    if (prompt_expr.expression_class != ExpressionClass::BOUND_FUNCTION) {
+    auto& prompt_expr = *llm_call.GetChildren()[1];
+    if (prompt_expr.GetExpressionClass() != ExpressionClass::BOUND_FUNCTION) {
         throw duckdb::NotImplementedException(label + ": prompt argument must be a struct literal");
     }
     auto& prompt_struct = prompt_expr.Cast<duckdb::BoundFunctionExpression>();
-    auto* cc_expr = FindStructField(prompt_struct, prompt_expr.return_type, "context_columns");
+    auto* cc_expr = FindStructField(prompt_struct, prompt_expr.GetReturnType(), "context_columns");
     if (!cc_expr) {
         throw duckdb::NotImplementedException(label + ": llm call requires context_columns");
     }
-    if (cc_expr->expression_class != ExpressionClass::BOUND_FUNCTION) {
+    if (cc_expr->GetExpressionClass() != ExpressionClass::BOUND_FUNCTION) {
         throw duckdb::NotImplementedException(label + ": context_columns must be a list literal");
     }
     auto& list_expr = cc_expr->Cast<duckdb::BoundFunctionExpression>();
 
     std::vector<SemContextColumn> columns;
-    for (auto& element : list_expr.children) {
-        if (element->expression_class != ExpressionClass::BOUND_FUNCTION) {
+    for (auto& element : list_expr.GetChildren()) {
+        if (element->GetExpressionClass() != ExpressionClass::BOUND_FUNCTION) {
             throw duckdb::NotImplementedException(label + ": each context column must be a struct literal");
         }
         auto& col_struct = element->Cast<duckdb::BoundFunctionExpression>();
-        const auto& col_type = element->return_type;
+        const auto& col_type = element->GetReturnType();
 
         SemContextColumn cc;
         bool has_data = false;
         const idx_t fields = StructType::GetChildCount(col_type);
-        for (idx_t j = 0; j < fields && j < col_struct.children.size(); ++j) {
-            const auto field = StructType::GetChildName(col_type, j);
-            auto& child = *col_struct.children[j];
+        for (idx_t j = 0; j < fields && j < col_struct.GetChildren().size(); ++j) {
+            const auto field = StructType::GetChildName(col_type, j).GetIdentifierName();
+            auto& child = *col_struct.GetChildren()[j];
             if (field == "data") {
-                if (child.expression_class != ExpressionClass::BOUND_REF) {
+                if (child.GetExpressionClass() != ExpressionClass::BOUND_REF) {
                     throw duckdb::NotImplementedException(
                             label + ": context column 'data' must be a direct column reference");
                 }
                 auto& ref = child.Cast<duckdb::BoundReferenceExpression>();
-                cc.data_index = ref.index;
-                cc.data_type = ref.return_type;
+                cc.data_index = ref.Index();
+                cc.data_type = ref.GetReturnType();
                 has_data = true;
             } else {
                 // Static metadata (name/type/detail): fold the constant, drop NULLs.

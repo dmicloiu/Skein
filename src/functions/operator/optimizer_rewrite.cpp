@@ -30,6 +30,18 @@ using duckdb::LogicalOperator;
 using duckdb::LogicalOperatorType;
 using duckdb::LogicalTypeId;
 
+// DuckDB 2.0: a cast is a BoundFunctionExpression of type OPERATOR_CAST (the old
+// BOUND_CAST class is gone), so test for casts BEFORE treating a function as a call.
+bool IsBoolCast(const Expression& expr) {
+    return duckdb::BoundCastExpression::IsCast(expr) && expr.GetReturnType().id() == LogicalTypeId::BOOLEAN;
+}
+
+// True iff `expr` is a (non-cast) bound scalar call to `name`.
+bool IsCallTo(const Expression& expr, const char* name) {
+    return expr.GetExpressionClass() == ExpressionClass::BOUND_FUNCTION && !duckdb::BoundCastExpression::IsCast(expr) &&
+           expr.Cast<duckdb::BoundFunctionExpression>().Function().GetName().GetIdentifierName() == name;
+}
+
 // A conjunct is an llm_call iff, after peeling a top-level CAST(... AS BOOLEAN)
 // (llm_filter returns VARCHAR) and an optional top-level NOT, its root is a
 // BoundFunctionExpression named "llm_filter". This is the non-mutating decision;
@@ -41,41 +53,39 @@ bool ConjunctIsLLMCall(const Expression& expr, bool& invert) {
     const Expression* cur = &expr;
     invert = false;
     for (;;) {
-        if (cur->expression_class == ExpressionClass::BOUND_OPERATOR &&
+        if (cur->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
             cur->GetExpressionType() == ExpressionType::OPERATOR_NOT) {
             const auto& op = cur->Cast<duckdb::BoundOperatorExpression>();
-            if (op.children.size() == 1) {
+            if (op.GetChildren().size() == 1) {
                 invert = !invert;
-                cur = op.children[0].get();
+                cur = op.GetChildren()[0].get();
                 continue;
             }
         }
-        if (cur->expression_class == ExpressionClass::BOUND_CAST &&
-            cur->return_type.id() == LogicalTypeId::BOOLEAN) {
-            cur = cur->Cast<duckdb::BoundCastExpression>().child.get();
+        if (IsBoolCast(*cur)) {
+            cur = &duckdb::BoundCastExpression::Child(cur->Cast<duckdb::BoundFunctionExpression>());
             continue;
         }
         break;
     }
-    return cur->expression_class == ExpressionClass::BOUND_FUNCTION &&
-           cur->Cast<duckdb::BoundFunctionExpression>().function.name == "llm_filter";
+    return IsCallTo(*cur, "llm_filter");
 }
 
 // Physically peel to the bare llm_filter expression. Mirrors ConjunctIsLLMCall's
 // peel conditions exactly, so it stops at the same node (the function call).
 duckdb::unique_ptr<Expression> UnwrapLLMCall(duckdb::unique_ptr<Expression> expr) {
     for (;;) {
-        if (expr->expression_class == ExpressionClass::BOUND_OPERATOR &&
+        if (expr->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
             expr->GetExpressionType() == ExpressionType::OPERATOR_NOT) {
             auto& op = expr->Cast<duckdb::BoundOperatorExpression>();
-            if (op.children.size() == 1) {
-                expr = std::move(op.children[0]);
+            if (op.GetChildren().size() == 1) {
+                expr = std::move(op.GetChildrenMutable()[0]);
                 continue;
             }
         }
-        if (expr->expression_class == ExpressionClass::BOUND_CAST &&
-            expr->return_type.id() == LogicalTypeId::BOOLEAN) {
-            expr = std::move(expr->Cast<duckdb::BoundCastExpression>().child);
+        if (IsBoolCast(*expr)) {
+            auto child = std::move(duckdb::BoundCastExpression::ChildMutable(expr->Cast<duckdb::BoundFunctionExpression>()));
+            expr = std::move(child);
             continue;
         }
         break;
@@ -139,7 +149,7 @@ void TryRewriteFilter(duckdb::unique_ptr<LogicalOperator>& node) {
     }
 
     auto original_child = std::move(filter.children[0]);
-    const duckdb::vector<idx_t> projection_map = filter.projection_map;
+    const duckdb::vector<duckdb::ProjectionIndex> projection_map = filter.projection_map;
     const idx_t call_count = llm_calls.size();
 
     // Bottom node: original child + ALL residuals + the first llm_call. Only the
@@ -149,14 +159,14 @@ void TryRewriteFilter(duckdb::unique_ptr<LogicalOperator>& node) {
     // that gets both the projection_map and the residuals.
     duckdb::unique_ptr<LogicalOperator> current = duckdb::make_uniq<LogicalSemFilter>(
             std::move(original_child), std::move(llm_calls[0]), std::move(residuals),
-            call_count == 1 ? projection_map : duckdb::vector<idx_t>{}, inverts[0]);
+            call_count == 1 ? projection_map : duckdb::vector<duckdb::ProjectionIndex>{}, inverts[0]);
 
     for (idx_t i = 1; i < call_count; ++i) {
         const bool is_top = (i + 1 == call_count);
         duckdb::vector<duckdb::unique_ptr<Expression>> no_residuals;
         current = duckdb::make_uniq<LogicalSemFilter>(std::move(current), std::move(llm_calls[i]),
                                                       std::move(no_residuals),
-                                                      is_top ? projection_map : duckdb::vector<idx_t>{},
+                                                      is_top ? projection_map : duckdb::vector<duckdb::ProjectionIndex>{},
                                                       inverts[i]);
     }
 
@@ -174,18 +184,16 @@ void TryRewriteUnkeyedJoin(duckdb::unique_ptr<LogicalOperator>& node) {
         return;
     }
     const Expression* call = join.condition.get();
-    while (call->expression_class == ExpressionClass::BOUND_CAST &&
-           call->return_type.id() == LogicalTypeId::BOOLEAN) {
-        call = call->Cast<duckdb::BoundCastExpression>().child.get();
+    while (IsBoolCast(*call)) {
+        call = &duckdb::BoundCastExpression::Child(call->Cast<duckdb::BoundFunctionExpression>());
     }
-    if (call->expression_class != ExpressionClass::BOUND_FUNCTION ||
-        call->Cast<duckdb::BoundFunctionExpression>().function.name != "llm_filter") {
+    if (!IsCallTo(*call, "llm_filter")) {
         return;
     }
 
     // Require genuine two-sided, local references. In particular, do not turn
     // correlated or one-sided predicates into Cartesian semantic joins.
-    std::unordered_set<duckdb::idx_t> left_tables, right_tables;
+    std::unordered_set<duckdb::TableIndex> left_tables, right_tables;
     for (const auto& binding : join.children[0]->GetColumnBindings()) {
         left_tables.insert(binding.table_index);
     }
@@ -195,9 +203,9 @@ void TryRewriteUnkeyedJoin(duckdb::unique_ptr<LogicalOperator>& node) {
     bool reads_left = false, reads_right = false, unsupported = false;
     duckdb::ExpressionIterator::VisitExpression<duckdb::BoundColumnRefExpression>(
         *call, [&](const duckdb::BoundColumnRefExpression& ref) {
-            const bool on_left = left_tables.count(ref.binding.table_index) != 0;
-            const bool on_right = right_tables.count(ref.binding.table_index) != 0;
-            if (ref.depth != 0 || on_left == on_right) {
+            const bool on_left = left_tables.count(ref.Binding().table_index) != 0;
+            const bool on_right = right_tables.count(ref.Binding().table_index) != 0;
+            if (ref.Depth() != 0 || on_left == on_right) {
                 unsupported = true;
             }
             reads_left |= on_left;
@@ -212,7 +220,7 @@ void TryRewriteUnkeyedJoin(duckdb::unique_ptr<LogicalOperator>& node) {
         std::move(join.children[0]), std::move(join.children[1]));
     duckdb::vector<duckdb::unique_ptr<Expression>> no_residuals;
     node = duckdb::make_uniq<LogicalSemFilter>(std::move(product), std::move(condition),
-                                               std::move(no_residuals), duckdb::vector<idx_t>{}, false);
+                                               std::move(no_residuals), duckdb::vector<duckdb::ProjectionIndex>{}, false);
 }
 
 // True iff the expression's ROOT is a bound llm_complete(...) call. No CAST/wrapper
@@ -220,8 +228,7 @@ void TryRewriteUnkeyedJoin(duckdb::unique_ptr<LogicalOperator>& node) {
 // CAST(llm_complete(...) AS ...)) has a non-llm_complete root, so it is NOT a
 // top-level call and its projection is left to the scalar (the documented fallback).
 bool ExprIsLlmComplete(const Expression& expr) {
-    return expr.expression_class == ExpressionClass::BOUND_FUNCTION &&
-           expr.Cast<duckdb::BoundFunctionExpression>().function.name == "llm_complete";
+    return IsCallTo(expr, "llm_complete");
 }
 
 // If a LogicalProjection (held in `node`) has EXACTLY ONE top-level llm_complete
@@ -258,6 +265,7 @@ void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
         TryRewriteFilter(node);
     } else if (node->type == LogicalOperatorType::LOGICAL_ANY_JOIN) {
         TryRewriteUnkeyedJoin(node);
+
     } else if (node->type == LogicalOperatorType::LOGICAL_PROJECTION) {
         TryRewriteProjection(node);
     }

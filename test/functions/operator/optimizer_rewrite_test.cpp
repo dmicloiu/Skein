@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cctype>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -363,7 +364,12 @@ TEST(OptimizerRewrite, Unkeyed_PhysicalPlanEngagesOperator) {
                              LlmFilter("d1.a", "d2.a"));
     ASSERT_FALSE(explain->HasError()) << explain->GetError();
     ASSERT_EQ(explain->RowCount(), 1u);
-    const auto physical = explain->GetValue(1, 0).GetValue<std::string>();
+    // DuckDB 2.0 prints operator names as "Cross Product"; normalize to the
+    // physical-type spelling (CROSS_PRODUCT) so the checks hold in both formats.
+    auto physical = explain->Collection().GetValue(1, 0).GetValue<std::string>();
+    for (auto& ch : physical) {
+        ch = ch == ' ' ? '_' : static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    }
     EXPECT_NE(physical.find("CROSS_PRODUCT"), std::string::npos) << physical;
     EXPECT_NE(physical.find("EXTENSION"), std::string::npos) << physical;
     EXPECT_EQ(physical.find("BLOCKWISE_NL_JOIN"), std::string::npos) << physical;

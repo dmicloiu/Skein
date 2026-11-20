@@ -20,7 +20,7 @@ namespace {
 
 // Run SQL and fail the calling test if it errors. Returns the result so callers
 // can inspect rows.
-std::unique_ptr<duckdb::MaterializedQueryResult> RunSQL(duckdb::Connection& con, const std::string& sql) {
+duckdb::unique_ptr<duckdb::QueryResult> RunSQL(duckdb::Connection& con, const std::string& sql) {
     auto result = con.Query(sql);
     EXPECT_FALSE(result->HasError()) << sql << " -> " << result->GetError();
     return result;
