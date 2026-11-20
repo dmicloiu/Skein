@@ -135,6 +135,17 @@ public:
     using SchemaFn = std::function<nlohmann::json(size_t batch_rows)>;
     SchemaFn response_schema;
 
+    // LIMIT early stop. Set ONCE before any Sink. limit_rows > 0 means a LIMIT
+    // above this operator needs only that many output rows (limit + offset), and
+    // limit_emits tells whether a response element yields an output row. Sink
+    // then counts the output rows of the batches that already came back; once
+    // there are enough, it stops reading input (FINISHED) and Finalize drops the
+    // rows not yet sent. Batches in flight still complete and are emitted, so
+    // the operator may return more rows than the LIMIT; the LIMIT trims them.
+    // 0 (default) -> off. Never set together with a proxy.
+    uint64_t limit_rows = 0;
+    std::function<bool(const nlohmann::json&)> limit_emits;
+
     // --- engine entry points (operator forwards here; the test calls directly) ---
 
     // Sink one chunk. Returns NEED_MORE_INPUT when the chunk is consumed, or
@@ -157,6 +168,8 @@ public:
     bool BlockedAtLeastOnce() const { return blocked_at_least_once.load(std::memory_order_acquire); }
     size_t InFlight() const { return in_flight.load(std::memory_order_acquire); }
     uint64_t Generation() const { return generation.load(std::memory_order_acquire); }
+    bool LimitReachedFlag() const { return limit_reached.load(std::memory_order_acquire); }
+    uint64_t LimitRowsCounted() const { return limit_counted_rows.load(std::memory_order_acquire); }
     const SemanticParams& Config() const { return cfg; }
 
     duckdb::idx_t MaxThreads(duckdb::idx_t /*source_max_threads*/) override {
@@ -187,6 +200,10 @@ private:
     bool EmitDecided(duckdb::DataChunk& out, const ParseFn& parse_fn);
     // Monotonically record the in-flight peak (test instrumentation).
     void NoteInFlight(size_t now_in_flight);
+    // LIMIT early stop: count the output rows of completed batches not yet
+    // counted and return true once limit_rows is reached (always false when
+    // limit_rows == 0). Called from Sink / Finalize only, never from the source.
+    bool LimitReached();
 
     static constexpr size_t LOCAL_MERGE_THRESHOLD = 8;
     // Bytes of the rendered prompt used as the StickyByPrefix routing key. Kept
@@ -200,7 +217,11 @@ private:
     //     router->Choose, client->Submit, or Callback(). ---
     std::deque<PendingRequest> pending;   // global FIFO
     std::deque<PendingRequest> pending_main;
-    std::queue<CompletedBatch> completed; // drained by the source phase
+    // Drained (pop_front) by the source phase. A deque so the LIMIT counter can
+    // read completed batches in place during the sink phase: push_back keeps
+    // references to existing elements valid, and nothing pops before the source.
+    std::deque<CompletedBatch> completed;
+    size_t limit_scanned = 0;  // completed[0, limit_scanned) already counted
     bool input_exhausted = false;
     // Embedding proxy state. proxy_rows / unit_rows / row_unit_by_id are written
     // once in FinalizeFlush (before input_exhausted) and read-only afterwards.
@@ -226,6 +247,9 @@ private:
     std::atomic<uint64_t> next_row_id{0};    // monotonic, query-global row ids
     std::atomic<size_t> max_in_flight_seen{0};
     std::atomic<bool> blocked_at_least_once{false};
+    std::atomic<uint64_t> limit_counted_rows{0};  // output rows seen by LimitReached
+    std::atomic<bool> limit_reached{false};
+    std::atomic<uint64_t> rows_dropped{0};        // rows never sent (LIMIT early stop)
 
     // dependencies
     std::shared_ptr<ILLMClient> client;

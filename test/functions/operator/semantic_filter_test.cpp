@@ -97,6 +97,7 @@ public:
         std::lock_guard<std::mutex> lock(payload_mutex_);
         return nlohmann::json::parse(last_payload_);
     }
+    uint64_t Submitted() const { return id_.load(std::memory_order_relaxed); }
 
 private:
     LLMResponse Synthesize(const std::string& payload) const {
@@ -219,19 +220,39 @@ std::vector<std::unique_ptr<DataChunk>> BuildBigintChunks(int64_t total, idx_t c
 }
 
 // Single-threaded sink -> finalize -> drain through the operator's engine + hooks.
-// Returns the emitted column-0 values (BIGINT).
-std::vector<int64_t> DriveFilter(PhysicalSemFilter& op, const std::vector<DataChunk*>& chunks) {
+// Returns the emitted column-0 values (BIGINT). Like DuckDB, stops feeding input
+// once the sink returns FINISHED. `setup` may adjust the engine state first.
+std::vector<int64_t> DriveFilter(PhysicalSemFilter& op, const std::vector<DataChunk*>& chunks,
+                                 const std::function<void(SemGlobalSinkState&)>& setup = nullptr,
+                                 size_t* chunks_sunk = nullptr) {
     auto gss = op.CreateGlobalSinkState();
+    if (setup) {
+        setup(*gss);
+    }
     SemLocalSinkState local;
+    bool finished = false;
+    size_t sunk = 0;
     for (auto* chunk : chunks) {
+        if (finished) {
+            break;
+        }
         for (;;) {
             auto signal = duckdb::make_shared_ptr<InterruptDoneSignalState>();
             InterruptState interrupt(signal);
-            if (gss->SinkChunk(local, *chunk, interrupt) != SinkResultType::BLOCKED) {
+            const auto res = gss->SinkChunk(local, *chunk, interrupt);
+            if (res == SinkResultType::FINISHED) {
+                finished = true;
+                break;
+            }
+            if (res != SinkResultType::BLOCKED) {
+                ++sunk;
                 break;
             }
             signal->Await();
         }
+    }
+    if (chunks_sunk) {
+        *chunks_sunk = sunk;
     }
     gss->MergeLocal(local);
     for (;;) {
@@ -1014,6 +1035,148 @@ TEST(SemFilter, Engine_InvertFlipsVerdict) {
         expected.push_back(v);
     }
     EXPECT_EQ(survivors, expected);
+}
+
+// ===========================================================================
+// LIMIT early stop.
+// ===========================================================================
+std::vector<SemContextColumn> OneContextColumn() {
+    SemContextColumn cc;
+    cc.data_index = 0;
+    return {cc};
+}
+
+// The fake client completes inline, so after each chunk every sent row has come
+// back. All rows pass, chunks of 8, batch 1: after chunk 1 there are 8 rows
+// (< 10), after chunk 2 16 (>= 10) -> chunk 3 returns FINISHED; 16 requests, not 200.
+TEST(SemFilter, Engine_LimitStopsEarly) {
+    auto fake = std::make_shared<ScriptedFakeClient>([](const std::string&) { return true; });
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                            MakeRouter(), MakeParams(/*cap=*/64, /*batch_size=*/1), nullptr,
+                                            /*invert=*/false, duckdb::vector<idx_t>{}, OneContextColumn(), "p",
+                                            "XML", std::string(), std::string())
+                       .Cast<PhysicalSemFilter>();
+    auto chunks = BuildBigintChunks(200, 8);
+    std::vector<DataChunk*> ptrs;
+    for (auto& c : chunks) ptrs.push_back(c.get());
+    size_t sunk = 0;
+    auto out = DriveFilter(
+            op, ptrs,
+            [&](SemGlobalSinkState& g) {
+                g.limit_rows = 10;
+                g.limit_emits = [](const nlohmann::json& e) { return PhysicalSemFilter::ParseVerdict(e); };
+            },
+            &sunk);
+    EXPECT_EQ(sunk, 2u);
+    EXPECT_EQ(fake->Submitted(), 16u);
+    EXPECT_EQ(out.size(), 16u);  // >= LIMIT; the LIMIT operator trims the rest
+}
+
+// Cap saturated (the GPU case): cap 4 blocks the sink mid-chunk, and the resume
+// after each completion re-checks the count. Chunk 1: 4 sent, block, 4 more
+// (8 rows). Chunk 2: 4 sent (12 rows), block; the resume sees 12 >= 10 ->
+// FINISHED in the middle of chunk 2; its other 4 rows are never sent.
+TEST(SemFilter, Engine_LimitStopsOnBlockedResume) {
+    auto fake = std::make_shared<ScriptedFakeClient>([](const std::string&) { return true; });
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                            MakeRouter(), MakeParams(/*cap=*/4, /*batch_size=*/1), nullptr,
+                                            false, duckdb::vector<idx_t>{}, OneContextColumn(), "p", "XML",
+                                            std::string(), std::string())
+                       .Cast<PhysicalSemFilter>();
+    auto chunks = BuildBigintChunks(200, 8);
+    std::vector<DataChunk*> ptrs;
+    for (auto& c : chunks) ptrs.push_back(c.get());
+    size_t sunk = 0;
+    auto out = DriveFilter(
+            op, ptrs,
+            [&](SemGlobalSinkState& g) {
+                g.limit_rows = 10;
+                g.limit_emits = [](const nlohmann::json& e) { return PhysicalSemFilter::ParseVerdict(e); };
+            },
+            &sunk);
+    EXPECT_EQ(sunk, 1u);
+    EXPECT_EQ(fake->Submitted(), 12u);
+    EXPECT_EQ(out.size(), 12u);
+}
+
+// Rows that fail the verdict do not count: only even values pass, so 10 output
+// rows need 20 input rows (chunks 1-3 = 24 rows, 12 passing) -> chunk 4 stops.
+TEST(SemFilter, Engine_LimitCountsOnlyEmittedRows) {
+    auto fake = std::make_shared<ScriptedFakeClient>(
+            [](const std::string& v) { return std::stoll(v) % 2 == 0; });
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                            MakeRouter(), MakeParams(64, 2), nullptr, /*invert=*/true,
+                                            duckdb::vector<idx_t>{}, OneContextColumn(), "p", "XML",
+                                            std::string(), std::string())
+                       .Cast<PhysicalSemFilter>();
+    auto chunks = BuildBigintChunks(200, 8);
+    std::vector<DataChunk*> ptrs;
+    for (auto& c : chunks) ptrs.push_back(c.get());
+    size_t sunk = 0;
+    auto out = DriveFilter(
+            op, ptrs,
+            [&](SemGlobalSinkState& g) {
+                g.limit_rows = 10;
+                // invert: an element yields a row iff its verdict is FALSE (odd values)
+                g.limit_emits = [](const nlohmann::json& e) { return !PhysicalSemFilter::ParseVerdict(e); };
+            },
+            &sunk);
+    EXPECT_EQ(sunk, 3u);
+    EXPECT_EQ(fake->Submitted(), 12u);  // 24 rows / batch 2
+    ASSERT_EQ(out.size(), 12u);
+    for (auto v : out) EXPECT_EQ(v % 2, 1);
+}
+
+// Not enough matching rows: no early stop, every row is sent (same as no LIMIT).
+TEST(SemFilter, Engine_LimitNotReachedSendsEverything) {
+    auto fake = std::make_shared<ScriptedFakeClient>([](const std::string& v) { return std::stoll(v) < 3; });
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& op = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                            MakeRouter(), MakeParams(4, 1), nullptr, false,
+                                            duckdb::vector<idx_t>{}, OneContextColumn(), "p", "XML",
+                                            std::string(), std::string())
+                       .Cast<PhysicalSemFilter>();
+    auto chunks = BuildBigintChunks(40, 8);
+    std::vector<DataChunk*> ptrs;
+    for (auto& c : chunks) ptrs.push_back(c.get());
+    auto out = DriveFilter(op, ptrs, [&](SemGlobalSinkState& g) {
+        g.limit_rows = 5;
+        g.limit_emits = [](const nlohmann::json& e) { return PhysicalSemFilter::ParseVerdict(e); };
+    });
+    EXPECT_EQ(fake->Submitted(), 40u);
+    std::sort(out.begin(), out.end());
+    EXPECT_EQ(out, (std::vector<int64_t>{0, 1, 2}));
+}
+
+// Wiring: the operator's hint reaches the engine, and a proxy disables it.
+TEST(SemFilter, LimitHintWiring) {
+    duckdb::Connection con(*g_db);
+    auto fake = std::make_shared<ScriptedFakeClient>([](const std::string&) { return true; });
+    duckdb::PhysicalPlan plan(duckdb::Allocator::DefaultAllocator());
+    auto& plain = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                               MakeRouter(), MakeParams(4, 1), nullptr, /*invert=*/true,
+                                               duckdb::vector<idx_t>{}, OneContextColumn(), "p", "XML",
+                                               std::string(), std::string())
+                          .Cast<PhysicalSemFilter>();
+    plain.SetLimitHint(7);
+    auto g1 = plain.GetGlobalSinkState(*con.context);
+    auto& s1 = g1->Cast<SemGlobalSinkState>();
+    EXPECT_EQ(s1.limit_rows, 7u);
+    ASSERT_TRUE(static_cast<bool>(s1.limit_emits));
+    EXPECT_TRUE(s1.limit_emits(nlohmann::json(false)));  // invert: FALSE verdict -> row
+    EXPECT_FALSE(s1.limit_emits(nlohmann::json(true)));
+
+    auto& proxied = plan.Make<PhysicalSemFilter>(duckdb::vector<LogicalType>{LogicalType::BIGINT}, 0, fake,
+                                                 MakeRouter(), MakeParams(4, 1), nullptr, false,
+                                                 duckdb::vector<idx_t>{}, OneContextColumn(), "p", "XML",
+                                                 std::string("main"), std::string(), std::string("proxy"))
+                            .Cast<PhysicalSemFilter>();
+    proxied.SetLimitHint(7);
+    auto g2 = proxied.GetGlobalSinkState(*con.context);
+    EXPECT_EQ(g2->Cast<SemGlobalSinkState>().limit_rows, 0u);
 }
 
 // ===========================================================================

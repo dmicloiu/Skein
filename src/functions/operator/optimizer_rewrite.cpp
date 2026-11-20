@@ -10,11 +10,13 @@
 #include "duckdb/planner/operator/logical_any_join.hpp"
 #include "duckdb/planner/operator/logical_cross_product.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
+#include "duckdb/planner/operator/logical_limit.hpp"
 #include "duckdb/planner/operator/logical_projection.hpp"
 #include "flock/functions/operator/semantic_extract.hpp"
 #include "flock/functions/operator/semantic_filter.hpp"
 #include "flock/runtime/semantic_settings.h"
 
+#include <limits>
 #include <utility>
 #include <unordered_set>
 
@@ -263,6 +265,44 @@ void RewriteTree(duckdb::unique_ptr<LogicalOperator>& node) {
     }
 }
 
+// LIMIT early stop: a constant `LIMIT n [OFFSET m]` whose child is a semantic
+// filter, possibly through projections and empty filters only (which keep the
+// row count), lets that filter stop after n + m output rows. Anything else in
+// between (a non-empty filter, ORDER BY, aggregate, DISTINCT, join, ...) changes which or how many
+// rows reach the LIMIT, so no hint. ORDER BY ... LIMIT plans as TOP_N, never
+// matched here. Only the top node of a stacked filter gets the hint.
+void AttachLimitHints(LogicalOperator& node) {
+    if (node.type == LogicalOperatorType::LOGICAL_LIMIT && !node.children.empty()) {
+        const auto& limit = node.Cast<duckdb::LogicalLimit>();
+        const bool const_limit = limit.limit_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE;
+        const bool const_offset = limit.offset_val.Type() == duckdb::LimitNodeType::UNSET ||
+                                  limit.offset_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE;
+        if (const_limit && const_offset) {
+            const idx_t n = limit.limit_val.GetConstantValue();
+            const idx_t m = limit.offset_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE
+                                    ? limit.offset_val.GetConstantValue()
+                                    : 0;
+            const idx_t hint = (n > std::numeric_limits<idx_t>::max() - m) ? 0 : n + m;
+            LogicalOperator* cur = node.children[0].get();
+            // An empty FILTER (all conjuncts moved into the semantic filter by RewriteTree)
+            // passes every row, so it keeps the row count like a projection.
+            while (cur->children.size() == 1 &&
+                   (cur->type == LogicalOperatorType::LOGICAL_PROJECTION ||
+                    (cur->type == LogicalOperatorType::LOGICAL_FILTER && cur->expressions.empty()))) {
+                cur = cur->children[0].get();
+            }
+            if (auto* sem = dynamic_cast<LogicalSemFilter*>(cur)) {
+                if (hint > 0 && (sem->limit_hint == 0 || hint < sem->limit_hint)) {
+                    sem->limit_hint = hint;
+                }
+            }
+        }
+    }
+    for (auto& child : node.children) {
+        AttachLimitHints(*child);
+    }
+}
+
 }  // namespace
 
 void SemanticOptimizeFunction(duckdb::OptimizerExtensionInput& input,
@@ -273,6 +313,11 @@ void SemanticOptimizeFunction(duckdb::OptimizerExtensionInput& input,
         return;  // A/B baseline: flag off -> leave every llm_filter as a scalar call.
     }
     RewriteTree(plan);
+    duckdb::Value early_stop;
+    if (!input.context.TryGetCurrentSetting(semantic_option::kLimitEarlyStop, early_stop) ||
+        early_stop.GetValue<bool>()) {
+        AttachLimitHints(*plan);
+    }
 }
 
 }  // namespace flock
