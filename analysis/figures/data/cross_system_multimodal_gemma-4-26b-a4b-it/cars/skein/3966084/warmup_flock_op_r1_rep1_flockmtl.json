@@ -1,0 +1,117 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 2.370398656,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794961884983172184,
+      "t_submit_ns": 1794961884983172536,
+      "t_done_ns": 1794961887353571192,
+      "row_count": 8,
+      "throughput_rows_per_s": 3.3749597266055824,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/warmup_flock_op_r1_rep1/Q1",
+      "run_label": "warmup_flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 8,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.75,
+    "recall": 0.8571428571428571,
+    "f1_score": 0.7999999999999999
+  },
+  "Q3": {
+    "query_id": 3,
+    "status": "success",
+    "execution_time": 1.417490706,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794961887463398946,
+      "t_submit_ns": 1794961887463399298,
+      "t_done_ns": 1794961888880890004,
+      "row_count": 2,
+      "throughput_rows_per_s": 1.410943995282887,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/warmup_flock_op_r1_rep1/Q3",
+      "run_label": "warmup_flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 2,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "Q4": {
+    "query_id": 4,
+    "status": "success",
+    "execution_time": 1.354400103,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794961889035674765,
+      "t_submit_ns": 1794961889035675181,
+      "t_done_ns": 1794961890390075284,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.7383342616299255,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/warmup_flock_op_r1_rep1/Q4",
+      "run_label": "warmup_flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.45994832041343336,
+    "absolute_error": 4.1395348837209,
+    "mean_absolute_percentage_error": 45.99483204134334
+  },
+  "Q8": {
+    "query_id": 8,
+    "status": "success",
+    "execution_time": 0.45471566,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794961890589739006,
+      "t_submit_ns": 1794961890589739293,
+      "t_done_ns": 1794961891044454953,
+      "row_count": 1,
+      "throughput_rows_per_s": 2.199176513955996,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/warmup_flock_op_r1_rep1/Q8",
+      "run_label": "warmup_flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  },
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 1.495108632,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794961891264308504,
+      "t_submit_ns": 1794961891264308856,
+      "t_done_ns": 1794961892759417488,
+      "row_count": 100,
+      "throughput_rows_per_s": 66.88477202237168,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl/warmup_flock_op_r1_rep1/Q10",
+      "run_label": "warmup_flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 100,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.477046866177301,
+    "recall": 0.47463237245845946,
+    "f1_score": 0.42200075287031813
+  }
+}

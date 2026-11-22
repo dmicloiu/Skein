@@ -1,0 +1,11 @@
+tag	query	status	execution_time_s	error
+warmup_palimpzest_rep1	Q1	success	3.50236439704895	
+warmup_palimpzest_rep1	Q3	success	2.7900993824005127	
+warmup_palimpzest_rep1	Q4	success	3.5614848136901855	
+warmup_palimpzest_rep1	Q8	success	2.5237317085266113	'car_id'
+warmup_palimpzest_rep1	Q10	success	11.575367212295532	
+palimpzest_rep1	Q1	success	399.9357051849365	
+palimpzest_rep1	Q3	success	3.4710171222686768	
+palimpzest_rep1	Q4	success	434.7930483818054	
+palimpzest_rep1	Q8	success	268.55932426452637	
+palimpzest_rep1	Q10	success	1329.5108852386475	

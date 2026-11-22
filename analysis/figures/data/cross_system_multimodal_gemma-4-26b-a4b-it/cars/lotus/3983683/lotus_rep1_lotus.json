@@ -1,0 +1,30 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 126.24537539482117,
+    "token_usage": 5723105,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 1100,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.8172727272727273,
+    "recall": 0.9453207150368034,
+    "f1_score": 0.8766455387615798
+  },
+  "Q4": {
+    "query_id": 4,
+    "status": "success",
+    "execution_time": 127.81768536567688,
+    "token_usage": 5625129,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 1,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.008092253373070426,
+    "absolute_error": 0.10913867415115419,
+    "mean_absolute_percentage_error": 0.8092253373070426
+  }
+}

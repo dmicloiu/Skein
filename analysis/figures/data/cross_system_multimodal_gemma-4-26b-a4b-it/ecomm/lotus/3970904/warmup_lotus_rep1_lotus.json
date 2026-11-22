@@ -1,0 +1,18 @@
+{
+  "Q8": {
+    "query_id": 8,
+    "status": "success",
+    "execution_time": 14.986603021621704,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 0,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "accuracy": 1.0,
+    "metric_type": "f1-score",
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

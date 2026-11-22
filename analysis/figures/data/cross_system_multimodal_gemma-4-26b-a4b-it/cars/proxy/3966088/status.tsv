@@ -1,0 +1,5 @@
+tag	query	status	execution_time_s	error
+warmup_flock_emb_r1_rep1	Q8	success	2.760325826	
+flock_emb_r1_rep1	Q8	success	155.28654236	
+warmup_flock_lotus_r1_rep1	Q8	success	2.119042645	
+flock_lotus_r1_rep1	Q8	success	120.224575567	

@@ -1,0 +1,55 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: ecomm
+Model: google/gemma-4-26B-A4B-it
+Queries: 12
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+WITH products AS (
+    SELECT s.id, s.id::VARCHAR AS id_text,
+           s.productDisplayName || ' ' || s.productDescriptors.description.value AS description,
+           i.local_image_path
+    FROM styles_details AS s
+    JOIN image_mapping AS i ON s.id = i.id::BIGINT
+    WHERE s.masterCategory.typeName IN ('Accessories', 'Apparel', 'Footwear')
+),
+filtered AS (
+    SELECT * FROM products
+    WHERE llm_filter(
+        {'model_name': 'google/gemma-4-26B-A4B-it'},
+        {'prompt': 'Does the product description identify an Adidas or Puma product?',
+         'context_columns': [{'data': description, 'name': 'product description'}]})
+)
+SELECT llm_complete(
+    {'model_name': 'google/gemma-4-26B-A4B-it'},
+    {'prompt': 'Using the product ID, description, and image, return a single-line JSON object with keys id (integer), brand (lowercase), category (one of accessories, apparel, footwear), in that order, with no spaces.',
+     'context_columns': [
+         {'data': id_text, 'name': 'product id', 'type': 'text'},
+         {'data': description, 'name': 'product description', 'type': 'text'},
+         {'data': local_image_path, 'name': 'product image', 'type': 'image'}
+     ]}) AS id
+FROM filtered;
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/flockmtl/Q12.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating flockmtl...
+Evaluating Q12 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  flockmtl: ✅ Completed
+    Q12: ✅ 10.95s, 18 rows

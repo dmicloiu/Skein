@@ -1,0 +1,49 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: cars
+Model: google/gemma-4-26B-A4B-it
+Queries: 8
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running flockmtl ---
+
+Running 1 queries for flockmtl
+SELECT car_id
+FROM car_images
+WHERE llm_filter(
+    {'model_name': 'google/gemma-4-26B-A4B-it'},
+    {'prompt': 'Does the image show both puncture damage and paint scratches on the car or its parts?',
+     'context_columns': [{'data': image_path, 'name': 'car image', 'type': 'image'}]})
+LIMIT 100;
+[flock proxy] kind=embedding rows=20 -> exact (fewer than min_rows=1000)
+Results saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/cars/raw_results/flockmtl/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/cars/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for cars ---
+Evaluating flockmtl...
+Evaluating Q8 ...
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench-proxy-v2/files/cars/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  flockmtl: ✅ Completed
+    Q8: ✅ 2.76s, 0 rows

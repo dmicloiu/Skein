@@ -1,0 +1,9 @@
+date=2026-11-21T05:22:08+01:00 job=3970904 node=nid007038
+scenario=ecomm scale=500 queries=8 warm_scale=50 warm_queries=8
+arms=lotus reps=1 in_flight=128 concurrency=128 scalar_batch=32
+model=google/gemma-4-26B-A4B-it max_model_len=32768 vllm_extra_args=
+model_snapshot=4d7ae4984b7db7de8f8457170b3f1a419ee76d52 
+vllm_env=sembench-tf5 vllm=0.22.0 5.5.4
+flock_commit=5fab00e5aa328e93e26df3cd65ea05b4ce046d51
+sembench_commit=88f5adf40f7c50d42822a6769359095a1491f6e6 tracked_changes=98
+flock_ext=/users/dmicloiu/projects/flock/build/release/extension/flock/flock.duckdb_extension sha256=21e73d423143ea74c58944b8e071c637919afe55b5e65c04c717d0034a990353

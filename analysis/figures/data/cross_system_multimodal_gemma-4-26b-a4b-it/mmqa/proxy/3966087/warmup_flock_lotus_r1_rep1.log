@@ -1,0 +1,76 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: mmqa
+Model: google/gemma-4-26B-A4B-it
+Queries: 2a, 2b, 7
+Scale factor: 25
+
+============================================================
+Running benchmarks for use case: mmqa
+============================================================
+
+--- Running flockmtl ---
+
+Running 3 queries for flockmtl
+SELECT t.ID, i.image_filename AS image_id
+FROM ap_warrior AS t
+JOIN images AS i ON llm_filter(
+    {'model_name': 'google/gemma-4-26B-A4B-it'},
+    {'prompt': 'Does the image show the logo of the horse racetrack named in the Track field?',
+     'context_columns': [
+         {'data': t.Track, 'name': 'horse racetrack', 'type': 'text'},
+         {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+     ]});
+[flock proxy] kind=lotus rows=325 -> exact (fewer than min_rows=1000)
+WITH matches AS (
+    SELECT t.ID, i.image_filename AS image_id, i.image_filepath
+    FROM ap_warrior AS t
+    JOIN images AS i ON llm_filter(
+        {'model_name': 'google/gemma-4-26B-A4B-it'},
+        {'prompt': 'Does the image show the logo of the horse racetrack named in the Track field?',
+         'context_columns': [
+             {'data': t.Track, 'name': 'horse racetrack', 'type': 'text'},
+             {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+         ]})
+)
+SELECT ID, image_id,
+       llm_complete(
+           {'model_name': 'google/gemma-4-26B-A4B-it'},
+           {'prompt': 'What is the color of the logo in this image? Return only the color.',
+            'context_columns': [{'data': image_filepath, 'name': 'logo image', 'type': 'image'}]}
+       ) AS color
+FROM matches;
+[flock proxy] kind=lotus rows=325 -> exact (fewer than min_rows=1000)
+SELECT t.Airlines, i.image_filename AS image_id
+FROM tampa_international_airport AS t
+JOIN images AS i ON llm_filter(
+    {'model_name': 'google/gemma-4-26B-A4B-it'},
+    {'prompt': 'Does the image show the logo of the airline named in the Airlines field?',
+     'context_columns': [
+         {'data': t.Airlines, 'name': 'airline', 'type': 'text'},
+         {'data': i.image_filepath, 'name': 'logo image', 'type': 'image'}
+     ]});
+[flock proxy] kind=lotus rows=625 -> exact (fewer than min_rows=1000)
+Results saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/mmqa/raw_results/flockmtl/Q2a.csv
+Results saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/mmqa/raw_results/flockmtl/Q2b.csv
+Results saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/mmqa/raw_results/flockmtl/Q7.csv
+Metrics saved to: /users/dmicloiu/projects/sembench-proxy-v2/files/mmqa/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for mmqa ---
+Evaluating flockmtl...
+Evaluating Q2a ...
+Evaluating Q2b ...
+Evaluating Q7 ...
+[MMQAEvaluator] Metrics saved → /users/dmicloiu/projects/sembench-proxy-v2/files/mmqa/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+MMQA:
+  flockmtl: ✅ Completed
+    Q2a: ✅ 5.12s, 10 rows
+    Q2b: ✅ 3.36s, 10 rows
+    Q7: ✅ 6.81s, 5 rows

@@ -1,0 +1,31 @@
+{
+  "Q8": {
+    "query_id": 8,
+    "status": "success",
+    "execution_time": 120.224575567,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794962357366420406,
+      "t_submit_ns": 1794962357366420822,
+      "t_done_ns": 1794962477590996389,
+      "row_count": 17,
+      "throughput_rows_per_s": 0.1414020379762211,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench-proxy-v2/files/cars/metrics/flockmtl/flock_lotus_r1_rep1/Q8",
+      "run_label": "flock_lotus_r1_rep1",
+      "duckdb_threads": 1,
+      "proxy_model": "clip",
+      "proxy_endpoint": "http://127.0.0.1:8002/v1/embeddings",
+      "proxy_negative_threshold": -1.0,
+      "proxy_positive_threshold": 2.0,
+      "proxy_kind": "lotus",
+      "proxy_template": "a photo of a damaged car"
+    },
+    "row_count": 17,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.47058823529411764,
+    "recall": 0.08,
+    "f1_score": 0.13675213675213677
+  }
+}

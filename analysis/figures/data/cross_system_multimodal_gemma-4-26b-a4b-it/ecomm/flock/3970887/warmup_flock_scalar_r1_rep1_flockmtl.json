@@ -1,0 +1,27 @@
+{
+  "Q12": {
+    "query_id": 12,
+    "status": "success",
+    "execution_time": 10.948114972,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1795018353324842355,
+      "t_submit_ns": 1795018353324842803,
+      "t_done_ns": 1795018364272957775,
+      "row_count": 18,
+      "throughput_rows_per_s": 1.6441186492866873,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/ecomm/metrics/flockmtl/warmup_flock_scalar_r1_rep1/Q12",
+      "run_label": "warmup_flock_scalar_r1_rep1",
+      "duckdb_threads": 16
+    },
+    "row_count": 18,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 1,
+    "accuracy": 0.0,
+    "metric_type": "f1-score",
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  }
+}

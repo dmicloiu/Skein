@@ -1,0 +1,23 @@
+tag	query	status	execution_time_s	error
+warmup_palimpzest_rep1	Q1	success	1.589721441268921	
+warmup_palimpzest_rep1	Q2a	success	9.184542894363403	
+warmup_palimpzest_rep1	Q2b	success	7.6948301792144775	
+warmup_palimpzest_rep1	Q3a	success	2.7000067234039307	
+warmup_palimpzest_rep1	Q3f	success	1.399277687072754	
+warmup_palimpzest_rep1	Q4	success	2.9542059898376465	'float' object has no attribute 'strip'
+warmup_palimpzest_rep1	Q5	success	2.8413782119750977	
+warmup_palimpzest_rep1	Q6a	success	1.6258342266082764	
+warmup_palimpzest_rep1	Q6b	success	1.5616016387939453	
+warmup_palimpzest_rep1	Q6c	success	1.5679528713226318	
+warmup_palimpzest_rep1	Q7	success	14.615675926208496	
+palimpzest_rep1	Q1	success	0.8767101764678955	
+palimpzest_rep1	Q2a	success	154.11154794692993	
+palimpzest_rep1	Q2b	success	140.9082374572754	
+palimpzest_rep1	Q3a	success	4.898518800735474	
+palimpzest_rep1	Q3f	success	4.570741891860962	
+palimpzest_rep1	Q4	success	1.602677345275879	'float' object has no attribute 'strip'
+palimpzest_rep1	Q5	success	1.4957728385925293	
+palimpzest_rep1	Q6a	success	3.449648380279541	
+palimpzest_rep1	Q6b	success	3.0068554878234863	
+palimpzest_rep1	Q6c	success	3.503469944000244	
+palimpzest_rep1	Q7	success	2382.2959513664246	

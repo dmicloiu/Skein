@@ -1,0 +1,130 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: cars
+Model: vllm/google/gemma-4-26B-A4B-it
+Queries: 1, 3, 4, 8, 10
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running lotus ---
+Using vLLM with custom configuration: model=hosted_vllm/google/gemma-4-26B-A4B-it, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+
+Running 5 queries for lotus
+Filtering:   0%|           0/100 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 100/100 LM calls [00:01<00:00, 61.35it/s]Filtering: 100%|██████████ 100/100 LM calls [00:01<00:00, 61.34it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:247: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 28646, completion token: 400
+total tokens: 29046
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/5 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 5/5 LM calls [00:01<00:00,  4.84it/s]Filtering: 100%|██████████ 5/5 LM calls [00:01<00:00,  4.84it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:247: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 1879, completion token: 196
+total tokens: 2075
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/100 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 100/100 LM calls [00:00<00:00, 254.91it/s]Filtering: 100%|██████████ 100/100 LM calls [00:00<00:00, 254.77it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:247: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 28146, completion token: 400
+total tokens: 28546
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 14.48it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 14.48it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:247: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 7595, completion token: 900
+total tokens: 8495
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Extracting:   0%|           0/100 LM calls [00:00<?, ?it/s]Extracting: 100%|██████████ 100/100 LM calls [00:02<00:00, 36.35it/s]Extracting: 100%|██████████ 100/100 LM calls [00:02<00:00, 36.35it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:247: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 41746, completion token: 2829
+total tokens: 44575
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q4.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q8.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q10.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/cars/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for cars ---
+Evaluating lotus...
+Evaluating Q1 ...
+        car_id
+2592     49236
+20151    76061
+40320   169716
+96055   142880
+99112   156133
+138108  264599
+156762    4816
+   car_id
+0   49236
+1   76061
+2  169716
+3  279505
+4  142880
+5  156133
+6    4816
+Evaluating Q3 ...
+Systems results sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Smaller:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Systems results sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Evaluating Q4 ...
+Evaluating Q8 ...
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+Evaluating Q10 ...
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/cars/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  lotus: ✅ Completed
+    Q1: ✅ 1.70s, 7 rows, 29046 tokens
+    Q10: ✅ 2.78s, 100 rows, 44575 tokens
+    Q3: ✅ 2.85s, 2 rows, 2075 tokens
+    Q4: ✅ 0.41s, 1 rows, 28546 tokens
+    Q8: ✅ 4.71s, 0 rows, 8495 tokens

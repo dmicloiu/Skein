@@ -1,0 +1,132 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: ecomm
+Model: vllm/google/gemma-4-26B-A4B-it
+Queries: 11
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running lotus ---
+Data already available at: /users/dmicloiu/projects/sembench/files/ecomm/source_data/fashion-dataset
+Skipping download and extraction.
+Creating /users/dmicloiu/projects/sembench/files/ecomm/data/fashion_product_images/styles.parquet
+Sample directory /users/dmicloiu/projects/sembench/files/ecomm/data/sf_50 already exists. Skipping sample creation.
+Using vLLM with custom configuration: model=hosted_vllm/google/gemma-4-26B-A4B-it, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+2026-11-21 02:18:50,875 - INFO - Use pytorch device_name: cuda:0
+2026-11-21 02:18:50,875 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+2026-11-21 02:18:52,222 - INFO - Use pytorch device_name: cuda:0
+2026-11-21 02:18:52,222 - INFO - Load pretrained SentenceTransformer: clip-ViT-B-32
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+
+Running 1 queries for lotus
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:02<00:00, 19.19it/s]Filtering: 100%|██████████ 50/50 LM calls [00:02<00:00, 19.19it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:02<00:00, 24.62it/s]Filtering: 100%|██████████ 50/50 LM calls [00:02<00:00, 24.61it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Filtering:   0%|           0/50 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 51.99it/s]Filtering: 100%|██████████ 50/50 LM calls [00:00<00:00, 51.99it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Filtering:   0%|           0/11 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 11/11 LM calls [00:00<00:00, 11.49it/s]Filtering: 100%|██████████ 11/11 LM calls [00:00<00:00, 11.49it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Join comparisons:   0%|           0/5 LM Calls [00:00<?, ?it/s]2026-11-21 02:19:05,736 - INFO - 	 Failed to parse er wants me to determine if the two products shown in the images are from the same brand.
+
+1.  **Analyze the first image (left):** The image shows a black and yellow athletic shoe. Looking closely at the shoe, there is text on the side that says "KINETIC FIT" and on the tongue, it says "Keen". Therefore, the brand of the first product is Keen.
+2.  **Analyze the second image (right):** The image shows a black and blue drawstring bag. The bag has a large "adidas" logo printed on it. Therefore, the brand of the second product is Adidas.
+3.  **Compare the brands:** The first brand is Keen and the second brand is Adidas. They are not the same brand.
+4.  **Evaluate the claim:** The claim asks to determine if they are from the same brand. Based on my analysis, they are not. However, the prompt structure is a bit confusing. It asks me to "Determine whether they are from the same brand" but then provides a claim format. Usually, in these tasks, the "Claim" is the statement to be verified.
+5.  **Re-reading the prompt:** The "Claim" section says: "You will receive a description and an image of two products. Determine whether they are from the same brand...". This looks like the instruction for the task, not the claim itself. Wait, the prompt says "Claim: [text]". The text provided under "Claim" is actually the instruction for the task.
+6.  **Wait, let me look at the prompt again.**
+    "Claim: You will receive a description and an image of two products. Determine whether they are from the same brand. ..."
+    This is very strange. Usually, the claim is a statement like "The two products are from the same brand."
+    If the claim is "Determine whether they are from the same brand", that's not a true/false statement.
+    Let's look at the structure again.
+    Context: [Images:left], [Images:right]
+    Claim: [Instructional text]
+    
+    Actually, looking at the provided text:
+    "Claim: 
+    You will receive a description and an image of two products. Determine whether they are from the same brand.
+    The description of the first product is as follows: {productDisplayName:left} {productDescriptors:left}.: defaulting to True
+Join comparisons: 100%|██████████ 5/5 LM Calls [00:03<00:00,  1.43it/s]Join comparisons: 100%|██████████ 5/5 LM Calls [00:03<00:00,  1.43it/s]
+Join comparisons:   0%|           0/72 LM Calls [00:00<?, ?it/s]/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+2026-11-21 02:19:19,373 - INFO - 	 Failed to parse er wants me to determine if the two products shown in the images are from the same brand.
+
+1.  **Analyze the first image (left):** The image shows a running shoe. Looking closely at the shoe, there is text on the tongue and side. The text on the side says "KINETICFIT". The text on the tongue/upper part appears to be "Keen" or something similar, but looking at the branding style, it's a specific athletic shoe brand.
+2.  **Analyze the second image (right):** The image shows a man wearing a black t-shirt. The t-shirt has a very clear "adidas" logo on the chest.
+3.  **Compare the brands:**
+    *   Product 1 (Shoe): The branding is not Adidas.
+    *   Product 2 (T-shirt): The branding is Adidas.
+4.  **Conclusion:** The two products are not from the same brand.
+
+The claim asks to determine if they are from the same brand. Since they are not, the claim (implied as a question or a task to verify) needs to be answered based on the truth of the relationship. However, the prompt is structured as "Determine whether they are from the same brand" followed by a claim. Usually, in these tasks, the "Claim" is the statement to be evaluated.
+
+Wait, the "Claim" section is actually the instruction: "You will receive a description and an image of two products. Determine whether they are from the same brand...". This is a bit meta. Let's look at the prompt again.
+
+Actually, the prompt says:
+"Claim: You will receive a description and an image of two products. Determine whether they are from the same brand..."
+This looks like the prompt itself is the claim, which is weird. Usually, the claim is "The products are from the same brand".
+
+Let's re-read.
+"Claim: You will receive a description and an image of two products. Determine whether they are from the same brand. [followed by details]"
+This is not a claim. This is a set of instructions.
+
+However, if I am to treat the "Claim" as the statement to be evaluated, and the statement is "Determine whether they are from the same brand", that's not a true/false statement.
+
+Let's look at the structure again.
+Context: [Images]
+Claim: defaulting to True
+2026-11-21 02:19:19,373 - INFO - 	 Failed to parse er wants me to determine if the two products shown in the images are from the same brand.
+
+1.  **Analyze the first image (left):**
+    *   The image shows a silver and neon yellow athletic shoe.
+    *   The brand "adidas" is clearly visible on the side of the shoe and on the tongue.
+    *   Brand: **Adidas**.
+
+2.  **Analyze the second image (right):**
+    *   The image shows a man wearing a black t-shirt.
+    *   The t-shirt has a logo that says "ALL BLACKS" with a silver fern.
+    *   The "All Blacks" is the nickname for the New Zealand national rugby union team. Their apparel is often made by brands like Adidas, Canterbury, or others, but the brand of the *shirt itself* (the manufacturer) is not explicitly stated as Adidas in the image, though the logo is for the team.
+    *   However, looking closely at the shirt, there is a small logo on the right sleeve (viewer's left). It's hard to read, but it doesn't look like the Adidas logo.
+    *   The claim asks if the *products* are from the same brand. The first product is an Adidas shoe. The second product is an All Blacks t-shirt. While Adidas is a sponsor of the All Blacks, the "All Blacks" logo is a team logo, not a brand logo like Adidas.
+    *   Wait, let's look at the prompt again. It asks if they are from the same brand.
+    *   Product 1: Adidas shoe.
+    *   Product 2: All Blacks t-shirt.
+    *   Is the brand of the t-shirt Adidas? Many All Blacks shirts are Adidas. But the logo on the shirt is the All Blacks logo.
+    *   Let's re-examine the images. The shoe is definitely Adidas. The shirt has the All Blacks logo.
+    *   Usually, in these types of tasks, if one is a clear brand (Adidas) and the other is a team logo (All Blacks), they are considered different brands unless the Adidas logo is also prominent on the second item.
+    *   Actually, looking at the shirt, the logo is the All Blacks logo. The brand of the shirt is not explicitly shown to be Adidas.
+    *   Let's check if there's: defaulting to True
+Join comparisons: 100%|██████████ 72/72 LM Calls [00:07<00:00,  9.35it/s]Join comparisons: 100%|██████████ 72/72 LM Calls [00:07<00:00,  9.35it/s]
+Join comparisons:   0%|           0/46 LM Calls [00:00<?, ?it/s]/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Join comparisons: 100%|██████████ 46/46 LM Calls [00:05<00:00,  8.38it/s]Join comparisons: 100%|██████████ 46/46 LM Calls [00:05<00:00,  8.38it/s]
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 171289, completion token: 22117
+total tokens: 193406
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q11.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating lotus...
+Evaluating Q11 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  lotus: ✅ Completed
+    Q11: ✅ 37.97s, 281 rows, 193406 tokens

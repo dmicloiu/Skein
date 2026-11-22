@@ -1,0 +1,1 @@
+{"thread_count":1,"threads":{"70369432521696":{"0x1":{"llm_filter":{"api_calls":500,"api_duration_ms":34818.533,"execution_time_ms":34884.962,"input_tokens":336094,"model_name":"google/gemma-4-26B-A4B-it","output_tokens":4502,"provider":"openai","registration_order":1,"total_tokens":340596}}}}}

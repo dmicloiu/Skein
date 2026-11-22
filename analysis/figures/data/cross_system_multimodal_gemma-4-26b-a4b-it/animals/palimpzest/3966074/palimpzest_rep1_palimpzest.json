@@ -1,0 +1,58 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 10.424025297164917,
+    "token_usage": 9775.0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 1,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.2727272727272727,
+    "absolute_error": 3.0,
+    "mean_absolute_percentage_error": 27.27272727272727
+  },
+  "Q3": {
+    "query_id": 3,
+    "status": "success",
+    "execution_time": 3.1959376335144043,
+    "token_usage": 9805.0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 3,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  },
+  "Q7": {
+    "query_id": 7,
+    "status": "success",
+    "execution_time": 14.672694683074951,
+    "token_usage": 9811.0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 4,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 0.8,
+    "f1_score": 0.888888888888889
+  },
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 5.302887678146362,
+    "token_usage": 9753.0,
+    "money_cost": 0.0,
+    "extra": {},
+    "row_count": 8,
+    "model_name": "vllm/google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "Q1": {
+    "query_id": 1,
+    "status": "success",
+    "execution_time": 10.535009697,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794953670573384046,
+      "t_submit_ns": 1794953670573384686,
+      "t_done_ns": 1794953681108394383,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.09492160223495237,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q1",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "relative_error": 0.2727272727272727,
+    "absolute_error": 3.0,
+    "mean_absolute_percentage_error": 27.27272727272727
+  },
+  "Q3": {
+    "query_id": 3,
+    "status": "success",
+    "execution_time": 8.348167316,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794953681369563868,
+      "t_submit_ns": 1794953681369564284,
+      "t_done_ns": 1794953689717731600,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.11978677021523176,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q3",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  },
+  "Q7": {
+    "query_id": 7,
+    "status": "success",
+    "execution_time": 15.725052306,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794953689828594919,
+      "t_submit_ns": 1794953689828595719,
+      "t_done_ns": 1794953705553648025,
+      "row_count": 4,
+      "throughput_rows_per_s": 0.2543711729641607,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q7",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 4,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 0.8,
+    "f1_score": 0.888888888888889
+  },
+  "Q10": {
+    "query_id": 10,
+    "status": "success",
+    "execution_time": 8.6894055,
+    "token_usage": 0,
+    "money_cost": 0.0,
+    "extra": {
+      "t_bind_start_ns": 1794953705630793002,
+      "t_submit_ns": 1794953705630793578,
+      "t_done_ns": 1794953714320199078,
+      "row_count": 1,
+      "throughput_rows_per_s": 0.11508267165112734,
+      "telemetry_dir": "/users/dmicloiu/projects/sembench/files/animals/metrics/flockmtl/flock_op_r1_rep1/Q10",
+      "run_label": "flock_op_r1_rep1",
+      "duckdb_threads": 1
+    },
+    "row_count": 1,
+    "model_name": "google/gemma-4-26B-A4B-it",
+    "concurrent_llm_worker": 128,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

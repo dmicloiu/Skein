@@ -1,0 +1,3 @@
+tag	query	status	execution_time_s	error
+warmup_lotus_rep1	Q11	success	37.974250078201294	
+lotus_rep1	Q11	success	337.1776432991028	

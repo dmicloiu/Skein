@@ -1,0 +1,48 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: ecomm
+Model: vllm/google/gemma-4-26B-A4B-it
+Queries: 8
+Scale factor: 50
+
+============================================================
+Running benchmarks for use case: ecomm
+============================================================
+
+--- Running lotus ---
+Data already available at: /users/dmicloiu/projects/sembench/files/ecomm/source_data/fashion-dataset
+Skipping download and extraction.
+Creating /users/dmicloiu/projects/sembench/files/ecomm/data/fashion_product_images/styles.parquet
+Sample directory /users/dmicloiu/projects/sembench/files/ecomm/data/sf_50 already exists. Skipping sample creation.
+Using vLLM with custom configuration: model=hosted_vllm/google/gemma-4-26B-A4B-it, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+2026-11-21 05:27:44,019 - INFO - Use pytorch device_name: cuda:0
+2026-11-21 05:27:44,019 - INFO - Load pretrained SentenceTransformer: intfloat/e5-base-v2
+2026-11-21 05:27:45,296 - INFO - Use pytorch device_name: cuda:0
+2026-11-21 05:27:45,296 - INFO - Load pretrained SentenceTransformer: clip-ViT-B-32
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+
+Running 1 queries for lotus
+Join comparisons: |           0/0 LM Calls [00:00<?, ?it/s]Join comparisons: |           0/0 LM Calls [00:00<?, ?it/s]
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 0, completion token: 0
+total tokens: 0
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/ecomm/raw_results/lotus/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for ecomm ---
+Evaluating lotus...
+Evaluating Q8 ...
+[EcommEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/ecomm/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ECOMM:
+  lotus: ✅ Completed
+    Q8: ✅ 14.99s, 0 rows

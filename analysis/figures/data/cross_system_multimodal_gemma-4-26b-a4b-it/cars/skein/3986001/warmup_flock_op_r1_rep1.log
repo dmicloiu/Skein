@@ -1,0 +1,76 @@
+Multi-Modal Data Systems Benchmark
+Systems: flockmtl
+Use cases: cars
+Model: google/gemma-4-26B-A4B-it
+Queries: 3, 8
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running flockmtl ---
+
+Running 2 queries for flockmtl
+SELECT c.vin
+FROM cars AS c
+JOIN car_images AS i USING (car_id)
+WHERE c.transmission = 'Manual'
+  AND llm_filter(
+      {'model_name': 'google/gemma-4-26B-A4B-it'},
+      {'prompt': 'Does this image show a car or car part without visible damage?',
+       'context_columns': [{'data': i.image_path, 'name': 'car image', 'type': 'image'}]})
+LIMIT 10;
+  warn: vllm /metrics scrape failed: HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=0.5)
+SELECT car_id
+FROM car_images
+WHERE llm_filter(
+    {'model_name': 'google/gemma-4-26B-A4B-it'},
+    {'prompt': 'Does the image show both puncture damage and paint scratches on the car or its parts?',
+     'context_columns': [{'data': image_path, 'name': 'car image', 'type': 'image'}]})
+LIMIT 100;
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/flockmtl/Q8.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl.json
+✓ flockmtl completed successfully
+
+--- Running evaluation for cars ---
+Evaluating flockmtl...
+Evaluating Q3 ...
+Systems results sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Smaller:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Systems results sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Ground truth sample for Q3:                  vin
+0  VUAMA7W5PV0TEB0DY
+1  ZU9F8PMVT2468TUTS
+Evaluating Q8 ...
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+Systems results sample for Q8: Empty DataFrame
+Columns: [car_id]
+Index: []
+Ground truth sample for Q8:        car_id
+17482     859
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/cars/metrics/flockmtl.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  flockmtl: ✅ Completed
+    Q3: ✅ 2.78s, 2 rows
+    Q8: ✅ 0.51s, 0 rows

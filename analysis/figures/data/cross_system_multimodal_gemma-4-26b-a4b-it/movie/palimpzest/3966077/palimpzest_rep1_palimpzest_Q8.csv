@@ -1,0 +1,3 @@
+sentiment,count(sentiment)
+NEGATIVE,101
+POSITIVE,19

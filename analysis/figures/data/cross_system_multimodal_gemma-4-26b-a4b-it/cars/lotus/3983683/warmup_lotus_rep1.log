@@ -1,0 +1,67 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: cars
+Model: vllm/google/gemma-4-26B-A4B-it
+Queries: 1, 4
+Scale factor: 100
+
+============================================================
+Running benchmarks for use case: cars
+============================================================
+
+--- Running lotus ---
+Using vLLM with custom configuration: model=hosted_vllm/google/gemma-4-26B-A4B-it, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+
+Running 2 queries for lotus
+Filtering:   0%|           0/100 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 100/100 LM calls [00:01<00:00, 75.34it/s]Filtering: 100%|██████████ 100/100 LM calls [00:01<00:00, 75.33it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 28646, completion token: 400
+total tokens: 29046
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/100 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 100/100 LM calls [00:00<00:00, 206.01it/s]Filtering: 100%|██████████ 100/100 LM calls [00:00<00:00, 205.88it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 28146, completion token: 400
+total tokens: 28546
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/cars/raw_results/lotus/Q4.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/cars/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for cars ---
+Evaluating lotus...
+Evaluating Q1 ...
+        car_id
+2592     49236
+20151    76061
+40320   169716
+96055   142880
+99112   156133
+138108  264599
+156762    4816
+   car_id
+0   49236
+1   76061
+2  169716
+3  142880
+4  156133
+5    4816
+Evaluating Q4 ...
+[CarsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/cars/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+CARS:
+  lotus: ✅ Completed
+    Q1: ✅ 1.40s, 6 rows, 29046 tokens
+    Q4: ✅ 0.55s, 1 rows, 28546 tokens

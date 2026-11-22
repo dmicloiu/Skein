@@ -1,0 +1,11 @@
+tag	query	status	execution_time_s	error
+warmup_lotus_rep1	Q1	success	1.6986513137817383	
+warmup_lotus_rep1	Q3	success	2.850203275680542	
+warmup_lotus_rep1	Q4	success	0.409381628036499	
+warmup_lotus_rep1	Q8	success	4.714334964752197	
+warmup_lotus_rep1	Q10	success	2.7764089107513428	
+lotus_rep1	Q1	failed	None	'InternalServerError' object has no attribute 'choices'
+lotus_rep1	Q3	success	285.9183614253998	
+lotus_rep1	Q4	failed	None	'InternalServerError' object has no attribute 'choices'
+lotus_rep1	Q8	success	854.3194599151611	
+lotus_rep1	Q10	success	361.667197227478	

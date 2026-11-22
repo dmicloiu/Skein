@@ -1,0 +1,11 @@
+date=2026-11-18T01:28:36+01:00 job=3966087 node=nid006226
+scenario=mmqa scale=200 queries=2a 2b 7 warm_scale=25 warm_queries=2a 2b 7
+arms=flock_emb_r1 flock_lotus_r1 reps=1 in_flight=128 concurrency=128 scalar_batch=32
+model=google/gemma-4-26B-A4B-it max_model_len=32768 vllm_extra_args=
+proxy_model= proxy_neg=-1 proxy_pos=2 gpu_util=0.85+
+model_snapshot=4d7ae4984b7db7de8f8457170b3f1a419ee76d52 
+vllm_env=sembench-tf5 vllm=0.22.0 5.5.4
+emb_arms=1 emb_model_dir=/iopsstor/scratch/cscs/dmicloiu/huggingface/hub/models--sentence-transformers--clip-ViT-B-32/snapshots/327ab6726d33c0e22f920c83f2ff9e4bd38ca37f/0_CLIPModel emb_env=sembench gpu_util=0.85+0.05 template=the logo of {} k_min= k_frac= gap= audit_near= audit_far= min_rows= seed= lotus=//// (empty = flock default)
+flock_commit=aed1952074164ac379dcba26e79151032f4d7908 flock_src=/users/dmicloiu/projects/flock
+sembench_commit=e177814481d1e4663ecf0abd7791ddb61c1688ca tracked_changes=7
+flock_ext=/users/dmicloiu/projects/flock/build/release/extension/flock/flock.duckdb_extension sha256=21e73d423143ea74c58944b8e071c637919afe55b5e65c04c717d0034a990353

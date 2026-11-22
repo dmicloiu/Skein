@@ -1,0 +1,76 @@
+Multi-Modal Data Systems Benchmark
+Systems: lotus
+Use cases: animals
+Model: vllm/google/gemma-4-26B-A4B-it
+Queries: 1, 3, 7, 10
+Scale factor: 20
+
+============================================================
+Running benchmarks for use case: animals
+============================================================
+
+--- Running lotus ---
+Data already exists at /users/dmicloiu/projects/sembench/files/animals/data/sf_20, skipping generation.
+Using vLLM with custom configuration: model=hosted_vllm/google/gemma-4-26B-A4B-it, api_base=http://127.0.0.1:8000/v1
+Warning: vllm server returned status 401
+
+Running 4 queries for lotus
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:02<00:00,  6.72it/s]Filtering: 100%|██████████ 20/20 LM calls [00:02<00:00,  6.72it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 7100, completion token: 956
+total tokens: 8056
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 15.96it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 15.96it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 7100, completion token: 826
+total tokens: 7926
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 16.50it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 16.50it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 11.74it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 11.74it/s]
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 14220, completion token: 2358
+total tokens: 16578
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Filtering:   0%|           0/20 LM calls [00:00<?, ?it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 16.24it/s]Filtering: 100%|██████████ 20/20 LM calls [00:01<00:00, 16.24it/s]
+/users/dmicloiu/miniconda3/envs/sembench/lib/python3.11/site-packages/lotus/models/lm.py:286: UserWarning: Error calculating completion cost - cost metrics will be inaccurate. Enable debug logging for details.
+  warnings.warn(
+Warning: No pricing found for model 'vllm/google/gemma-4-26B-A4B-it', cost calculation skipped
+prompt token: 7100, completion token: 831
+total tokens: 7931
+  LOTUS cost: $0.000000
+  Calculated cost based on token consumption: $0.000000
+Results saved to: /users/dmicloiu/projects/sembench/files/animals/raw_results/lotus/Q1.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/animals/raw_results/lotus/Q3.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/animals/raw_results/lotus/Q7.csv
+Results saved to: /users/dmicloiu/projects/sembench/files/animals/raw_results/lotus/Q10.csv
+Metrics saved to: /users/dmicloiu/projects/sembench/files/animals/metrics/lotus.json
+✓ lotus completed successfully
+
+--- Running evaluation for animals ---
+Evaluating lotus...
+Evaluating Q1 ...
+Evaluating Q3 ...
+Evaluating Q7 ...
+Evaluating Q10 ...
+[AnimalsEvaluator] Metrics saved → /users/dmicloiu/projects/sembench/files/animals/metrics/lotus.json
+✓ Evaluation completed successfully
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+ANIMALS:
+  lotus: ✅ Completed
+    Q1: ✅ 7.62s, 1 rows, 8056 tokens
+    Q10: ✅ 5.35s, 0 rows, 7931 tokens
+    Q3: ✅ 5.36s, 0 rows, 7926 tokens
+    Q7: ✅ 11.17s, 0 rows, 16578 tokens

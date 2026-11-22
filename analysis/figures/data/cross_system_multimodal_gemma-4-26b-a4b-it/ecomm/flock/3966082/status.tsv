@@ -1,0 +1,27 @@
+tag	query	status	execution_time_s	error
+warmup_flock_scalar_r1_rep1	Q1	success	4.649847264	
+warmup_flock_scalar_r1_rep1	Q2	success	10.501544128	
+warmup_flock_scalar_r1_rep1	Q3	success	3.863090915	
+warmup_flock_scalar_r1_rep1	Q4	success	5.486822126	
+warmup_flock_scalar_r1_rep1	Q5	success	2.220645847	
+warmup_flock_scalar_r1_rep1	Q6	success	3.868134057	
+warmup_flock_scalar_r1_rep1	Q7	success	9.156909847	
+warmup_flock_scalar_r1_rep1	Q8	success	0.012742297	
+warmup_flock_scalar_r1_rep1	Q9	success	9.191813193	
+warmup_flock_scalar_r1_rep1	Q10	success	7.200370612	
+warmup_flock_scalar_r1_rep1	Q11	success	34.378758379	
+warmup_flock_scalar_r1_rep1	Q12	success	7.311846901	
+warmup_flock_scalar_r1_rep1	Q13	success	8.49299482	
+flock_scalar_r1_rep1	Q1	success	34.902603109	
+flock_scalar_r1_rep1	Q2	success	113.106993206	
+flock_scalar_r1_rep1	Q3	success	39.191550639	
+flock_scalar_r1_rep1	Q4	success	40.367399862	
+flock_scalar_r1_rep1	Q5	success	17.328975823	
+flock_scalar_r1_rep1	Q6	success	33.106368829	
+flock_scalar_r1_rep1	Q7	success	546.678750131	
+flock_scalar_r1_rep1	Q8	success	77.373973478	
+flock_scalar_r1_rep1	Q9	success	75.088743895	
+flock_scalar_r1_rep1	Q10	success	95.96328722	
+flock_scalar_r1_rep1	Q11	success	342.414864474	
+flock_scalar_r1_rep1	Q12	failed	None	Error: [ModelProvider] Output extraction error: [json.exception.parse_error.101] parse error at line 1, column 72: syntax error while parsing value - invalid string: missing closing quote; last read: '"id:19004\",\"brand\":\"adidas\",\"category\":\"apparel\"}]}'
+flock_scalar_r1_rep1	Q13	success	81.55229803	
