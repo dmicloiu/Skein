@@ -15,19 +15,23 @@ add_executable(${PROJECT_NAME}_tests test_main.cpp ${TEST_SOURCES})
 target_compile_options(${PROJECT_NAME}_tests PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
 
+# DuckDB's helper.hpp redefines __restrict on macOS, breaking gtest's later
+# <regex.h>
+if(APPLE)
+  target_compile_options(${PROJECT_NAME}_tests PRIVATE -include regex.h)
+endif()
+
 # GNU ld (Linux + MinGW) needs --start-group/--end-group for circular deps
-# jemalloc is only built on Linux
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
     ${PROJECT_NAME}_extension
-    duckdb_generated_extension_loader
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>)
+link_extension_libraries(${PROJECT_NAME}_tests PRIVATE)
 
 add_test(AllTestsInMain ${PROJECT_NAME}_tests)

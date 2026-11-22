@@ -28,7 +28,7 @@ using duckdb::SinkResultType;
 // LogicalSemExtract -- mirrors LogicalProjection's bindings / typing.
 // =============================================================================
 
-LogicalSemExtract::LogicalSemExtract(duckdb::unique_ptr<duckdb::LogicalOperator> child, idx_t table_index_p,
+LogicalSemExtract::LogicalSemExtract(duckdb::unique_ptr<duckdb::LogicalOperator> child, duckdb::TableIndex table_index_p,
                                      duckdb::vector<duckdb::unique_ptr<Expression>> select_list,
                                      idx_t llm_call_index_p)
     : duckdb::LogicalExtensionOperator(std::move(select_list)), table_index(table_index_p),
@@ -40,13 +40,13 @@ duckdb::vector<ColumnBinding> LogicalSemExtract::GetColumnBindings() {
     return GenerateColumnBindings(table_index, expressions.size());
 }
 
-duckdb::vector<idx_t> LogicalSemExtract::GetTableIndex() const {
-    return duckdb::vector<idx_t>{table_index};
+duckdb::vector<duckdb::TableIndex> LogicalSemExtract::GetTableIndex() const {
+    return duckdb::vector<duckdb::TableIndex>{table_index};
 }
 
 void LogicalSemExtract::ResolveTypes() {
     for (auto& expr : expressions) {
-        types.push_back(expr->return_type);
+        types.push_back(expr->GetReturnType());
     }
 }
 
@@ -73,7 +73,7 @@ duckdb::PhysicalOperator& LogicalSemExtract::CreatePlan(duckdb::ClientContext& c
                                                         duckdb::PhysicalPlanGenerator& planner) {
     // Reuse the scalar's resolved model + prompt template; do not re-resolve.
     auto& llm_call = expressions[llm_call_index]->Cast<duckdb::BoundFunctionExpression>();
-    auto& bind_data = llm_call.bind_info->Cast<LlmFunctionBindData>();
+    auto& bind_data = llm_call.BindInfo()->Cast<LlmFunctionBindData>();
     const std::string prompt_template = bind_data.prompt;
 
     Model model(bind_data.model_json);
@@ -115,7 +115,7 @@ duckdb::PhysicalOperator& LogicalSemExtract::CreatePlan(duckdb::ClientContext& c
     duckdb::vector<LogicalType> capture_types;
     capture_types.reserve(capture_exprs.size());
     for (auto& expr : capture_exprs) {
-        capture_types.push_back(expr->return_type);
+        capture_types.push_back(expr->GetReturnType());
     }
 
     auto& child_plan = planner.CreatePlan(*children[0]);

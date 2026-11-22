@@ -1,6 +1,6 @@
 #define DUCKDB_EXTENSION_MAIN
 
-#include "flock_extension.hpp"
+#include "skein_extension.hpp"
 
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/extension_statement.hpp"
@@ -33,19 +33,48 @@ static void LoadInternal(ExtensionLoader& loader) {
     OperatorExtension::Register(config, make_shared_ptr<DuckOperatorExtension>());
 }
 
-ParserExtensionParseResult duck_parse(ParserExtensionInfo*, const std::string& query) {
+ParserExtensionParseResult duck_parse(ParserExtensionInfo*, const vector<SimpleToken>& tokens) {
+    if (tokens.empty()) {
+        return {};
+    }
+    // GET is not a SQL keyword, so match on text rather than token type
+    auto first = StringUtil::Upper(tokens[0].text);
+    if (first != "CREATE" && first != "DELETE" && first != "UPDATE" && first != "GET") {
+        return {};
+    }
+
+    std::string query;
+    idx_t end = 0;
+    for (; end < tokens.size(); end++) {
+        auto type = tokens[end].type;
+        if (type == TokenType::TERMINATOR || type == TokenType::END_OF_INPUT ||
+            type == TokenType::END_OF_INPUT_AUTOCOMPLETE) {
+            break;
+        }
+        if (type == TokenType::COMMENT) {
+            continue;
+        }
+        if (!query.empty()) {
+            query += " ";
+        }
+        query += tokens[end].text;
+    }
+
     flock::QueryParser query_parser;
 
     // Translate and print SQL queries for each input query
     std::string sql_query = query_parser.ParseQuery(query);
 
     // Parse and return the statement using DuckDB's parser
-    Parser parser;
+    auto parser = Parser::GetBuiltinParser();
     parser.ParseQuery(sql_query);
     auto statements = std::move(parser.statements);
 
-    return ParserExtensionParseResult(
+    ParserExtensionParseResult result(
             make_uniq_base<ParserExtensionParseData, DuckParseData>(std::move(statements[0])));
+    // Also claim the terminator, as a top-level statement would.
+    result.consumed_tokens = NumericCast<int64_t>(end < tokens.size() ? end + 1 : end);
+    return result;
 }
 
 ParserExtensionPlanResult duck_plan(ParserExtensionInfo*, ClientContext& context,
@@ -78,16 +107,16 @@ BoundStatement duck_bind(ClientContext& context, Binder& binder, OperatorExtensi
     }
 }
 
-void FlockExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
+void SkeinExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
 
-std::string FlockExtension::Name() { return "flock"; }
-std::string FlockExtension::Version() const { return "v0.4.0"; }
+std::string SkeinExtension::Name() { return "skein"; }
+std::string SkeinExtension::Version() const { return "v0.3.0"; }
 
 }// namespace duckdb
 
 extern "C" {
 
-DUCKDB_CPP_EXTENSION_ENTRY(flock, loader) {
+DUCKDB_CPP_EXTENSION_ENTRY(skein, loader) {
     duckdb::LoadInternal(loader);
 }
 }

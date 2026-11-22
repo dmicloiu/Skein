@@ -80,6 +80,12 @@ public:
 // Global sink state + the dispatch state machine. One instance per query.
 class SemGlobalSinkState : public duckdb::GlobalSinkState {
 public:
+    // DuckDB 2.0 removed StateWithBlockableTasks::Lock() (the base now exposes an
+    // annotated `lock`). Keep the scoped-guard idiom over that same mutex.
+    duckdb::annotated_unique_lock<duckdb::annotated_mutex> Lock() const {
+        return duckdb::annotated_unique_lock<duckdb::annotated_mutex>(lock);
+    }
+
     // Renders ONE multi-row prompt that packs the whole batch (flock's
     // BatchAndComplete strategy). batch_size rows -> one prompt -> one request.
     using RenderFn = std::function<std::string(const std::vector<RowData>& batch)>;

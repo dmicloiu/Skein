@@ -12,6 +12,7 @@
 #include "flock/runtime/llm_client.h"
 
 #include "duckdb.hpp"
+#include "duckdb/parser/parser.hpp"
 #include "duckdb/common/allocator.hpp"
 #include "duckdb/common/helper.hpp"
 #include "duckdb/common/types/value.hpp"
@@ -865,9 +866,9 @@ TEST(SemFilter, ParseAndEmit_VerdictInvertProjection) {
 // 3. Bindings: LogicalSemFilter mirrors LogicalFilter's bindings + types.
 // ===========================================================================
 TEST(SemFilter, Bindings_MirrorLogicalFilter) {
-    duckdb::vector<duckdb::ColumnBinding> bindings{{1, 0}, {1, 1}, {1, 2}};
+    duckdb::vector<duckdb::ColumnBinding> bindings{duckdb::ColumnBinding(duckdb::TableIndex(1), duckdb::ProjectionIndex(0)), duckdb::ColumnBinding(duckdb::TableIndex(1), duckdb::ProjectionIndex(1)), duckdb::ColumnBinding(duckdb::TableIndex(1), duckdb::ProjectionIndex(2))};
     duckdb::vector<LogicalType> child_types{LogicalType::BIGINT, LogicalType::VARCHAR, LogicalType::DOUBLE};
-    duckdb::vector<idx_t> projection_map{2, 0};
+    duckdb::vector<duckdb::ProjectionIndex> projection_map{duckdb::ProjectionIndex(2), duckdb::ProjectionIndex(0)};
 
     StubChild filter_child(bindings, child_types);
     duckdb::LogicalFilter lf(duckdb::make_uniq<duckdb::BoundConstantExpression>(Value::BOOLEAN(true)));
@@ -994,7 +995,7 @@ TEST(SemFilter, Engine_UnkeyedPairsPreserveBagSemantics) {
     DataChunk input;
     input.Initialize(duckdb::Allocator::DefaultAllocator(), duckdb::vector<LogicalType>{LogicalType::BIGINT});
     for (idx_t i = 0; i < pairs->RowCount(); ++i) {
-        input.SetValue(0, i, Value::BIGINT(pairs->GetValue(0, i).GetValue<int32_t>()));
+        input.SetValue(0, i, Value::BIGINT(pairs->Collection().GetValue(0, i).GetValue<int32_t>()));
     }
     input.SetCardinality(pairs->RowCount());
 
@@ -1204,8 +1205,10 @@ TEST(SemFilter, CreatePlan_ResolvesConfig) {
             // WHERE llm_filter(...) wraps the VARCHAR result in a cast to BOOLEAN;
             // peel it as the real optimizer rewrite does to reach the bare call.
             auto llm_call = std::move(filter.expressions[0]);
-            while (llm_call->expression_class == duckdb::ExpressionClass::BOUND_CAST) {
-                llm_call = std::move(llm_call->Cast<duckdb::BoundCastExpression>().child);
+            while (duckdb::BoundCastExpression::IsCast(*llm_call)) {
+                auto inner = std::move(
+                        duckdb::BoundCastExpression::ChildMutable(llm_call->Cast<duckdb::BoundFunctionExpression>()));
+                llm_call = std::move(inner);
             }
             duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> residuals;
             for (idx_t i = 1; i < filter.expressions.size(); ++i) {
@@ -1223,7 +1226,9 @@ TEST(SemFilter, CreatePlan_ResolvesConfig) {
 
     // Parse outside the transaction lambda: ParseStatements takes the context lock,
     // which RunFunctionInTransaction also holds (re-locking would self-deadlock).
-    auto statements = con.context->ParseStatements(query);
+    duckdb::Parser parser(*con.context);
+    parser.ParseQuery(query);
+    auto statements = std::move(parser.statements);
     ASSERT_FALSE(statements.empty());
 
     PhysicalSemFilter* found = nullptr;

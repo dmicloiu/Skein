@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb/storage/object_cache.hpp"  // ObjectCache, ObjectCacheEntry
+#include "duckdb/main/database.hpp"  // DatabaseInstance (no longer pulled in by object_cache.hpp in 2.0)
 #include "flock/runtime/async_llm_client.h"
 #include "flock/runtime/endpoint_router.h"
 

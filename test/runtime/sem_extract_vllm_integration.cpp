@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "row count failed: %s\n", res->GetError().c_str());
             return 1;
         }
-        rows_loaded = std::stoll(res->GetValue(0, 0).ToString());
+        rows_loaded = std::stoll(res->Collection().GetValue(0, 0).ToString());
     }
 
     std::fprintf(stderr,
@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "emitted count failed: %s\n", res->GetError().c_str());
             return 1;
         }
-        emitted = std::stoll(res->GetValue(0, 0).ToString());
+        emitted = std::stoll(res->Collection().GetValue(0, 0).ToString());
     }
 
     const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();

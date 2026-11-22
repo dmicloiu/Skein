@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cctype>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -380,6 +381,23 @@ TEST(OptimizerRewrite, Case11_JoinCondition) {
     EXPECT_EQ(ResidualCount(*sf[0]), 0u);
 }
 
+// Sembench movie Q108's shape: each side is independently filtered, sorted and capped;
+// the inner join has only a two-sided semantic predicate. The ORDER BY/LIMIT
+// subqueries must not prevent the unkeyed rewrite.
+TEST(OptimizerRewrite, Unkeyed_CappedInputsJoinCondition) {
+    auto plan = Plan(
+        "WITH left_docs AS (SELECT a, x FROM docs WHERE x = 1 ORDER BY a LIMIT 2), "
+        "right_docs AS (SELECT a, x FROM docs WHERE x = 2 ORDER BY a LIMIT 2) "
+        "SELECT d1.a, d2.a FROM left_docs d1 JOIN right_docs d2 ON " +
+        LlmFilter("d1.a", "d2.a"));
+    auto sf = SemFiltersIn(*plan);
+    ASSERT_EQ(sf.size(), 1u) << PlanToString(*plan);
+    ASSERT_EQ(sf[0]->children.size(), 1u);
+    EXPECT_EQ(sf[0]->children[0]->type, LogicalOperatorType::LOGICAL_CROSS_PRODUCT);
+    EXPECT_EQ(ResidualCount(*sf[0]), 0u);
+    EXPECT_FALSE(HasScalarLlmFilter(*plan)) << PlanToString(*plan);
+}
+
 // The Q7/Q107 shape from the sembench cross-system experiment: the llm_filter sits
 // in the WHERE of an inner keyed self-join and reads one column from EACH side, so
 // it cannot be pushed below the join. This pins the WHERE-above-join placement,
@@ -404,6 +422,22 @@ TEST(OptimizerRewrite, Case12_WhereAboveJoin) {
     EXPECT_FALSE(HasScalarLlmFilter(*plan)) << PlanToString(*plan);
 }
 
+// DuckDB 2.0 folds the two-sided llm_filter into the comparison join as an
+// arbitrary condition; d2.a is read only by that predicate, so the join prunes it
+// unless the rewrite widens the projection map. The rewritten plan must still
+// output exactly what the scalar plan does.
+TEST(OptimizerRewrite, Case12_JoinConditionOutputMatchesScalar) {
+    const std::string q = "SELECT d1.a, d1.b, d2.b FROM docs d1 JOIN docs d2 "
+                          "ON d1.x = d2.x AND d1.b <> d2.b "
+                          "WHERE d1.x = 1 AND " +
+                          LlmFilter("d1.a", "d2.a");
+    auto plan = Plan(q);
+    auto scalar_plan = Plan(q, /*flag_off=*/true);
+    ASSERT_EQ(SemFiltersIn(*plan).size(), 1u) << PlanToString(*plan);
+    EXPECT_EQ(plan->types, scalar_plan->types) << PlanToString(*plan);
+    EXPECT_EQ(plan->GetColumnBindings().size(), scalar_plan->GetColumnBindings().size());
+}
+
 TEST(OptimizerRewrite, Unkeyed_CrossJoinWhere) {
     auto plan = Plan("SELECT d1.a, d2.a FROM docs d1 CROSS JOIN docs d2 WHERE " +
                      LlmFilter("d1.a", "d2.a"));
@@ -424,7 +458,12 @@ TEST(OptimizerRewrite, Unkeyed_PhysicalPlanEngagesOperator) {
                              LlmFilter("d1.a", "d2.a"));
     ASSERT_FALSE(explain->HasError()) << explain->GetError();
     ASSERT_EQ(explain->RowCount(), 1u);
-    const auto physical = explain->GetValue(1, 0).GetValue<std::string>();
+    // DuckDB 2.0 prints operator names as "Cross Product"; normalize to the
+    // physical-type spelling (CROSS_PRODUCT) so the checks hold in both formats.
+    auto physical = explain->Collection().GetValue(1, 0).GetValue<std::string>();
+    for (auto& ch : physical) {
+        ch = ch == ' ' ? '_' : static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    }
     EXPECT_NE(physical.find("CROSS_PRODUCT"), std::string::npos) << physical;
     EXPECT_NE(physical.find("EXTENSION"), std::string::npos) << physical;
     EXPECT_EQ(physical.find("BLOCKWISE_NL_JOIN"), std::string::npos) << physical;

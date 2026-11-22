@@ -56,7 +56,7 @@ TEST_F(LLMRerankTest, SingleTupleNoLLMCall) {
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 1);
 
-    nlohmann::json parsed = nlohmann::json::parse(results->GetValue(0, 0).GetValue<std::string>());
+    nlohmann::json parsed = nlohmann::json::parse(results->Collection().GetValue(0, 0).GetValue<std::string>());
     EXPECT_EQ(parsed.size(), 1);
     EXPECT_TRUE(parsed[0].contains("data"));
     EXPECT_EQ(parsed[0]["data"].size(), 1);
@@ -84,7 +84,7 @@ TEST_F(LLMRerankTest, MultipleTuplesWithoutGroupBy) {
     ASSERT_FALSE(results->HasError()) << "Query failed: " << results->GetError();
     ASSERT_EQ(results->RowCount(), 1);
     EXPECT_NO_THROW({
-        nlohmann::json parsed = nlohmann::json::parse(results->GetValue(0, 0).GetValue<std::string>());
+        nlohmann::json parsed = nlohmann::json::parse(results->Collection().GetValue(0, 0).GetValue<std::string>());
         EXPECT_EQ(parsed.size(), 1);
         EXPECT_TRUE(parsed[0].contains("data"));
         EXPECT_EQ(parsed[0]["data"].size(), 3);
@@ -118,7 +118,7 @@ TEST_F(LLMRerankTest, GroupByWithMultipleTuplesPerGroup) {
     ASSERT_EQ(results->RowCount(), 2);
     for (idx_t i = 0; i < results->RowCount(); i++) {
         EXPECT_NO_THROW({
-            nlohmann::json parsed = nlohmann::json::parse(results->GetValue(1, i).GetValue<std::string>());
+            nlohmann::json parsed = nlohmann::json::parse(results->Collection().GetValue(1, i).GetValue<std::string>());
             EXPECT_TRUE(parsed[0].contains("data"));
             EXPECT_EQ(parsed[0]["data"].size(), 2);
         });
@@ -143,7 +143,7 @@ TEST_F(LLMRerankTest, GroupByWithSingleTuplePerGroup) {
     ASSERT_EQ(results->RowCount(), 3);
     for (idx_t i = 0; i < results->RowCount(); i++) {
         EXPECT_NO_THROW({
-            nlohmann::json parsed = nlohmann::json::parse(results->GetValue(1, i).GetValue<std::string>());
+            nlohmann::json parsed = nlohmann::json::parse(results->Collection().GetValue(1, i).GetValue<std::string>());
             EXPECT_TRUE(parsed[0].contains("data"));
             EXPECT_EQ(parsed[0]["data"].size(), 1);
         });

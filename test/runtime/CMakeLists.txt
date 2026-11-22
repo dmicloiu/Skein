@@ -120,16 +120,15 @@ target_compile_options(flock_sem_filter_vllm_integration PRIVATE
 
 target_link_libraries(flock_sem_filter_vllm_integration PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_filter_vllm_integration PRIVATE)
 
 # -- sem_extract operator throughput driver (llm_complete projection A/B) ------
 #
@@ -148,16 +147,15 @@ target_compile_options(flock_sem_extract_vllm_integration PRIVATE
 
 target_link_libraries(flock_sem_extract_vllm_integration PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_extract_vllm_integration PRIVATE)
 
 # -- Semantic config tests (ExtensionState, SET surface, CREATE MODEL) --------
 #
@@ -184,15 +182,14 @@ target_link_libraries(flock_semantic_config_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_semantic_config_tests PRIVATE)
 
 add_test(NAME flock_semantic_config_tests COMMAND flock_semantic_config_tests)

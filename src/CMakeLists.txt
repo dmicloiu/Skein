@@ -9,5 +9,5 @@ add_subdirectory(metrics)
 add_subdirectory(runtime)
 
 set(EXTENSION_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/flock_extension.cpp ${EXTENSION_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/skein_extension.cpp ${EXTENSION_SOURCES}
     PARENT_SCOPE)

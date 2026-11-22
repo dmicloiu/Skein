@@ -33,7 +33,7 @@ using duckdb::LogicalType;
 LogicalSemFilter::LogicalSemFilter(duckdb::unique_ptr<duckdb::LogicalOperator> child,
                                    duckdb::unique_ptr<Expression> llm_call,
                                    duckdb::vector<duckdb::unique_ptr<Expression>> residuals,
-                                   duckdb::vector<idx_t> projection_map_p, bool invert_p)
+                                   duckdb::vector<duckdb::ProjectionIndex> projection_map_p, bool invert_p)
     : duckdb::LogicalExtensionOperator(), projection_map(std::move(projection_map_p)), invert(invert_p) {
     children.push_back(std::move(child));
     llm_call_index = expressions.size();  // 0; residuals follow
@@ -67,7 +67,7 @@ duckdb::unique_ptr<Expression> CombineConjunction(duckdb::vector<duckdb::unique_
     }
     auto conjunction = duckdb::make_uniq<duckdb::BoundConjunctionExpression>(duckdb::ExpressionType::CONJUNCTION_AND);
     for (auto& expr : exprs) {
-        conjunction->children.push_back(std::move(expr));
+        conjunction->GetChildrenMutable().push_back(std::move(expr));
     }
     return std::move(conjunction);
 }
@@ -135,7 +135,7 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
                                                        duckdb::PhysicalPlanGenerator& planner) {
     // Reuse the scalar's resolved model + prompt template; do not re-resolve.
     auto& llm_call = expressions[llm_call_index]->Cast<duckdb::BoundFunctionExpression>();
-    auto& bind_data = llm_call.bind_info->Cast<LlmFunctionBindData>();
+    auto& bind_data = llm_call.BindInfo()->Cast<LlmFunctionBindData>();
     const std::string prompt_template = bind_data.prompt;
 
     Model model(bind_data.model_json);
@@ -183,10 +183,16 @@ duckdb::PhysicalOperator& LogicalSemFilter::CreatePlan(duckdb::ClientContext& co
     }
     auto residual = CombineConjunction(std::move(residual_exprs));
 
+    // Physical side keeps plain positions into the child chunk.
+    duckdb::vector<idx_t> output_projection;
+    output_projection.reserve(projection_map.size());
+    for (const auto& p : projection_map) {
+        output_projection.push_back(p.GetIndex());
+    }
     auto& child_plan = planner.CreatePlan(*children[0]);
     auto& op = planner.Make<PhysicalSemFilter>(types, estimated_cardinality, extension_state.client,
                                                extension_state.router, std::move(params), std::move(residual),
-                                               invert, projection_map, std::move(context_columns),
+                                               invert, std::move(output_projection), std::move(context_columns),
                                                prompt_template, tuple_format, served_model,
                                                std::move(rendered_head), std::move(proxy_served_model),
                                                std::move(proxy_stage))

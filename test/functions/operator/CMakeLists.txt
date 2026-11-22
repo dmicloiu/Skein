@@ -12,17 +12,15 @@ add_executable(flock_semantic_operator_tests
     ${PROJECT_SOURCE_DIR}/src/functions/operator/semantic_operator_base.cpp
     ${PROJECT_SOURCE_DIR}/src/runtime/endpoint_router.cpp
     ${PROJECT_SOURCE_DIR}/src/runtime/llm_client.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_operator_base_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/extension_loader_stub.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/semantic_operator_base_test.cpp)
 
 target_include_directories(flock_semantic_operator_tests PRIVATE
     ${PROJECT_SOURCE_DIR}/src/include
     ${CMAKE_CURRENT_SOURCE_DIR})
 
-# The test never opens a database or loads an extension. So we link
-# duckdb_static directly, WITHOUT duckdb_generated_extension_loader or the
-# bundled extensions. jemalloc is duckdb's allocator on Linux; keep it in the
-# group so duckdb_static's allocation symbols resolve.
+# The test never loads an extension, so we link duckdb_static directly, without
+# the bundled extensions. (DuckDB 2.0 defines ExtensionHelper::LoadAllExtensions
+# inside duckdb_static and folds jemalloc into it, so no stub or jemalloc target.)
 # The residual test opens an in-memory DuckDB for an ExpressionExecutor context,
 # which pulls duckdb_static's strong LogicalType::X constants; -fno-gnu-unique
 # makes our objects emit weak linkonce_odr for those, avoiding a multiple-def
@@ -35,7 +33,6 @@ target_link_libraries(flock_semantic_operator_tests PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     Threads::Threads)
@@ -119,16 +116,15 @@ target_link_libraries(flock_sem_filter_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_filter_tests PRIVATE)
 
 add_test(NAME flock_sem_filter_tests COMMAND flock_sem_filter_tests)
 
@@ -153,16 +149,15 @@ target_link_libraries(flock_sem_extract_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_extract_tests PRIVATE)
 
 add_test(NAME flock_sem_extract_tests COMMAND flock_sem_extract_tests)
 
@@ -187,16 +182,15 @@ target_link_libraries(flock_optimizer_rewrite_tests PRIVATE
     GTest::gtest
     GTest::gmock
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_optimizer_rewrite_tests PRIVATE)
 
 add_test(NAME flock_optimizer_rewrite_tests COMMAND flock_optimizer_rewrite_tests)
 
@@ -225,16 +219,15 @@ target_link_libraries(flock_sem_filter_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_filter_e2e_tests PRIVATE)
 
 add_test(NAME flock_sem_filter_e2e_tests COMMAND flock_sem_filter_e2e_tests)
 
@@ -261,15 +254,14 @@ target_link_libraries(flock_sem_extract_e2e_tests PRIVATE
     GTest::gmock
     nlohmann_json::nlohmann_json
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--start-group>
-    flock_extension
-    duckdb_generated_extension_loader
+    skein_extension
     core_functions_extension
     json_extension
     parquet_extension
-    $<$<PLATFORM_ID:Linux>:jemalloc_extension>
     duckdb_static
     $<$<CXX_COMPILER_ID:GNU>:-Wl,--end-group>
     CURL::libcurl
     Threads::Threads)
+link_extension_libraries(flock_sem_extract_e2e_tests PRIVATE)
 
 add_test(NAME flock_sem_extract_e2e_tests COMMAND flock_sem_extract_e2e_tests)

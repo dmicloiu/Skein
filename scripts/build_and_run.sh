@@ -323,7 +323,7 @@ fi
 print_success "DuckDB binary found: $DUCKDB_BINARY"
 
 # Check for extension (could be static or loadable)
-EXTENSION_PATH="build/$BUILD_TYPE/extension/flock/flock.duckdb_extension"
+EXTENSION_PATH="build/$BUILD_TYPE/extension/skein/skein.duckdb_extension"
 EXTENSION_FOUND=false
 
 if [ -f "$EXTENSION_PATH" ]; then

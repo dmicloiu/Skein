@@ -166,7 +166,7 @@ std::vector<long long> RunIds(duckdb::Connection& con, const std::string& query)
         return ids;
     }
     for (duckdb::idx_t r = 0; r < res->RowCount(); ++r) {
-        ids.push_back(std::stoll(res->GetValue(0, r).ToString()));
+        ids.push_back(std::stoll(res->Collection().GetValue(0, r).ToString()));
     }
     std::sort(ids.begin(), ids.end());
     return ids;

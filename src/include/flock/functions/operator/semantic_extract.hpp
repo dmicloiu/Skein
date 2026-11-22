@@ -24,15 +24,15 @@ public:
     // select_list    : the full projection expression list (llm_complete at
     //                  llm_call_index; the others are plain refs / simple exprs)
     // llm_call_index : index of the llm_complete call within select_list
-    LogicalSemExtract(duckdb::unique_ptr<duckdb::LogicalOperator> child, duckdb::idx_t table_index,
+    LogicalSemExtract(duckdb::unique_ptr<duckdb::LogicalOperator> child, duckdb::TableIndex table_index,
                       duckdb::vector<duckdb::unique_ptr<duckdb::Expression>> select_list,
                       duckdb::idx_t llm_call_index);
 
-    duckdb::idx_t table_index;
+    duckdb::TableIndex table_index;
     duckdb::idx_t llm_call_index = 0;
 
     duckdb::vector<duckdb::ColumnBinding> GetColumnBindings() override;
-    duckdb::vector<duckdb::idx_t> GetTableIndex() const override;
+    duckdb::vector<duckdb::TableIndex> GetTableIndex() const override;
 
     duckdb::PhysicalOperator& CreatePlan(duckdb::ClientContext& context,
                                          duckdb::PhysicalPlanGenerator& planner) override;
