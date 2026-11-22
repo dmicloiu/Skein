@@ -400,7 +400,7 @@ void AttachLimitHints(LogicalOperator& node) {
             const idx_t m = limit.offset_val.Type() == duckdb::LimitNodeType::CONSTANT_VALUE
                                     ? limit.offset_val.GetConstantValue()
                                     : 0;
-            const idx_t hint = (n > std::numeric_limits<idx_t>::max() - m) ? 0 : n + m;
+            const idx_t hint = (n > (std::numeric_limits<idx_t>::max)() - m) ? 0 : n + m;
             LogicalOperator* cur = node.children[0].get();
             // An empty FILTER (all conjuncts moved into the semantic filter by RewriteTree)
             // passes every row, so it keeps the row count like a projection.
