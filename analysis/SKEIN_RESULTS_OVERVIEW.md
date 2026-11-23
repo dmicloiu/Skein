@@ -9,8 +9,8 @@ Data: [`figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/`](figures/data/
 ## Conclusions of our study
 
 - **Skein is on the runtime-quality Pareto front in every scenario.** No other system is both faster and more accurate. In ecomm, Skein dominates all three other systems (fastest *and* best mean quality).
-- **Mean F1/accuracy over the 36 F1/acc queries:** Skein 0.779 · Flock 0.763 · PZ 0.709 · LOTUS 0.708. Skein has the highest mean quality, so its speed does not cost accuracy.
-- **Against Flock (same SQL, same prompts):** quality ties on 27 of 41 queries, Skein is faster on 39/40 queries. Since both systems perform the same number of LLM requests (see [LLM work](#3-llm-work)), the speed-up comes from execution, not from skipping work.
+- **Mean F1/accuracy over the 34 F1/acc queries:** Skein 0.801 · Flock 0.784 · PZ 0.727 · LOTUS 0.719. Skein has the highest mean quality, so its speed does not cost accuracy.
+- **Against Flock (same SQL, same prompts):** quality ties on 26 of 39 queries, Skein is faster on 38/39 queries. Since both systems perform the same number of LLM requests (see [LLM work](#3-llm-work)), the speed-up comes from execution, not from skipping work.
 
 ## 1. Setup
 
@@ -43,7 +43,7 @@ Benchmark: **SemBench** ([VLDB 2026](https://arxiv.org/abs/2511.01716), [SemBenc
 | [animals](#animals) | 200 images | image | 4 | image filters + aggregation |
 | [movie](#movie) | 2000 reviews | text | 8 | text filters, self-joins, LIMIT |
 | [mmqa](#mmqa) | 200 rows/table | table + text + image | 11 | table ⋈ image joins, text filters/maps |
-| [ecomm](#ecomm) | 500 products | text + image | 13 | filters, maps, classification, 2-4-way joins |
+| [ecomm](#ecomm) | 500 products | text + image | 11 | filters, maps, classification, 2-3-way joins |
 | [cars](#cars) | 19672 cars | table + text + image | 5 | large text/image filters, classification, LIMIT |
 
 ## 2. Results by scenario
@@ -112,10 +112,10 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 
 ### ecomm
 
-500 products · text + image · 13 queries · totals: Skein 397 s · Flock 1497 s · LOTUS 1567 s · PZ 1574 s
+500 products · text + image · 11 queries · totals: Skein 271 s · Flock 1155 s · LOTUS 1204 s · PZ 1454 s
 
-- **Fastest total and best mean quality**: 397 s vs 1497-1574 s for every other system (**3.8-4.0×**), mean F1/acc 0.70.
-- Fastest on 9 of 13 queries. The only system with non-zero F1 on Q10 (3-way outfit join): 0.35 vs 0.00 for all others (same low accuracy also for gemini-2.5-flash in the SemBench paper)
+- **Fastest total and best mean quality**: 271 s vs 1155-1454 s for every other system (**4.3-5.4×**), mean F1/acc 0.75 (Flock 0.73, PZ 0.74, LOTUS 0.68).
+- Fastest on 8 of 11 queries. The only system with non-zero F1 on Q10 (3-way outfit join): 0.35 vs 0.00 for all others (same low accuracy also for gemini-2.5-flash in the SemBench paper).
 
 | query | task | metric | Skein | Flock | LOTUS | PZ |
 |---|---|---|---|---|---|---|
@@ -152,7 +152,7 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 
 ## 3. LLM work
 
-vLLM `/metrics` deltas over the measured run (all queries of the scenario). Cars is omitted because its reported numbers come from a mix of jobs (LIMIT reruns, split LOTUS jobs).
+vLLM `/metrics` deltas over the measured run (all queries of the scenario; for ecomm this still includes Q11/Q12, which ran in the same jobs but are not reported above). Cars is omitted because its reported numbers come from a mix of jobs (LIMIT reruns, split LOTUS jobs).
 
 | scenario | metric | Skein | Flock | LOTUS | PZ |
 |---|---|---|---|---|---|
@@ -170,7 +170,7 @@ vLLM `/metrics` deltas over the measured run (all queries of the scenario). Cars
 |  | output tokens (M) | 0.14 | 0.14 | 1.17 | 3.63 |
 
 - **Skein ≈ Flock in requests and tokens** (same plans and prompts). Skein's speed-up therefore comes from keeping the GPU saturated (asynchronous operators, 128 requests in flight), not from sending less work. In movie, Skein sends fewer requests because of the LIMIT early stop.
-- **LOTUS** sends 28-51 % fewer prompt tokens than Skein. Its joins run the approximate cascade, and it has the lowest join F1 of all systems on movie Q6/Q7, mmqa Q7 and ecomm Q8/Q11.
+- **LOTUS** sends 28-51 % fewer prompt tokens than Skein. Its joins run the approximate cascade, and it has the lowest join F1 of all systems on movie Q6/Q7, mmqa Q7 and ecomm Q8.
 - **PZ** generates 5-25× more output tokens than Skein (verbose structured outputs), which adds decode time.
 
 ## 4. OPTIMISATIONS: Skein embedding proxy (not part of the comparison above)
@@ -189,6 +189,6 @@ With the proxy, mmqa Q7 goes from 1684 s to 25 s and F1 rises from 0.42 to 1.00,
 ## 5. Caveats
 
 - **1 repetition** per query. Short queries (< 3 s) are noisy, so read them as "all fast". The long queries decide the totals.
-- **Flock is reported as-is.** Its image label biases image filters toward *true* (mmqa Q2a/Q2b, Q7). ecomm Q12 fails deterministically (malformed JSON from the model → `Output extraction error`).
+- **Flock is reported as-is.** Its image label biases image filters toward *true* (mmqa Q2a/Q2b, Q7).
 - **LOTUS** uses approximate joins by default (fewer LLM calls, lower join recall/precision) and runs with local bug-fix patches (image embeddings, join ids, RGBA logos, litellm retries; sembench `patches/lotus-ai-1.1.3/`).
 - All systems use SemBench's own query implementation for that system. Prompts differ across systems, except Skein vs Flock, which run identical SQL.
