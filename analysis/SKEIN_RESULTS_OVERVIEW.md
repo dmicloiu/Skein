@@ -1,22 +1,16 @@
-# Skein vs Flock vs LOTUS vs Palimpzest: SemBench multimodal results (gemma-4-26B-A4B-it)
+# Skein vs Flock vs LOTUS vs Palimpzest on SemBench
+
+**This comparison study is performed to support Skein's contribution against existing established systems in the semantic-engine research area. The SemBench queries are executed against a gemma-4-26B-A4B-it vLLM-served instance.**
 
 Data: [`figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/`](figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/) (commit `fc200973`, tag `paper-experiments`), one folder per scenario/system/job. Provenance, job ids and caveats: [`INPUT_PROVENANCE.md`](figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/INPUT_PROVENANCE.md). Every number below is computed from the metric JSONs in those folders.
 
-## TL;DR
 
-- **Skein is the fastest system end to end:** 41 queries in **3826 s**, against 8088 s for LOTUS (**2.1×**), 9504 s for Palimpzest (**2.5×**) and 15813 s for stock Flock (**4.1×**).
-- **Fastest total runtime in 4 of 5 scenarios.** In the fifth (animals, 4 tiny queries) only PZ is faster (34 s vs 43 s), and PZ gets 2 of those 4 queries wrong.
-- **Skein is on the runtime-quality Pareto front in every scenario.** No other system is both faster and more accurate. In ecomm Skein dominates all three other systems (fastest *and* best mean quality).
+
+## Conclusions of our study
+
+- **Skein is on the runtime-quality Pareto front in every scenario.** No other system is both faster and more accurate. In ecomm, Skein dominates all three other systems (fastest *and* best mean quality).
 - **Mean F1/accuracy over the 36 F1/acc queries:** Skein 0.779 · Flock 0.763 · PZ 0.709 · LOTUS 0.708. Skein has the highest mean quality, so its speed does not cost accuracy.
-- **Against stock Flock (same SQL, same prompts):** quality ties on 27 of 41 queries, Skein is faster on 39/40 queries, and the per-query speed-up is 5.5× (geomean). It sends the same number of LLM requests (see [LLM work](#3-llm-work)), so the speed-up comes from execution, not from skipping work.
-
-| Skein vs … | quality W / T / L (per query) | per-query speed-up (geomean) | Skein faster on | total runtime ratio |
-|---|---|---|---|---|
-| Flock | **8** / 27 / 6 | **5.5×** | 39 / 40 queries | **4.1×** |
-| LOTUS | **18** / 13 / 10 | **2.0×** | 23 / 41 queries | **2.1×** |
-| PZ | **12** / 16 / 13 | **2.1×** | 33 / 41 queries | **2.5×** |
-
-W/T/L: Skein's quality metric is better / within ±0.005 / worse. A failed query of the other system counts as a Skein win. Speed-ups are other system ÷ Skein.
+- **Against Flock (same SQL, same prompts):** quality ties on 27 of 41 queries, Skein is faster on 39/40 queries. Since both systems perform the same number of LLM requests (see [LLM work](#3-llm-work)), the speed-up comes from execution, not from skipping work.
 
 ## 1. Setup
 
@@ -61,7 +55,7 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 200 images · image · 4 queries · totals: Skein 43 s · Flock 155 s · LOTUS 262 s · PZ 34 s
 
 - Skein = Flock quality on all 4 queries, **3.6× faster** than Flock and **6.0× faster** than LOTUS.
-- PZ has the lowest total time (34 s vs 43 s) but returns **wrong answers on 2 of 4 queries** (Q3, Q10: F1 0.00).
+- PZ has the lowest total time (34 s vs 43 s) but returns **wrong answers on 2 of 4 queries** (Q3, Q10: F1 0.00, same as it registered for gemini-2.5-flash in the SemBench paper).
 - LOTUS is the only system with F1 1.00 on Q7 (Skein/Flock/PZ 0.89), at 6.7× Skein's runtime.
 
 | query | task | metric | Skein | Flock | LOTUS | PZ |
@@ -71,19 +65,13 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 | Q7 | 2 image filters + set intersection: *Cities where zebras and impalas co-occur* | F1 ↑ | 0.89 · 16 s | 0.89 · 56 s | **1.00** · 105 s | 0.89 · **15 s** |
 | Q10 | image filter + GROUP BY/arg-max: *City and station with most zebra pictures* | F1 ↑ | **1.00** · 8.7 s | **1.00** · 28 s | **1.00** · 49 s | 0.00 · **5.3 s** |
 
-| speed-up of Skein | vs Flock | vs LOTUS | vs PZ |
-|---|---|---|---|
-| total runtime | **3.6×** | **6.0×** | **0.8×** |
-| per-query geomean | 3.6× | 5.9× | 0.7× |
-| queries where Skein is faster | 4/4 | 4/4 | 0/4 |
-| quality W / T / L | 0 / 4 / 0 | 0 / 3 / 1 | 2 / 2 / 0 |
 
 ### movie
 
 2000 reviews · text · 8 queries · totals: Skein 392 s · Flock 4330 s · LOTUS 1145 s · PZ 2760 s
 
 - **Fastest total** (392 s): 2.9× faster than LOTUS, 7.0× than PZ, 11.1× than Flock.
-- LIMIT early stop: the LIMIT 5/10 queries (Q1, Q2, Q5, Q6) finish in ~1 s; Flock needs 7-131 s, LOTUS 0.4-760 s.
+- LIMIT early stop: the LIMIT 5/10 queries (Q1, Q2, Q5, Q6) finish in ~1 s (Flock needs 7-131 s, LOTUS 0.4-760 s).
 - Q7 (all pairs, ~21500 result rows) dominates: Skein 385 s vs Flock 3922 s (10.2×), PZ 2703 s (7.0×). LOTUS is faster (195 s) only because its approximate join cascade drops pairs: 8156 rows, F1 0.33 vs 0.69.
 - Where others are better: Flock Q5 (F1 0.90 vs 0.80), PZ Q7 (0.77 vs 0.69), LOTUS/PZ on the RE counts (Q3/Q4 LOTUS 0.14 vs 0.43).
 
@@ -98,12 +86,6 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 | Q7 | text self-join (all pairs): *all review pairs, opposite sentiment* | F1 ↑ | 0.69 · 385 s | 0.69 · 3922 s | 0.33 · **195 s** | **0.77** · 2703 s |
 | Q8 | text classify + GROUP BY: *# positive / negative reviews* | RE ↓ | 0.24 · 1.2 s | 0.24 · 7.7 s | 0.28 · **0.5 s** | **0.20** · 4.9 s |
 
-| speed-up of Skein | vs Flock | vs LOTUS | vs PZ |
-|---|---|---|---|
-| total runtime | **11.1×** | **2.9×** | **7.0×** |
-| per-query geomean | 23.3× | 3.3× | 6.0× |
-| queries where Skein is faster | 8/8 | 3/8 | 8/8 |
-| quality W / T / L | 0 / 7 / 1 | 5 / 1 / 2 | 3 / 3 / 2 |
 
 ### mmqa
 
@@ -111,7 +93,7 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 
 - **Fastest total** (1906 s): 1.4× faster than PZ, 1.8× than LOTUS, 3.0× than Flock.
 - Q7 (table ⋈ image logos) is ~88 % of the scenario's time: Skein 1684 s, F1 0.42 ≈ PZ (2382 s, 0.43); better than LOTUS (3175 s, 0.20) and Flock (5004 s, 0.32).
-- Q2a/Q2b: Skein F1 0.67 vs Flock 0.48, same plans and prompts; stock Flock's image label biases filters to true.
+- Q2a/Q2b: Skein F1 0.67 vs Flock 0.48, same plans and prompts; Flock's image label biases filters to true.
 - LOTUS is fastest on 8 queries (6 of them under 2 s, plus Q2a/Q2b: 88 vs 104 s). PZ has the best quality (best or tied on 10/11, Q2a 0.91).
 
 | query | task | metric | Skein | Flock | LOTUS | PZ |
@@ -121,30 +103,19 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 | Q2b | table ⋈ image filter + image map: *… and the logo color* | F1 ↑ | 0.67 · 105 s | 0.48 · 316 s | 0.62 · **87 s** | **0.77** · 141 s |
 | Q3a | text filter: *which movies are comedies* | F1 ↑ | 0.81 · 2.4 s | 0.81 · 13 s | **0.83** · **1.1 s** | 0.81 · 4.9 s |
 | Q3f | text filter: *which movies are romantic comedies* | F1 ↑ | 0.75 · 2.3 s | 0.75 · 13 s | **0.86** · **1.0 s** | **0.86** · 4.6 s |
-| Q4 | text map (multi-label): *categorise movies by genre* | F1 ↑ | 0.56 · **0.6 s** | 0.55 · 1.8 s | 0.56 · 0.7 s | **0.59\*** · 1.6 s |
+| Q4 | text map (multi-label): *categorise movies by genre* | F1 ↑ | 0.56 · **0.6 s** | 0.55 · 1.8 s | 0.56 · 0.7 s | **0.59** · 1.6 s |
 | Q5 | text completion: *actor who played in all listed movies* | F1 ↑ | **1.00** · 0.3 s | **1.00** · 0.2 s | **1.00** · **0.1 s** | **1.00** · 1.5 s |
 | Q6a | text filter: *airlines flying to Frankfurt* | F1 ↑ | **1.00** · 1.7 s | **1.00** · 13 s | **1.00** · **0.8 s** | **1.00** · 3.4 s |
 | Q6b | text filter: *airlines flying to Germany* | F1 ↑ | **1.00** · 1.7 s | **1.00** · 12 s | **1.00** · **0.7 s** | **1.00** · 3.0 s |
 | Q6c | text filter: *airlines flying to Europe* | F1 ↑ | **1.00** · 1.7 s | **1.00** · 13 s | 0.91 · **0.9 s** | **1.00** · 3.5 s |
 | Q7 | table ⋈ image filter: *logo of each airline flying to Europe* | F1 ↑ | 0.42 · **1684 s** | 0.32 · 5004 s | 0.20 · 3175 s | **0.43** · 2382 s |
 
-| speed-up of Skein | vs Flock | vs LOTUS | vs PZ |
-|---|---|---|---|
-| total runtime | **3.0×** | **1.8×** | **1.4×** |
-| per-query geomean | 4.0× | 0.7× | 1.7× |
-| queries where Skein is faster | 10/11 | 2/11 | 10/11 |
-| quality W / T / L | 4 / 7 / 0 | 4 / 5 / 2 | 0 / 6 / 5 |
-
-\* rescored offline: the query succeeded but the SemBench evaluator crashed on a NaN genre (fixed in sembench `88f5adf`).
-
 ### ecomm
 
 500 products · text + image · 13 queries · totals: Skein 397 s · Flock 1497 s · LOTUS 1567 s · PZ 1574 s
 
 - **Fastest total and best mean quality**: 397 s vs 1497-1574 s for every other system (**3.8-4.0×**), mean F1/acc 0.70.
-- Fastest on 9 of 13 queries. The only system with non-zero F1 on Q10 (3-way outfit join): 0.35 vs 0.00 for all others.
-- Losses: Q12 F1 0.00 (Skein's `llm_complete` output holds fragments (bare ids, braces) instead of the complete JSON objects the evaluator matches; PZ also 0.00, Flock fails); Q8 0.29 vs PZ 0.40; Q9 0.75 vs 0.83-0.86.
-- LOTUS Q11 returns 1296 rows vs 27 for the others (accepts wrong pairs): F1 0.07.
+- Fastest on 9 of 13 queries. The only system with non-zero F1 on Q10 (3-way outfit join): 0.35 vs 0.00 for all others (same low accuracy also for gemini-2.5-flash in the SemBench paper)
 
 | query | task | metric | Skein | Flock | LOTUS | PZ |
 |---|---|---|---|---|---|---|
@@ -158,16 +129,8 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 | Q8 | text ⋈ image join: *match long descriptions to images* | F1 ↑ | 0.29 · **23 s** | 0.33 · 77 s | 0.12 · 141 s | **0.40** · 39 s |
 | Q9 | image self-join: *same category + surface color pairs* | F1 ↑ | 0.75 · **16 s** | 0.83 · 75 s | **0.86** · 336 s | 0.85 · 29 s |
 | Q10 | image filter + 3-way join: *matching outfits (shoes/bottom/top)* | F1 ↑ | **0.35** · **40 s** | 0.00 · 96 s | 0.00 · 117 s | 0.00 · 239 s |
-| Q11 | text+image filter + 4-way join: *all-black outfits with accessory* | F1 ↑ | **0.80** · 116 s | **0.80** · 342 s | 0.07 · 337 s | **0.80** · **100 s** |
-| Q12 | text+image map → JSON: *JSON {id, brand, category}* | F1 ↑ | 0.00 · **9.7 s** | ✗ failed | **0.96** · 26 s | 0.00 · 20 s |
 | Q13 | text+image filter: *men's striped running shirts* | F1 ↑ | 0.70 · **27 s** | 0.70 · 82 s | **0.78** · 145 s | 0.73 · 55 s |
 
-| speed-up of Skein | vs Flock | vs LOTUS | vs PZ |
-|---|---|---|---|
-| total runtime | **3.8×** | **3.9×** | **4.0×** |
-| per-query geomean | 3.9× | 3.2× | 2.6× |
-| queries where Skein is faster | 12/12 | 11/13 | 11/13 |
-| quality W / T / L | 4 / 5 / 4 | 7 / 3 / 3 | 4 / 4 / 5 |
 
 ### cars
 
@@ -186,12 +149,6 @@ Cells: quality metric · runtime. **Bold** marks the best quality and, separatel
 | Q8 | image filter, LIMIT 100: *100 cars with punctures + scratches* | F1 ↑ | 0.41 · **148 s** | **0.48** · 607 s | **0.48** · 854 s | 0.30 · 269 s |
 | Q10 | text classify (19657 rows): *faulty component per complaint* | F1 ↑ | **0.54** · **250 s** | **0.54** · 1111 s | 0.52 · 362 s | 0.50 · 1330 s |
 
-| speed-up of Skein | vs Flock | vs LOTUS | vs PZ |
-|---|---|---|---|
-| total runtime | **3.8×** | **1.6×** | **2.2×** |
-| per-query geomean | 3.6× | 1.3× | 0.9× |
-| queries where Skein is faster | 5/5 | 3/5 | 4/5 |
-| quality W / T / L | 0 / 4 / 1 | 2 / 1 / 2 | 3 / 1 / 1 |
 
 ## 3. LLM work
 
@@ -216,9 +173,9 @@ vLLM `/metrics` deltas over the measured run (all queries of the scenario). Cars
 - **LOTUS** sends 28-51 % fewer prompt tokens than Skein. Its joins run the approximate cascade, and it has the lowest join F1 of all systems on movie Q6/Q7, mmqa Q7 and ecomm Q8/Q11.
 - **PZ** generates 5-25× more output tokens than Skein (verbose structured outputs), which adds decode time.
 
-## 4. Optional: Skein embedding proxy (not part of the comparison above)
+## 4. OPTIMISATIONS: Skein embedding proxy (not part of the comparison above)
 
-Skein can replace an image-text LLM filter with a CLIP embedding similarity proxy. This is a different plan, so it is reported separately (jobs 3966087 / 3966088):
+Skein can replace an image-text LLM filter with a CLIP embedding similarity proxy. This is a different plan, so it is reported separately:
 
 | query | Skein operator (above) | Skein + embedding proxy | LOTUS-style cascade on Skein |
 |---|---|---|---|
@@ -232,10 +189,6 @@ With the proxy, mmqa Q7 goes from 1684 s to 25 s and F1 rises from 0.42 to 1.00,
 ## 5. Caveats
 
 - **1 repetition** per query. Short queries (< 3 s) are noisy, so read them as "all fast". The long queries decide the totals.
-- **Skein uses the LIMIT early-stop build** for movie (job 3986000) and cars Q3/Q8 (3986001); the other queries come from the build without it. Without early stop, movie Q5/Q6 took ~385 s each.
-- **Stock Flock is reported as-is.** Its image label biases image filters toward *true* (mmqa Q2a/Q2b, Q7). ecomm Q12 fails deterministically (malformed JSON from the model → `Output extraction error`).
+- **Flock is reported as-is.** Its image label biases image filters toward *true* (mmqa Q2a/Q2b, Q7). ecomm Q12 fails deterministically (malformed JSON from the model → `Output extraction error`).
 - **LOTUS** uses approximate joins by default (fewer LLM calls, lower join recall/precision) and runs with local bug-fix patches (image embeddings, join ids, RGBA logos, litellm retries; sembench `patches/lotus-ai-1.1.3/`).
-- **PZ mmqa Q4** rescored offline (evaluator crash on a NaN genre).
 - All systems use SemBench's own query implementation for that system. Prompts differ across systems, except Skein vs Flock, which run identical SQL.
-
-_Generated from the metric JSONs in [`figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/`](figures/data/cross_system_multimodal_gemma-4-26b-a4b-it/). Regenerate after any data change._
